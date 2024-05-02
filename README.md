@@ -1,49 +1,335 @@
-<!-- Your HTML template -->
-<nb-select style="float: right;" class="m-0 " id="type" placeholder="Select lead" (selectedChange)="changeLocation($event)">
-    <nb-option value="Prestation Régie">Prestation Régie</nb-option>
-    <nb-option value="Prestation SGABS">Prestation SGABS</nb-option>
-    <nb-option value="Matériel-logiciel">Matériel-logiciel</nb-option>
-    <nb-option value="Prestation Forfait">Prestation Forfait</nb-option>
-</nb-select>
+<nb-card>
+    <nb-card-header class="d-flex justify-content-between mb-4">
+      <div>
+        <h5>Budget Analysis</h5>
+      </div>
+      <div>
+        <div class="row">
+          <div class="col">
+            <nb-select class="my-2" id="application" status="info" placeholder="Select programme" (selectedChange)="changeProgramme($event)" >
+              <nb-option value="Toute la Feuille de route">Toute la Feuille de route</nb-option>
+              <nb-option value="Core Banking System">Core Banking System</nb-option>
+              <nb-option value="Buffer">Buffer</nb-option>
+              <nb-option value="Data and BI">Data and BI</nb-option>
+              <nb-option value="centre de Compètence">centre de Compètence</nb-option>
+            </nb-select>
+          </div>
+     <div class="col">
+            <nb-select class="my-2" id="type"  placeholder="Select projet"(selectedChange)="changeProjet($event)" [disabled]="true" >
+              <nb-option value="allTypeDemande">Projet1</nb-option>
+              <nb-option value="type">Budget Analysis</nb-option>
+            </nb-select>
+          </div>
+          <div class="col">
+              <nb-select class="my-2" id="type"  placeholder="Annee budgitaire" >
+                <nb-option value="allTypeDemande">2023</nb-option>
+                <nb-option value="type">2024</nb-option>
+              </nb-select>
+          </div>
+          <div class="col">
+            <nb-select class="my-2" id="type"  placeholder="Select lead" >
+                <nb-option value="allTypeDemande">lead1</nb-option>
+                <nb-option value="type">lead2</nb-option>
+              </nb-select>
+          </div>
+          <div class="col">
+            <button nbButtonToggle value="Mois" pressed>Rechercher</button>
+          </div>
+        </div>
+      </div>
+    </nb-card-header>
+  
+  </nb-card>
 
-</div>
 
-</nb-card-header>
-
-<nb-card-body>
-
-    <table aria-describedby="app-ref" class="w-100 table-hover bg-white" id="prestation-table">
-        <thead>
+  <div class="col-lg-12 ">
+     <nb-card> 
+        <nb-card-header class="d-flex justify-content-between mb-4"> 
+            <div >
+                 <h5 class="fs-5">Details J/H</h5> 
+            </div> 
+        </nb-card-header> 
+        <nb-card-body> 
+        <table aria-describedby="app-ref" class="w-100 table-hover bg-white"> 
+            <thead > 
+             
             <tr>
-                <th style="text-align: center;" colspan="7" id="changeth">{{ selectedPrestation }}</th>
+            <th style=" background:#fff; border: #fff;"></th> 
+                <th  style="text-align: center;" colspan="2"  >SOL COPRO</th>
+                <th  style="text-align: center;"colspan="2">SOL MMA</th>
+                <th  style="text-align: center;" colspan="2">SOL RETAIL</th>
+                <th  style="text-align: center;"colspan="2"  >SOL RFC</th>
+                <th  style="text-align: center;" colspan="2">SOL RH</th>
+                <th  style="text-align: center;" colspan="2">SOL BI</th>
+                <th  style="text-align: center;" colspan="2"  >SOL PHOENIX</th>
+                <th  style="text-align: center;" colspan="2">SOL OP</th>
+                <th  style="text-align: center;" colspan="2">DIFA</th>
+                <th  style="text-align: center;" colspan="2">ITS</th>
+                <th  style="text-align: center;" colspan="2">GOV IT</th>
+                <th  style="text-align: center;" colspan="2">COO TECH</th>
+                
             </tr>
             <tr>
-                <th>Alloué</th>
-                <th>Engagé</th>
-                <th>Target</th>
-                <th>Consommé</th>
-                <th>Target</th>
-                <th>Facturé</th>
-                <th>Target</th>
+              <th style=" background:#fff; border: #fff;"></th>
+                <th>interne</th>
+                <th>externe</th>
+            
+                <th>interne</th>
+                <th>externe</th>
+            
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
+                
+                <th>interne</th>
+                <th>externe</th>
             </tr>
+         </thead>
+  <tbody>
+    
+
+
+<tr>
+  <td style=" color:gray; "><strong>Initial:</strong>  </td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+</tr>
+<tr>
+  <td style=" color:gray;"><strong>Up To Date:</strong>  </td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+</tr>
+<tr>
+  <td style=" color:gray;"><strong> Atterissage: </strong></td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>{{interne}}</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+  <td>123</td>
+</tr>
+    </tbody>
+  </table>
+        </nb-card-body>
+     </nb-card>
+  </div>
+
+<section class="d-flex justify-content-between" >
+  <div  class="col-lg-6" style="width: 48%;">
+    <nb-card> 
+       <nb-card-header class="d-flex justify-content-between mb-4"> 
+           <div >
+                <h5 class="fs-5">Details CTB</h5> 
+           </div> 
+           
+       </nb-card-header> 
+       <nb-card-body> 
+       <table aria-describedby="app-ref" class="w-100 table-hover bg-white"> 
+           <thead > 
+            
+           <tr>
+           <th style=" background:#fff; border: #fff;"></th> 
+               <th  style="text-align: center;"  >REGIE</th>
+               <th  style="text-align: center;">SGABS</th>
+               <th  style="text-align: center;">LOGICIEL</th>
+               <th  style="text-align: center;">FORFAIT</th>
+               <th  style="text-align: center;" >TOTAL</th>
+               
         </thead>
-        <tbody>
-            <tr>
-                <td>{{ allocated }}</td>
-                <td>{{ engaged }}</td>
-                <td>{{ target1 }}</td>
-                <td>{{ consumed }}</td>
-                <td>{{ target2 }}</td>
-                <td>{{ billed }}</td>
-                <td>{{ target3 }}</td>
-            </tr>
-        </tbody>
-    </table>
+ <tbody>
+   
 
-</nb-card-body>
----------------------------------------------------------------------
-// Your component code
-import { Component, OnInit } from '@angular/core';
+
+<tr>
+ <td style=" color:gray; "><strong>Initial:</strong>  </td>
+ <td>{{REGIE}}</td>
+ <td>{{SGABS}}</td>
+ <td>{{LOGICIEL}}</td>
+ <td>{{FORFAIT}}</td>
+ <td>{{TOTAL}}</td>
+</tr>
+<tr>
+ <td style=" color:gray;"><strong>Up To Date:</strong>  </td>
+ <td>{{REGIE}}</td>
+ <td>{{SGABS}}</td>
+ <td>{{LOGICIEL}}</td>
+ <td>{{FORFAIT}}</td>
+ <td>{{TOTAL}}</td>
+</tr>
+<tr>
+ <td style=" color:gray;"><strong> Atterissage: </strong></td>
+ <td>{{REGIE}}</td>
+ <td>{{SGABS}}</td>
+ <td>{{LOGICIEL}}</td>
+ <td>{{FORFAIT}}</td>
+ <td>{{TOTAL}}</td>
+
+</tr>
+   </tbody>
+ </table>
+ <div class=" text-danger download-btn" style="float:right; position: relative; right:0;margin-top:5%" (click)="downloadImage()">
+  Télécharger
+  <nb-icon class="ms-2" style="line-height: 20px;" icon="download"></nb-icon>
+</div>
+       </nb-card-body>
+     
+    </nb-card>
+  
+    
+ </div>
+
+
+
+ <div class="col-lg-6"  >
+  <nb-card style="height: 389px;"> 
+     <nb-card-header class="d-flex justify-content-between m-0"> 
+         <div style="width:100%" >
+              <h5 class="fs-5">Solution Budgitaire à date </h5> 
+           
+                <nb-select style="float: right;" class="m-0 " id="type" (selectedChange)="changeLocation($event)" value="" selected  >Prestation Régie
+                    <nb-option value="Prestation Régie">Prestation Régie</nb-option>
+                    <nb-option value="Prestation SGABS">Prestation SGABS</nb-option>
+                    <nb-option value="Matériel-logiciel">Matériel-logiciel</nb-option>
+                    <nb-option value="Prestation Forfait">Prestation Forfait</nb-option>
+                  </nb-select>
+            
+           
+         </div> 
+     </nb-card-header> 
+     <nb-card-body> 
+     <table #screen aria-describedby="app-ref" class="w-100 table-hover bg-white" id="prestation-table"> 
+         <thead > 
+          
+         <tr>
+             <th>Alloué</th>
+             <th>Engagé</th>
+             <th>Target</th>
+             <th>Consommé</th>
+             <th>Target</th>
+             <th>Facturé</th>
+             <th>Target</th>
+
+             
+        
+            </tr>
+      </thead>
+      <tbody>
+        <tr>
+            <td>{{ allocated }}</td>
+            <td>{{ engaged }}</td>
+            <td>{{ target1 }}</td>
+            <td>{{ consumed }}</td>
+            <td>{{ target2 }}</td>
+            <td>{{ billed }}</td>
+            <td>{{ target3 }}</td>
+        </tr>
+    </tbody>
+</table>
+    
+   <div class=" text-danger download-btn" style="float:right; position: relative; right:0;margin-top:5%" (click)="downloadImage()">
+      Télécharger
+      <nb-icon class="ms-2" style="line-height: 20px;" icon="download"></nb-icon>
+    </div>
+     </nb-card-body>
+     
+  </nb-card>
+    <div style="display: none;" id="download">
+              <img #canvas>
+              <a #downloadLink></a>
+            </div>
+    </div>
+</section>
+
+
+
+--------------------------------------------------------------------------------------------------
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import html2canvas from 'html2canvas';
 
 @Component({
   selector: 'app-budget-analysis',
@@ -51,33 +337,89 @@ import { Component, OnInit } from '@angular/core';
   styleUrls: ['./budget-analysis.component.scss']
 })
 export class BudgetAnalysisComponent implements OnInit {
-  selectedPrestation!: string;
-  allocated: number = 0;
-  engaged: number = 0;
-  target1: number = 0;
-  consumed: number = 0;
-  target2: number = 0;
-  billed: number = 0;
-  target3: number = 0;
+  @ViewChild("screen") screen!: ElementRef;
+  @ViewChild("canvas") canvas!: ElementRef;
+  @ViewChild("downloadLink") downloadLink!: ElementRef;
+  selectedPrestation !: string;
 
+    allocated = 100; 
+    engaged = 80;
+    target1= 90;
+    consumed=100;
+    target2=45;
+    billed=5687;
+    target3=34567
+
+
+  REGIE : number=20000000; 
+  SGABS: number= 300000000; 
+  LOGICIEL: number= 56898; 
+  FORFAIT: number= 7357456;
+  TOTAL: number= 976385; 
+  interne: number= 345678;
+  externe: number = 987654.
+  changeProgramme(selected: string):void{
+    if(selected ==='centre de Compètence'){
+      this.changeProjet('Marche public')
+    }
+  }
+  changeProjet(selected: string):void{}
   changeLocation(selected: string): void {
     this.selectedPrestation = selected;
-    // Here you should update the values of allocated, engaged, target1, consumed, target2, billed, and target3
-    // based on the selected prestation
-    // For example:
     if (selected === 'Prestation Régie') {
-      this.allocated = 100;
+       this.allocated = 100; 
       this.engaged = 80;
-      // Update other values similarly
-    } else if (selected === 'Prestation SGABS') {
-      // Assign values for this option
+      this.target1= 90;
+      this.consumed=100;
+      this.target2=45;
+      this.billed=5687;
+      this.target3=34567
     }
-    // Repeat the same for other options
+     
+       
+    else if (selected === 'Prestation SGABS') {
+      this.allocated = 123600; 
+      this.engaged = 809876;
+      this.target1= 9056789;
+      this.consumed=100;
+      this.target2=45;
+      this.billed=5687;
+      this.target3=34567
+    }
+    else if (selected === 'Matériel-logiciel') {
+      this.allocated = 123456789000; 
+      this.engaged = 80;
+      this.target1= 90;
+      this.consumed=100;
+      this.target2=45;
+      this.billed=5687;
+      this.target3=34567
   }
+  else if (selected === 'Prestation Forfait') {
+    this.allocated = 102345678900; 
+    this.engaged = 80;
+    this.target1= 90;
+    this.consumed=100;
+    this.target2=45;
+    this.billed=5687;
+    this.target3=34567
+  }
+}
+downloadImage() {
+ 
+  html2canvas(this.screen.nativeElement).then(canvas => {
+    this.canvas.nativeElement.src = canvas.toDataURL();
+    this.downloadLink.nativeElement.href = canvas.toDataURL("image/png");
+    this.downloadLink.nativeElement.download = "liste_projets.png";
+    this.downloadLink.nativeElement.click();
+  });
+}
 
   constructor() { }
 
   ngOnInit(): void {
-    // Initialize default values or fetch initial data here if needed
   }
+
 }
+  
+
