@@ -8,30 +8,31 @@
           <div class="col">
             <nb-select class="my-2" id="application" status="info" placeholder="Select programme" (selectedChange)="changeProgramme($event)" >
               <nb-option value="Toute la Feuille de route">Toute la Feuille de route</nb-option>
-              <nb-option value="Core Banking System">Core Banking System</nb-option>
+              <nb-option *ngFor="let prog of programmes" [value]="prog">{{prog}}</nb-option>
+              <!-- <nb-option value="Core Banking System">Core Banking System</nb-option>
               <nb-option value="Buffer">Buffer</nb-option>
               <nb-option value="Data and BI">Data and BI</nb-option>
-              <nb-option value="centre de Compètence">centre de Compètence</nb-option>
+              <nb-option value="centre de Compètence">centre de Compètence</nb-option> -->
             </nb-select>
           </div>
      <div class="col">
-            <nb-select class="my-2" id="type"  placeholder="Select projet"(selectedChange)="changeProjet($event)" [disabled]="true" >
-              <nb-option value="allTypeDemande">Projet1</nb-option>
-              <nb-option value="type">Budget Analysis</nb-option>
+            <nb-select class="my-2" id="type"  placeholder="Select projet" [disabled]= "!selectedProgramme" (selectedChange)="changeProjet($event)" >
+              <nb-option *ngFor="let projet of filteredProjets" [value]="projet.name">{{projet.name}}</nb-option>
             </nb-select>
+          </div>
+          <div class="col">
+            <nb-select class="my-2" id="type"  placeholder="Select lead" [disabled]= "!selectedProgramme" (selectedChange)="changeLead($event)" >
+                <nb-option *ngFor="let lead of filteredLeads" [value]="lead.name">{{lead.name}}</nb-option>
+              </nb-select>
           </div>
           <div class="col">
               <nb-select class="my-2" id="type"  placeholder="Annee budgitaire" >
                 <nb-option value="allTypeDemande">2023</nb-option>
                 <nb-option value="type">2024</nb-option>
+                <nb-option value="type">2025</nb-option>
               </nb-select>
           </div>
-          <div class="col">
-            <nb-select class="my-2" id="type"  placeholder="Select lead" >
-                <nb-option value="allTypeDemande">lead1</nb-option>
-                <nb-option value="type">lead2</nb-option>
-              </nb-select>
-          </div>
+         
           <div class="col">
             <button nbButtonToggle value="Mois" pressed>Rechercher</button>
           </div>
@@ -327,7 +328,7 @@
 
 
 
---------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import html2canvas from 'html2canvas';
 
@@ -341,6 +342,35 @@ export class BudgetAnalysisComponent implements OnInit {
   @ViewChild("canvas") canvas!: ElementRef;
   @ViewChild("downloadLink") downloadLink!: ElementRef;
   selectedPrestation !: string;
+  selectedProgramme : string ='';
+  selectedProjets : string ='';
+  selectedLead : string='';
+  programmes: string[] = ['core baning systeme', 'BUFFER','CENTRE DE COMPETENCE'];
+  projets:{name: string, program : string} [] =[
+    {name:'Projet1', program:'core baning systeme'},
+    {name:'Projet2', program:'core baning systeme'},
+    {name:'Projet3', program:'core baning systeme'},
+    {name:'Projet4', program:'BUFFER'},
+    {name:'Projet5', program:'BUFFER'},
+    {name:'Projet6', program:'CENTRE DE COMPETENCE'},
+   
+    ];
+    leads: {name: string, program : string} [] =[
+      {name:'lead1', program:'core baning systeme'},
+      {name:'lead2', program:'core baning systeme'},
+      {name:'lead3', program:'core baning systeme'},
+      {name:'lead4', program:'BUFFER'},
+      {name:'lead5', program:'BUFFER'},
+      {name:'lead6', program:'CENTRE DE COMPETENCE'},
+    ];
+  filteredProjets: {name: string, program : string} [] = [];
+  filteredLeads: {name: string, program : string} [] = [];
+  changeLead(selected: string): void{
+    this.selectedProgramme=selected;
+    this.selectedLead='';
+    this.filteredLeads= this.leads.filter(lead=>lead.program ===selected)
+       this.selectedLead='';
+  }
 
     allocated = 100; 
     engaged = 80;
@@ -357,13 +387,17 @@ export class BudgetAnalysisComponent implements OnInit {
   FORFAIT: number= 7357456;
   TOTAL: number= 976385; 
   interne: number= 345678;
-  externe: number = 987654.
-  changeProgramme(selected: string):void{
-    if(selected ==='centre de Compètence'){
-      this.changeProjet('Marche public')
-    }
+  externe: number = 987654;
+  changeProjet(selected: string): void{
+    this.selectedProjets = selected;
   }
-  changeProjet(selected: string):void{}
+  changeProgramme(selected: string):void{
+    this.selectedProgramme=selected;
+    this.selectedProjets='';
+    this.filteredProjets= this.projets.filter(projet =>projet.program ===selected);
+       this.selectedProjets='';
+    
+  }
   changeLocation(selected: string): void {
     this.selectedPrestation = selected;
     if (selected === 'Prestation Régie') {
