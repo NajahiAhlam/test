@@ -1,54 +1,47 @@
-	Qui peut initier et convertir un projet ? est ce qu’il y a un délai bien précis pour convertir le projet ? sur quels critères se base-t-il  pour convertir ? En cas de refus est ce qu’un commentaire de refus envoyer ou bien un rapport scanner ?
+Voici les questions reformulées :
 
-	Lors d’initiation d’un projet est ce que les leads choisis sont en relation avec le programme ou le projet ? 
+1. Qui est autorisé à lancer et convertir un projet ? Existe-t-il un délai précis pour cette conversion ? Sur quels critères se base-t-on pour effectuer cette conversion ? En cas de refus, est-ce qu'un commentaire de refus est envoyé ou un rapport est-il scanné ?
 
-	Est-ce que on peut choisir plusieurs leads ?
+2. Lors de l'initiation d'un projet, les leads sélectionnés sont-ils en lien avec le programme ou le projet ?
 
-	Pouvez-vous nous s’expliquer plus en détails le rôle de lead et programme dans le projet ?
+3. Est-il possible de choisir plusieurs leads pour un projet ?
 
-	Est-ce que le choix de lead va affecter le budget ?
+4. Pouvez-vous expliquer en détail les rôles des leads et du programme dans un projet ?
 
-	Merci de nous envoyer le formulaire de calcule Budget CTB (Régie, Contrib SGABS, Forfait, Logiciel, Matériel)
-CTB (Hors- Masse salariale Hors SGABS)
-CTB (Hors Masse salariale_yc SGABS)
-CTB (yc Masse salariale Hors SGABS)
-CTB 2021 (yc Masse salariale yc SGABS)
-Business Delivery, COO Tech
+5. Est-ce que le choix des leads impacte le budget du projet ?
 
-	Pouvez-vous nous s’expliquer comment s’utiliser trajectoire de clôture et capacity planning et comment il vous aide votre métier 
+6. Pouvez-vous nous envoyer le formulaire de calcul du budget pour les différents types de coûts (Régie, Contrib SGABS, Forfait, Logiciel, Matériel) ainsi que des explications détaillées sur son utilisation ?
 
-	Pouvez-vous nous s’expliquer la gestion budget filiale et quel cas vous utiliser cette interface 
+7. Pouvez-vous nous expliquer en détail comment utiliser la trajectoire de clôture et le capacity planning et en quoi cela vous aide dans votre travail ?
 
-	Après convertir un projet il y a des critères pour la mise a jour et qui notifier après affecter une modification 
+8. Pouvez-vous nous expliquer la gestion du budget filiale et dans quels cas vous utilisez cette interface ?
 
-	C’est quoi SDI et Top 15 ?
+9. Quels sont les critères à prendre en compte pour mettre à jour un projet après sa conversion et qui est notifié après l'affectation d'une modification ?
 
-	Pouvez-vous nous s’expliquer l’interface impacts financiers, comment ces champs vous aider dans votre métier ? Vous base sur quoi dans le remplissage de ces champs
+10. Qu'est-ce que SDI et Top 15 ?
 
-	C’est quoi Score Projet
+11. Pouvez-vous nous expliquer l'interface des impacts financiers, comment ces champs vous aident-ils dans votre travail et sur quoi vous basez-vous pour les remplir ?
 
-	C’est quoi les différents états de budget et cet quoi ces rôles dans l’application
+12. Qu'est-ce que le Score Projet ?
 
+13. Quels sont les différents états de budget et quels sont leurs rôles dans l'application ?
 
-	Pouvez-vous nous s’expliquer l’interface Données Sciforma
+14. Pouvez-vous nous expliquer l'interface des Données Sciforma ?
 
-	Pouvons-nous s’expliquer la gestion des alertes et quand utiliser et comment affecter le projet et quant ajouter une action d’atténuation
+15. Comment gérez-vous les alertes et quand les utilisez-vous, ainsi que comment affectez-vous le projet et ajoutez-vous des actions d'atténuation ?
 
-	Pouvez-vous nous s’expliquer l’interface Gestion Dashboard COO (Vision macro, Alertes, Lots, Trajectoire de clôture) et comment cette interface vous aider et qui consulter ce tableau de bord
+16. Pouvez-vous nous expliquer l'interface du Gestion Dashboard COO (Vision macro, Alertes, Lots, Trajectoire de clôture) et comment elle vous aide, ainsi que qui consulte ce tableau de bord ?
 
-	Quels sont les critères pour initier un transfert ? Par exemple, si une entité a besoin de 10000DH et qu’une autre a plus de 10000DH, peut-elle lui transférer tout son budget ou seulement ce dont elle a besoin ?
+17. Quels sont les critères pour initier un transfert de budget ? Par exemple, si une entité a besoin de 10000DH et qu'une autre en a plus de 10000DH, peut-elle lui transférer tout son budget ou seulement ce dont elle a besoin ?
 
+18. Quels critères sont utilisés pour valider les PPM et P2P ? Qui effectue la validation au niveau de contrôle de gestion ? En cas de refus, est-ce qu'un commentaire de refus est envoyé ou un rapport est scanné ? Existe-t-il un délai précis pour la validation PPM et P2P ?
 
-	Quels critères sont utiliser pour la valider PPM et P2P ? et quoi les 2 niveau da validation de contrôle de gestion ? En cas de refus est ce qu’un commentaire de refus envoyer ou bien un rapport scanner ? Et est ce qu’il y a un délai bien précis pour la validation PPM et P2P ?
+19. Comment utiliser l'Exercice Atterrissage et en quoi cela vous aide-t-il dans votre travail ? Que se passe-t-il après avoir soumis un projet et qui peut effectuer ces actions ?
 
-	Comment utiliser Exercice Atterrissage ? et comment cela vous aide-t-il dans votre métier et après avoir soumis un projet, que s'est-il passé ? et qui peut effectuer ces actions ?
+20. Est-il possible de remplir d'autres champs qui n'ont pas été renseignés lors de l'initiation ou de la conversion d'un projet ? Pouvez-vous nous envoyer le formulaire de calcul de cette interface ?
 
-	Est-il possible de remplir d'autres champs qui n'ont pas été renseignés lors d’initier ou convertir un projet ?
-Merci de nous envoyer le formulaire de calcul de cette interface
+21. Qui valide une prévision et quels critères sont utilisés pour effectuer une modification ? Pouvez-vous expliquer en détail cette interface de validation et les différentes actions qui existent ?
 
-	Qui valide une prévision et quels critères pour effectuer une modification ? et pouvez-vous s'il vous plaît expliquer en détail cette interface de validation et les différentes actions qui existent
+22. Qui initie la Ligne de fonctionnement et est-ce que l'applicatif choisi est en relation avec le fournisseur ?
 
-
-	Qui initier Ligne de fonctionnement et est ce qu’applicatif choisie en relation avec le fournisseur ?
-
-	Pouvez-vous nous s’expliquer Revoir ligne fonctionnement, trajectoire budgétaire ? et qui effectuer ces différentes actions ?
+23. Pouvez-vous nous expliquer en détail Revoir la ligne de fonctionnement et la trajectoire budgétaire ? Qui effectue ces différentes actions ?
