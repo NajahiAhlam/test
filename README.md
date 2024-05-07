@@ -1,11 +1,4 @@
-
-	Qui initier un transfert-Frais généraux ? et quels critères se base pour effectuer un transfert ? et qui valide ce transfert ? En cas de refus est ce qu’un commentaire de refus envoyer ou bien un rapport scanner ? Et est ce qu’il y a un délai bien précis ?
-Quelles métriques à mettre en avant de cette rebrique ?
-
-	Pouvez-vous nous s’expliquer : initier fiche copro/mise à jour/ Valider/ Consulte/Etablir compte rendu copro ? Sur qui mener ces actions et sur quels critères, comment cette rebrique vous aidera dans votre métier ?
-
-
-	Pouvez-vous nous s’expliquer Rapport financier et comment vous aidera dans votre métier ?
-
-
-	Veuillez nous faire savoir si vous devez ajouter de nouvelles métriques ou modifier des métriques existantes
+Qui est responsable d'initier un transfert de frais généraux ? Sur quels critères se base-t-on pour effectuer un tel transfert ? Qui valide ce transfert ? En cas de refus, est-ce qu'un commentaire de refus est envoyé ou un rapport est scanné ? Y a-t-il un délai spécifique à respecter ? Quelles métriques doivent être mises en avant dans cette rubrique ?
+Pouvez-vous nous expliquer les actions à entreprendre pour : initier une fiche copro/mettre à jour/valider/consulter/établir un compte rendu copro ? Sur quels critères ces actions sont-elles menées et comment cette rubrique vous aide-t-elle dans votre métier ?
+Pourriez-vous nous expliquer en quoi consiste un rapport financier et comment il vous aide dans votre métier ?
+Merci de nous indiquer si vous devez ajouter de nouvelles métriques ou modifier des métriques existantes.
