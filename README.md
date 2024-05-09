@@ -1,3 +1,18 @@
+5 unchanged chunks
+
+Build at: 2024-05-09T09:31:15.181Z - Hash: a7d0f13fe5082555 - Time: 8901ms
+
+./src/app/pages/gestion-utilisateur/gestion-utilisateur.module.ts:5:0-80 - Error: Module not found: Error: Package path ./components/shared/shared.module is not exported from package C:\Users\NAJAHIA\Documents\cockpitfront\cockpit-front\node_modules\@nebular\theme (see exports field in C:\Users\NAJAHIA\Documents\cockpitfront\cockpit-front\node_modules\@nebular\theme\package.json)
+
+
+
+× Failed to compile.
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------
 <nb-card accent="primary" class="">
     <ng-container *ngIf="(data$ | async) as result" [ngSwitch]="result.dataState">
       <ng-container *ngSwitchCase="DataStateEnum.LOADING">
