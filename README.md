@@ -431,3 +431,23 @@ export class DialogContratComponent {
   }
 
 }
+--------------------------------------
+initForm2(contrat?: Contrat): void {
+  this.formGroup1 = this.fb.group({
+    natureContrat: [contrat?.natureContrat || '', Validators.required],
+    autreNatureContrat: [{ value: contrat?.autreNatureContrat || '', disabled: true }],
+    type: [contrat?.type || ''],
+    leadContrat: [contrat?.leadContrat || ''],
+    status: [contrat?.status || '']
+  });
+
+  // Enable/disable autreNatureContrat based on the initial value of natureContrat
+  this.formGroup1.get('natureContrat')?.valueChanges.subscribe(value => {
+    if (value === NatureContrat.Autre) {
+      this.formGroup1.get('autreNatureContrat')?.enable();
+    } else {
+      this.formGroup1.get('autreNatureContrat')?.disable();
+    }
+  });
+}
+
