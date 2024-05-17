@@ -1,583 +1,433 @@
-5 unchanged chunks
 
-Build at: 2024-05-09T09:31:15.181Z - Hash: a7d0f13fe5082555 - Time: 8901ms
+<nb-tabset style="width: 700px;">
 
-./src/app/pages/gestion-utilisateur/gestion-utilisateur.module.ts:5:0-80 - Error: Module not found: Error: Package path ./components/shared/shared.module is not exported from package C:\Users\NAJAHIA\Documents\cockpitfront\cockpit-front\node_modules\@nebular\theme (see exports field in C:\Users\NAJAHIA\Documents\cockpitfront\cockpit-front\node_modules\@nebular\theme\package.json)
+  <nb-tab tabTitle="Données Fournisseur" badgeDot badgeStatus="warning" >
+    <form autocomplete="off" [formGroup]="formGroup">
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Fournisseur: <span class="text-danger">*</span> </label>
+        </div>
+        <div class="w-50 ">
+          <nb-select
+            fullWidth
+            id="fournisseur"
+            placeholder="Sélectionnez le fournisseur approprié"
+            formControlName="fournisseur"
+            selectrequired
+          >
+            <nb-option *ngFor="let param of fournisseurs | async" [value]="param.id">
+              {{param.nom}}
+            </nb-option>
+          </nb-select>
+        
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Commanditaire: <span class="text-danger">*</span> </label>
+        </div>
+        <div class="w-50 ">
+          <nb-select
+            fullWidth
+            id="Commanditaire"
+            formControlName="commanditaire"
+            placeholder="Sélectionnez le Commanditaire approprié"
+            selectrequired
+          >
+            <nb-option *ngFor="let param of users | async" [value]="param.id">
+              {{param.firstName}}
+            </nb-option>
+          </nb-select>
+        
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Correspondant:</label>
+        </div>
+        <div class="w-50">
+          <input
+              fullWidth
+              class=" form-control text-uppercase"
+              nbInput
+              id="correspondant"
+              formControlName="correspondant"
+          />
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Date Validite KYS:  </label>
+        </div>
+        <div class="w-50">
+          <input nbInput class="form-control" type="date"
+          id="dateValidateKYS"
+          autocomplete="off"
+          formControlName="dateValidateKYS"
+          >
+        </div>
+      </div>
 
+    </form>
 
-
-× Failed to compile.
-
-
-
-
-
----------------------------------------------------------------------------------------------------------------------
-<nb-card accent="primary" class="">
-    <ng-container *ngIf="(data$ | async) as result" [ngSwitch]="result.dataState">
-      <ng-container *ngSwitchCase="DataStateEnum.LOADING">
-        <!-- <rpa-portal-loading></rpa-portal-loading> -->
-      </ng-container>
-      <ng-container *ngSwitchCase="DataStateEnum.ERROR">
-        <nb-card-body>
-          <div class="alert alert-danger" role="alert">
-            {{ result.errorMessage }}
-          </div>
-        </nb-card-body>
-      </ng-container>
-      <ng-container *ngSwitchCase="DataStateEnum.LOADED">
-        <nb-card-header class="d-flex flex-row justify-content-between">
-          <h5 class="title-animation title-heading text-uppercase my-auto p-2">Gestion Utilisateurs</h5>
-          <div>
-            <div class="listfetch">Éléments par page :
-              <nb-select size="small" placeholder="Élément par page" selected="{{elementPerPage}}"
-                         (selectedChange)="onElementPerPageChange($event)">
-                <nb-option value="10">10</nb-option>
-                <nb-option value="20">20</nb-option>
-                <nb-option value="50">50</nb-option>
-                <nb-option value="100">100</nb-option>
-              </nb-select>
-            </div>
-          </div>
-        </nb-card-header>
-        <nb-card-body>
-          <table class="table">
-            <thead>
-            <tr class="bg-danger fw-bold text-light border border-primary">
-              <td (click)="sortBy('matricule')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Matricule
-                  </div>
-                  <div [ngClass]="(sortValue=='matricule')? 'text-white':'d-none'">
-                          <span *ngIf="sortDirection">
-                          <nb-icon icon="arrow-up-line"></nb-icon>
-                          </span>
-                    <span *ngIf="!sortDirection">
-                          <nb-icon icon="arrow-down-line"></nb-icon>
-                          </span>
-                  </div>
+  </nb-tab>
   
-                </div>
-              </td>
-              <td (click)="sortBy('lastName')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Nom
-                  </div>
-                  <div [ngClass]="(sortValue=='lastName')? 'text-white':'d-none'">
-                            <span *ngIf="sortDirection">
-                            <nb-icon icon="arrow-up-line"></nb-icon>
-                            </span>
-                    <span *ngIf="!sortDirection">
-                            <nb-icon icon="arrow-down-line"></nb-icon>
-                            </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td (click)="sortBy('firstName')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Prénom
-                  </div>
-                  <div [ngClass]="(sortValue=='firstName')? 'text-white':'d-none'">
-                          <span *ngIf="sortDirection">
-                          <nb-icon icon="arrow-up-line"></nb-icon>
-                          </span>
-                    <span *ngIf="!sortDirection">
-                          <nb-icon icon="arrow-down-line"></nb-icon>
-                          </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td (click)="sortBy('email')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Email
-                  </div>
-                  <div [ngClass]="(sortValue=='email')? 'text-white':'d-none'">
-                        <span *ngIf="sortDirection">
-                        <nb-icon icon="arrow-up-line"></nb-icon>
-                        </span>
-                    <span *ngIf="!sortDirection">
-                        <nb-icon icon="arrow-down-line"></nb-icon>
-                        </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td (click)="sortBy('enabled')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Statut
-                  </div>
-                  <div [ngClass]="(sortValue=='enabled')? 'text-white':'d-none'">
-                          <span *ngIf="sortDirection">
-                          <nb-icon icon="arrow-up-line"></nb-icon>
-                          </span>
-                    <span *ngIf="!sortDirection">
-                          <nb-icon icon="arrow-down-line"></nb-icon>
-                          </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td (click)="sortBy('dateCreation')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Date création
-                  </div>
-                  <div [ngClass]="(sortValue=='dateCreation')? 'text-white':'d-none'">
-                          <span *ngIf="sortDirection">
-                          <nb-icon icon="arrow-up-line"></nb-icon>
-                          </span>
-                    <span *ngIf="!sortDirection">
-                          <nb-icon icon="arrow-down-line"></nb-icon>
-                          </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td (click)="sortBy('dateStatus')" class=" p-3 border border-end-white">
-                <div class="d-flex justify-content-between">
-                  <div>
-                    Date mise à jour
-                  </div>
-                  <div [ngClass]="(sortValue=='dateStatus')? 'text-white':'d-none'">
-                          <span *ngIf="sortDirection">
-                          <nb-icon icon="arrow-up-line"></nb-icon>
-                          </span>
-                    <span *ngIf="!sortDirection">
-                          <nb-icon icon="arrow-down-line"></nb-icon>
-                          </span>
-                  </div>
-  
-                </div>
-              </td>
-              <td colspan="2" class=" p-3 border border-end-white">Actions</td>
-            </tr>
-            </thead> 
-          <tbody>
-            <tr>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input
-                    autocomplete="off"
-                    formControlName="matricule"
-                    class="form-control"
-                    placeholder="Matricule"
-                    (keyup)="onSearch()"
-                  >
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input
-                    autocomplete="off"
-                    formControlName="lastName"
-                    class="form-control"
-                    placeholder="Nom"
-                    (keyup)="onSearch()"
-                  >
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input
-                    autocomplete="off"
-                    formControlName="firstName"
-                    class="form-control"
-                    placeholder="Prénom">
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input
-                    autocomplete="off"
-                    formControlName="email"
-                    class="form-control"
-                    placeholder="Email">
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <nb-select placeholder="Statut" formControlName="enabled" fullWidth>
-                    <nb-option value="true">Activé</nb-option>
-                    <nb-option value="false">Désactivé</nb-option>
-                  </nb-select>
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input nbInput class="form-control" placeholder="Date création"
-                         autocomplete="off"
-                         [nbDatepicker]="dateCreationInput">
-                  <nb-rangepicker (rangeChange)=fetchUserByCreateDate($event) format="dd/MM/yyyy"
-                                  #dateCreationInput></nb-rangepicker>
-  
-                </form>
-              </td>
-              <td>
-                <form [formGroup]="searchFormGroup">
-                  <input nbInput class="form-control" placeholder="Date mise à jour"
-                         autocomplete="off"
-                         [nbDatepicker]="dateStatutInput">
-                  <nb-rangepicker (rangeChange)=fetchUserByStatusDate($event) format="dd/MM/yyyy"
-                                  #dateStatutInput></nb-rangepicker>
-  
-                </form>
-              </td>
-              <td>
-                <a (click)="onNewUtilisateur()" class="text-decoration-none float-right">
-                  <button type="button" class="d-flex btn btn-dark mr-3">
-                    <i class="ri-user-add-line"></i>
-                    <div class="addNewUser">Ajouter</div>
-                  </button>
-                </a></td>
-            </tr>
-            <tr *ngFor="let c of result?.data?.content" class="text-truncate"
-            >
-              <td class="px-4 ">{{c.matricule}}</td>
-              <td class="px-4 text-uppercase">{{c.lastName}}</td>
-              <td class="px-4 text-capitalize">{{c.firstName}}</td>
-              <td class="px-4 ">{{c.email}}</td>
-              <td class="px-4 ">{{c.enabled === true ? 'Activé' : 'Désactivé'}}</td>
-              <td class="px-4 ">{{c.dateCreation | date:"dd/MM/yyyy HH:mm"}}</td>
-              <td class="px-4 ">{{c.dateModification| date:"dd/MM/yyyy HH:mm"}}</td>
-  
-              <td class="editIcon text-center">
-                <nb-icon icon="edit-line" style="color: rgb(255, 187, 0)" (click)="onEditUtilisateur(c.id)"></nb-icon>
-                <nb-icon icon="spam-3-line" style="color: red" (click)="showConfirmationModal(c.id ?? -1)"></nb-icon>             
-              </td>
-            </tr>
-            </tbody> 
-          </table>
-        </nb-card-body>
-        <nb-card-footer class="d-flex justify-content-center">
-          <ul class="list-group list-group-horizontal">
-            <li class="list-group-item">
-              <button (click)="onPageNumberChange(0)"
-                      [ngClass]="result?.data?.first ? 'text-gray disabled border-light' : 'text-danger'" class="btn">
-                <span><<</span>
-              </button>
-            </li>
-            <li class="list-group-item">
-              <button (click)="onPageNumberChange(pageNumber-1)"
-                      [ngClass]="result?.data?.first ? 'text-gray disabled border-light' : 'text-danger'" class="btn">
-                <nb-icon icon="arrow-left-line"></nb-icon>
-              </button>
-            </li>
-            <li class="list-group-item text-truncate"
-                *ngFor='let nbr of toTotalPages(result?.data!.totalPages <9 ? result?.data!.totalPages : 9) ;let i = index'>
-  
-              <span
-                *ngIf="(result?.data!.number <= result?.data!.totalPages-9) || (result?.data!.totalPages <9);else printlastPages">
-                <button (click)="onPageNumberChange(result?.data!.number <= 5 ? i : result?.data!.number-4+i)"
-                        [ngClass]="pageNumber==(result?.data!.number <= 5 ? i : result?.data!.number-4 + i) ?'text-light bg-danger' : 'text-danger'"
-                        class="btn ">
-                  {{(result?.data!.number <= 5 ? 1 + i : result?.data!.number - 3 + i)}}
-                </button>
-              </span>
-              <ng-template #printlastPages>
-                <button (click)="onPageNumberChange(result?.data!.totalPages - 9 + i)"
-                        [ngClass]="pageNumber==(result?.data!.totalPages - 9 + i) ?'text-light bg-danger' : 'text-danger'"
-                        class="btn ">
-                  {{(result?.data!.totalPages - 8 + i)}}
-                </button>
-              </ng-template>
-  
-            </li>
-            <li class="list-group-item">
-              <button (click)="onPageNumberChange(pageNumber+1)"
-                      [ngClass]="result?.data?.last ? 'text-gray disabled border-light' : 'text-danger'" class="btn">
-                <nb-icon icon="arrow-right-line"></nb-icon>
-              </button>
-            </li>
-            <li class="list-group-item">
-              <button (click)="onPageNumberChange(result?.data!.totalPages -1 )"
-                      [ngClass]="result?.data?.last ? 'text-gray disabled border-light' : 'text-danger'" class="btn">
-                <span>>></span>
-              </button>
-            </li>
-          </ul>
-        </nb-card-footer>
-  
-  
-      </ng-container>
-    </ng-container>
-  </nb-card>
+  <nb-tab tabTitle="Données Contrat" badgeDot badgeStatus="warning">
+    <form [formGroup]="formGroup1">
+<div class="d-flex justify-content-around my-2 mx-auto p-2">
+    </div>
+    <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      <div class="w-50">
+        <label class="col-form-label my-auto">Nature Contrat: <span class="text-danger">*</span> </label>
+      </div>
+      <div class="w-50">
+        <nb-select
+          fullWidth
+          id="natureContrat"
+          placeholder="Sélectionnez  nature Contrat approprié"
+          selectrequired
+          formControlName="natureContrat"
+        >
+          <nb-option >
+            plus
+          </nb-option>
+        </nb-select>
+      </div>
+    </div>
+    <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      <div class="w-50">
+        <label class="col-form-label my-auto" >Type Contrat: </label>
+      </div>
+      <div class="w-50">
+        <nb-select
+          fullWidth
+          id="type"
+          placeholder="Sélectionnez le type approprié"
+          formControlName="type"
+        >
+          <nb-option >
+            plus
+          </nb-option>
+        </nb-select>
+      </div>
+    </div>
 
 
-  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  import { Component } from '@angular/core';
-import {catchError, debounceTime, map, Observable, of, startWith} from "rxjs";
-import {AppDataState, DataStateEnum} from "../../../../@core/state";
-import {
-  NbCalendarRange,
-  NbGlobalPhysicalPosition,
-  NbToastrService,
-  NbWindowControlButtonsConfig,
-  NbWindowRef,
-  NbWindowService
-} from "@nebular/theme";
-import {FormBuilder, FormGroup} from "@angular/forms";
-import {UtilsService} from "../../../../@core/services/utils.service";
-import {Router} from "@angular/router";
-import {GestionUtilisateurService} from "../../service/gestion-utilisateur.service";
-import {SearchUserCriteria} from "../../../../@core/models/search-user-criteria.model";
-import {SearchUserResponse} from "../../../../@core/models/search-user-response.model";
-import {DialogCrudUsersComponent} from "../../component/dialog-crud-users/dialog-crud-users.component";
-import { id } from 'date-fns/locale';
-import {CockpitRole, User} from "../../../../@core/models/user.model";
-//import { ConfirmActionComponent } from 'src/app/_shared/shared/components/confirm-action/confirm-action.component';
-import { ThemeService } from 'ng2-charts';
+    
+    <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      <div class="w-50">
+        <label class="col-form-label my-auto">Lead Contrat:</label>
+      </div>
+      <div class="w-50 ">
+        <nb-select
+          fullWidth
+          id="leadContrat"
+          placeholder="Sélectionnez le lead approprié"
+          formControlName="leadContrat"
+         
+        >
+          <nb-option value="Achat delegue">
+            Achat delegue
+          </nb-option>
+          <nb-option value="Achat" >
+            Achat 
+          </nb-option>
+        </nb-select>
+      </div>
+    </div>
+    <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      <div class="w-50">
+        <label class="col-form-label my-auto" >Status Contrat:</label>
+      </div>
+      <div class="w-50 ">
+        <nb-select
+          fullWidth
+          id="status"
+          placeholder="Sélectionnez le status approprié"
+          formControlName="status"
+          
+        >
+          <nb-option >
+            En cours
+          </nb-option>
+        </nb-select>
+      </div>
+    </div>
+    </form>
+    
+ 
+  </nb-tab>
+  <nb-tab tabTitle="Détails Contrat" badgeDot badgeStatus="success">
+    <form [formGroup]="formGroup2">
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Date signature: </label>
+        </div>
+        <div class="w-50">
+          <input nbInput class="form-control" type="date"
+          id="dateSignatureContrat"
+          autocomplete="off"
+          formControlName="dateSignatureContrat"
+          >
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto" >Date validité: </label>
+        </div>
+        <div class="w-50">
+          <input nbInput type="date" class="form-control"
+          id="dateValiditeContrat"
+          autocomplete="off"
+          formControlName="dateValiditeContrat"
+          >
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Délais Paiement: </label>
+        </div>
+        <div class="w-50">
+          <input nbInput class="form-control"
+          id="delaisPaiement"
+          autocomplete="off"
+          formControlName="delaisPaiement"
+          >
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto" >Montant HT: </label>
+        </div>
+        <div class="w-50">
+          <input nbInput class="form-control"
+          id="montantHt"
+          autocomplete="off"
+          formControlName="montantHt"
+          >
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto" >devise: </label>
+        </div>
+        <div class="w-50 ">
+          <nb-select
+            fullWidth
+            id="devise"
+            placeholder="Sélectionnez le lead approprié"
+            selectrequired
+            formControlName="devise"
+          >
+            <nb-option >
+              En cours
+            </nb-option>
+            <nb-option >
+              Echu
+            </nb-option>
+          </nb-select>
+        </div>
+      </div>
+      <div class="d-flex justify-content-around my-2 mx-auto p-2">
+        <div class="w-50">
+          <label class="col-form-label my-auto">Contrat Scanné:  </label>
+        </div>
+        <div class="w-50">
+          <input id="file" nbInput type="file" class="form-control"
+          autocomplete="off"
+          formControlName="file"
+          />
+        </div>
+      </div>
+    </form> 
+  </nb-tab>
+ 
+</nb-tabset>
 
+<div class="form-row d-flex justify-content-end">
+  <div class="form-group px-2 d-flex">
+    <button type="push" style="color: #ff3d71; background-color: #ff3d7141; border-color: #ff3d71;" nbButton outline status="danger" class="mx-3"
+            (click)="onReset()">
+      Réinitialiser
+    </button>
+
+    <button type="submit" class="d-flex btn btn-dark mr-3">
+      <div (click)="onSave()" class="editUser">Confirmer</div>
+    </button>
+ </div> 
+</div>
+
+-------------------------------------------------------------------------------------------
+import {Component, Input, OnInit} from '@angular/core';
+import {FormBuilder, FormGroup, Validators} from "@angular/forms";
+import { UtilsService } from 'src/app/@core/services/utils.service';
+import {NbToastrService, NbWindowRef} from "@nebular/theme";
+import { UserApiService } from 'src/app/@core/services/user-api.service';
+import {Observable, tap} from "rxjs";
+import { GestionContratService } from '../../services/gestion-contrat.service';
+import { Contrat, Status } from 'src/app/@core/models/contrat.model';
+import { Fournisseur } from 'src/app/@core/models/fournisseur.mode';
+import { GestionFournisseurService } from 'src/app/pages/gestion-referentiel/services/gestion-fournisseur.service';
+import { User } from 'src/app/@core/models/user.model';
+import { GestionUtilisateurService } from 'src/app/pages/gestion-utilisateur/service/gestion-utilisateur.service';
 @Component({
-  selector: 'app-utilisateur-list',
-  templateUrl: './utilisateur-list.component.html',
-  styleUrls: ['./utilisateur-list.component.scss']
+  selector: 'app-dialog-contrat',
+  templateUrl: './dialog-contrat.component.html',
+  styleUrls: ['./dialog-contrat.component.scss']
 })
-export class UtilisateurListComponent {
+export class DialogContratComponent {
 
-  data$: Observable<AppDataState<SearchUserResponse>> | undefined;
-  errorMessage!: string;
-  readonly DataStateEnum = DataStateEnum;
-  elementPerPage = 10;
-  pageNumber = 0;
-  sortDirection = false;
-  sortValue: string = "";
-  positions = NbGlobalPhysicalPosition;
-  searchFormGroup!: FormGroup;
-  user!: User;
-
-  constructor(private gestionUtilisateurService: GestionUtilisateurService, private toastrService: NbToastrService,
-    private fb: FormBuilder, private utilsService: UtilsService,
-    private router: Router,
-    private windowService: NbWindowService,) {
-  }
-  ngOnInit(): void {
-    this.initSearchForm();
-    this.searchCustomerByKeyword();
-  }
-  searchCustomerByKeyword() {
-
-    let searchUserCriteria: SearchUserCriteria = this.searchFormGroup.value;
-
-
-  this.data$ = this.gestionUtilisateurService.searchUsers(searchUserCriteria, this.pageNumber, this.elementPerPage, this.sortValue, this.sortDirection ? 'ASC' : 'DESC').pipe(
-      map(response => {
-        return ({dataState: DataStateEnum.LOADED, data: response})
-      }),
-      startWith({dataState: DataStateEnum.LOADING}),
-      catchError(err => of({
-        dataState: DataStateEnum.ERROR,
-        errorMessage: err.message,
-        this: this.showToast('Une erreur technique est survenue', "Erreur", "danger")
-      }))
-    )
-  }
-
-  sortBy(value: string) {
-    if (this.sortValue == value.toString()) {
-      this.sortDirection = !this.sortDirection;
-    } else {
-      this.sortDirection = true;
-      this.sortValue = value;
-    }
-    this.searchCustomerByKeyword();
-  }
-
-
-  showToast(message: string, title: string, status: string) {
-    return this.toastrService.show(message, title, {status, duration: 0});
-  }
-
-  toTotalPages(i: number) {
-    return new Array(i);
-  }
-
-  onElementPerPageChange(event: string) {
-    this.elementPerPage = +event;
-    this.pageNumber = 0;
-    this.searchCustomerByKeyword();
-
-  }
-
-  onPageNumberChange(event: number) {
-    this.pageNumber = event;
-    this.searchCustomerByKeyword();
-  }
-
-  onSearch() {
-    this.searchFormGroup.valueChanges.pipe(
-      debounceTime(1000)).subscribe(() => {
-       this.searchCustomerByKeyword();
-      }
-    );
-
-  }
-
-  initSearchForm() {
-    this.searchFormGroup = this.fb.group({
-      lastName: this.fb.control(""),
-      firstName: this.fb.control(""),
-      enabled: this.fb.control(""),
-      email: this.fb.control(""),
-      matricule: this.fb.control(""),
-      dateStatusFrom: this.fb.control(""),
-      dateStatusTo: this.fb.control(""),
-      dateCreationFrom: this.fb.control(""),
-      dateCreationTo: this.fb.control(""),
-    });
-    this.onSearch();
-
-  }
-
-  onNewUtilisateur() {
-    const buttonsConfig: NbWindowControlButtonsConfig = {
-      minimize: false,
-      maximize: false,
-      fullScreen: true,
-      close: true,
-    };
-    const nbWindowRef = this.windowService.open(DialogCrudUsersComponent, {
-      title: ` Ajouter un utilisateur`,
-      buttons: buttonsConfig,
-      context:{
-        user:this.user
-      }
-    });
-
-    this.initCloseListener(nbWindowRef); 
-  }
-  onEditUtilisateur(id: number | undefined) {
-    if (id !== undefined) {
-      this.gestionUtilisateurService.getUser(id).subscribe(
-        user => {
-          // Fetch role data for the user
-          this.gestionUtilisateurService.fetchRoles().subscribe(
-            roles => {
-              const buttonsConfig: NbWindowControlButtonsConfig = {
-                minimize: false,
-                maximize: false,
-                fullScreen: true,
-                close: true,
-              };
-              
-              const nbWindowRef = this.windowService.open(DialogCrudUsersComponent, {
-                title: `Modifier un utilisateur`,
-                context: { id: id,user, roles }, // Pass both user and role data as context
-                buttons: buttonsConfig,
-              });
+  fournisseurs?: Observable<Fournisseur[]> | undefined;
+  users?: Observable<User[]> | undefined;
+  @Input()
+  id?: number;
   
-              this.initCloseListener(nbWindowRef); 
-             // console.log("user", user);
-              console.log("role", roles);
-            },
-            error => {
-              console.error("Error fetching roles:", error);
-            }
-          );
-        },
-        error => {
-          console.error("Error fetching user:", error);
-        } 
-      );
+
+  @Input() contrat: Contrat | undefined;
+ // @Input() roles: CockpitRole[] | undefined;
+
+// @Input fournisseurs: Fournisseur
+
+  mode?: 'UPDATE' | 'CREATE' | 'READ';
+
+  formGroup!: FormGroup;
+  formGroup1!: FormGroup;
+  formGroup2!: FormGroup;
+
+  submitted = false;
+ // roles$: Observable<CockpitRole[]> | undefined;
+  selectedItems = [];
+
+  constructor(
+    private toastrService: NbToastrService,
+    private utilsService: UtilsService,
+    private gestionContratService : GestionContratService,
+    private fb: FormBuilder,
+    private nbWindowRef: NbWindowRef,
+    private gestionFournisseurService: GestionFournisseurService,
+    private  gestionUserService: GestionUtilisateurService
+  ) {
+  }
+
+
+  ngOnInit(): void {
+    this.resolveMode();
+    if(this.mode === 'UPDATE' && this.id ) {
+      this.gestionContratService.getContrat(this.id).subscribe((contrat) => {
+        this.initForm1(contrat);
+        this.initForm2(contrat);
+        this.initForm3(contrat);
+        this.gestionFournisseurService.getAll().subscribe(
+          data =>{
+            
+          }
+        )
+      });
+    }
+    if(this.mode === 'CREATE') {
+      this.initForm1();
+      this.initForm2();
+      this.initForm3();
+      this.fournisseurs= this.gestionFournisseurService.getAll();
+      this.users= this.gestionUserService.getAll();
     }
   }
+  initForm1(contrat?: Contrat): void{
+    this.formGroup = this.fb.group({
+      fournisseur:['',Validators.required],
+      commanditaire:['',Validators.required],
+      correspondant:['',],
+      dateValidateKYS:['',]
+    })
+  }
+  initForm2(contrat?: Contrat): void{
+    this.formGroup1 = this.fb.group({
+      natureContrat:['',Validators.required],
+      type:[''],
+      leadContrat:['',],
+      status:['',]
+    })
+  }
+  initForm3(contrat?: Contrat): void{
+    this.formGroup2 = this.fb.group({
+      dateSignatureContrat:[''],
+      dateValiditeContrat:[''],
+      delaisPaiement:['',],
+      montantHt:['',],
+      devise:['',],
+      file:['',],
+    })
+  }
 
-  fetchUserByCreateDate(event: NbCalendarRange<Date>) {
-    if (event.start && event.end) {
-      this.searchFormGroup.get('dateCreationFrom')?.setValue(this.utilsService.formatDate(event.start, "yyyy-MM-dd'T'HH:mm:ss"));
-      this.searchFormGroup.get('dateCreationTo')?.setValue(this.utilsService.formatDate(event.end, "yyyy-MM-dd'T'HH:mm:ss"));
+
+  private resolveMode(): void {
+    this.mode = this.id != null ? 'UPDATE' : 'CREATE';
+  }
+
+
+
+  get form() {
+    return this.formGroup?.controls;
+  }
+
+  onReset() {
+    this.submitted = false;
+    this.formGroup.reset();
+  }
+
+  onSave() {
+    console.log(this.formGroup.value)
+    console.log(this.formGroup1.value)
+    console.log(this.formGroup2.value)
+
+    const subTitleSucces = "Succée";
+    const titleSucces = "Contrat mis à jour avec succés";
+    const subTitleError = "Erreur";
+    const titleError = "Merci de compléter les champs indiqué";
+
+    this.submitted = true;
+
+    // stop here if form is invalid
+    if (this.formGroup.invalid) {
+      this.utilsService.displayError(subTitleError, titleError);
+      return;
     }
 
-  }
-
-  private initCloseListener(windowRef: NbWindowRef) {
-    windowRef?.onClose.subscribe({
-      next: (res) => {
-        if (res === 'SUCESS') this.searchCustomerByKeyword();
-      },
-
-      error: (err) => console.error(`Observer got an error: ${err}`),
-    });
-  }
-
-  fetchUserByStatusDate(event: NbCalendarRange<Date>) {
-    if (event.start && event.end) {
-      this.searchFormGroup.get('dateStatusFrom')?.setValue(this.utilsService.formatDate(event.start, "yyyy-MM-dd'T'HH:mm:ss"));
-      this.searchFormGroup.get('dateStatusTo')?.setValue(this.utilsService.formatDate(event.end, "yyyy-MM-dd'T'HH:mm:ss"));
+    const formValue = this.formGroup.getRawValue();
+    const formValue1 = this.formGroup1.getRawValue();
+    const formValue2 = this.formGroup2.getRawValue();
+    const contrat: Contrat = {
+      correspondant: formValue.correspondant,
+      dateValiditeKYS: formValue.dateValiditeKYS,
+      fournisseur: formValue.fournisseur,
+      commanditaire : formValue.commanditaire,
+      natureContrat : formValue1.natureContrat,
+      type: formValue1.type,
+      leadContrat: formValue1.leadContrat,
+      status: formValue1.status,
+      dateSignatureContrat: formValue2.dateSignatureContrat,
+      dateValiditeContrat: formValue2.dateValiditeContrat,
+      delaisPaiement: formValue2.delaisPaiement,
+      montantHt: formValue2.montantHt,
+      devise: formValue2.devise,
+      file: formValue2.file,   
+    };
+    let observable: Observable<any>;
+    if(this.mode === 'UPDATE' && this.id) {
+      observable = this.gestionContratService.updateContrat(this.id, contrat);
     }
-
-  }
-
-  /*showConfirmationModal(id: number) {
-    this.windowService.open(ConfirmActionComponent, { context: { action: 'delete' } })
-        .onClose.subscribe(confirmed => {
-            if (confirmed) {
-               this.deleteUser(id);
-               console.log("aaa",id)
-            }
-        });
-  }*/
-
-  deleteUser(id: number) {
-      this.gestionUtilisateurService.toggleUserEnabled(id).subscribe({
-        next:(data=>{
-          let status=data.enabled?"activé":"désactive"
-          this.utilsService.displaySucess("Succès","user "+status+" avec Succès")
-          this.refreshUserData();
-        }),
+    else {
+      observable = this.gestionContratService.createContrat(contrat);
+    }
+    observable.subscribe(() =>{
+      this.utilsService.displaySucess(subTitleSucces,titleSucces);
+      if(this.mode === 'CREATE') {
+        this.onReset();
       }
-    )
-  }
-  refreshUserData() {
-    // Call the method to search for users with the existing criteria
-    this.gestionUtilisateurService.searchUsers(SearchUserCriteria, this.pageNumber, this.elementPerPage, this.sortValue, this.sortDirection ? 'ASC' : 'DESC').subscribe({
-      next: (response => {
-        this.data$ = of({ dataState: DataStateEnum.LOADED, data: response });
-      }),
-      error: (error => {
-         this.showToast('Une erreur technique est survenue', "Erreur", "danger")
-      })
+      this.nbWindowRef?.close('SUCESS')
     });
   }
 
 }
----------------------------------------------------------------------------------------------------------------------
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { UtilisateurListComponent } from './view/utilisateur-list/utilisateur-list.component';
-import { DialogCrudUsersComponent } from './component/dialog-crud-users/dialog-crud-users.component';
-import { NbCardModule, NbIconModule, NbRadioModule, NbSelectModule } from '@nebular/theme';
-import { NbSharedModule } from '@nebular/theme/components/shared/shared.module';
-
-
-@NgModule({
-  declarations: [
-    UtilisateurListComponent,
-    DialogCrudUsersComponent
-  ],
-  imports: [
-    CommonModule,
-    NbSharedModule,
-    NbRadioModule,
-    NbCardModule,
-    NbRadioModule,
-    NbSelectModule,
-    NbIconModule,
-   
-  ]
-})
-export class GestionUtilisateurModule { }
--------------------------------------------------------------------------
-Can't bind to 'formGroup' since it isn't a known property of 'form'.ngtsc(-998002)
-utilisateur-list.component.ts(25, 4): Error occurs in the template of component UtilisateurListComponent.
-Can't bind to 'nbDatepicker' since it isn't a known property of 'input'.ngtsc(-998002)
-'nb-rangepicker' is not a known element:
-1. If 'nb-rangepicker' is an Angular component, then verify that it is part of this module.
-2. If 'nb-rangepicker' is a Web Component then add 'CUSTOM_ELEMENTS_SCHEMA' to the '@NgModule.schemas' of this component to suppress this message.ngtsc(-998001)
-utilisateur-list.component.ts(25, 4): Error occurs in the template of component UtilisateurListComponent.
