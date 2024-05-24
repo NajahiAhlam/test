@@ -24,7 +24,7 @@
       </div>
       <div class="d-flex justify-content-around my-2 mx-auto p-2">
         <div class="w-50">
-          <label class="col-form-label my-auto">Commanditaire: <span class="text-danger">*</span> </label>
+          <label class="col-form-label my-auto">commendataire: <span class="text-danger">*</span> </label>
         </div>
         <div class="w-50 ">
           <nb-select
@@ -94,8 +94,19 @@
         </nb-select>
       </div>
     </div>
-
-
+    <div class="d-flex justify-content-around my-2 mx-auto p-2">
+      <div class="w-50">
+        <label class="col-form-label my-auto">Réf Contrat: </label>
+      </div>
+      <div class="w-50">
+        <input nbInput class="form-control"
+        id="refContrat"
+        autocomplete="off"
+        formControlName="refContrat"
+        >
+      </div>
+    </div>
+   
     
 
 
@@ -271,7 +282,7 @@
     </button>
  </div> 
 </div>
-------------------------------------------------------------------------------
+----------------------------------------------------------------------------
 import {Component, Input, OnInit} from '@angular/core';
 import {FormBuilder, FormGroup, Validators} from "@angular/forms";
 import { UtilsService } from 'src/app/@core/services/utils.service';
@@ -334,7 +345,7 @@ export class DialogContratComponent {
     this.resolveMode();
     if(this.mode === 'UPDATE' ) {
       console.log('mode contrat',this.mode)
-      console.log('det contrat',this.contrat)
+      console.log('det contrat',this.contrat?.user?.lastName)
       console.log('id',this.id)
       this.initForm1(this.contrat);
       this.initForm2(this.contrat);
@@ -351,12 +362,9 @@ export class DialogContratComponent {
     }
   }
   initForm1(contrat?: Contrat): void{
-    console.log(contrat)
-    console.log('f',contrat?.fournisseurId)
-    console.log('u',contrat?.userId)
     this.formGroup = this.fb.group({
-      fournisseur:[contrat?.fournisseurId|| '',Validators.required],
-      user:[contrat?.userId|| '',Validators.required],
+      fournisseur:[contrat?.fournisseur?.nom|| '',Validators.required],
+      user:[contrat?.user?.firstName|| '',Validators.required],
       correspondant:[contrat?.correspondant || '',],
       dateValidateKYS:[contrat?.dateValiditeKYS || '',]
     })
@@ -364,6 +372,7 @@ export class DialogContratComponent {
   initForm2(contrat?: Contrat): void{
     this.formGroup1 = this.fb.group({
       natureContrat:[contrat?.natureContrat||'',Validators.required],
+      refContrat:[contrat?.refContrat||'',Validators.required],
       type:[contrat?.type || '' ],
       contratInitial: [{ value: contrat?.contratInitial || '', disabled: true}],
       leadContrat:[contrat?.leadContrat || '',],
@@ -434,9 +443,10 @@ export class DialogContratComponent {
     const contrat: Contrat = {
       correspondant: formValue.correspondant,
       dateValiditeKYS: formValue.dateValiditeKYS,
-      fournisseurId: formValue.fournisseur,
-      userId : formValue.user,
+      fournisseur: formValue.fournisseur,
+      user : formValue.user,
       natureContrat : formValue1.natureContrat,
+      refContrat : formValue1.refContrat,
       type: formValue1.type,
       contratInitial: formValue1.contratInitial,
       leadContrat: formValue1.leadContrat,
