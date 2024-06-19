@@ -1,6 +1,5 @@
-<canvas #barChart id="barChart" style="position: relative;"></canvas>
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
-import { Chart } from 'chart.js';
+import { AfterViewInit, Component } from '@angular/core';
+import * as Highcharts from 'highcharts';
 
 @Component({
   selector: 'app-billing-tracking',
@@ -8,119 +7,40 @@ import { Chart } from 'chart.js';
   styleUrls: ['./billing-tracking.component.css']
 })
 export class BillingTrackingComponent implements AfterViewInit {
-  @ViewChild('barChart') barChartCanvas!: ElementRef<HTMLCanvasElement>;
-
-  ngAfterViewInit(): void {
-    this.createbarChart();
-  }
-
-  createbarChart() {
-    const ctx = this.barChartCanvas.nativeElement;
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Abondonnees', 'En Cours', 'Non Lances', 'Clotures', '', '', '', ''],
-        datasets: [{
-          label: 'Factures',
-          data: [65, 59, 80, 81, 56, 55, 40],
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.2)',
-            'rgba(255, 159, 64, 0.2)',
-            'rgba(255, 205, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)',
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(153, 102, 255, 0.2)',
-            'rgba(201, 203, 207, 0.2)'
-          ],
-          borderColor: [
-            'rgb(255, 99, 132)',
-            'rgb(255, 159, 64)',
-            'rgb(255, 205, 86)',
-            'rgb(75, 192, 192)',
-            'rgb(54, 162, 235)',
-            'rgb(153, 102, 255)',
-            'rgb(201, 203, 207)'
-          ],
-          borderWidth: 1
-        }]
-      },
-    });
-  }
-}
-ngAfterViewInit(): void {
-  if (this.barChartCanvas) {
-    console.log('Canvas element is available:', this.barChartCanvas);
-    this.createbarChart();
-  } else {
-    console.error('Canvas element is not available');
-  }
-}
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
-import { Chart } from 'chart.js';
-
-@Component({
-  selector: 'app-billing-tracking',
-  templateUrl: './billing-tracking.component.html',
-  styleUrls: ['./billing-tracking.component.css']
-})
-export class BillingTrackingComponent implements AfterViewInit {
-  @ViewChild('barChart') barChartCanvas!: ElementRef<HTMLCanvasElement>;
-
-  ngAfterViewInit(): void {
-    if (this.barChartCanvas) {
-      console.log('Canvas element is available:', this.barChartCanvas);
-      this.createBarChart();
-    } else {
-      console.error('Canvas element is not available');
-    }
-  }
-
-  createBarChart() {
-    const ctx = this.barChartCanvas.nativeElement;
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['Abandonnees', 'En Cours', 'Non Lances', 'Clotures', '', '', '', ''],
-        datasets: [{
-          label: 'Factures',
-          data: [65, 59, 80, 81, 56, 55, 40],
-          backgroundColor: [
-            'rgba(255, 99, 132, 0.2)',
-            'rgba(255, 159, 64, 0.2)',
-            'rgba(255, 205, 86, 0.2)',
-            'rgba(75, 192, 192, 0.2)',
-            'rgba(54, 162, 235, 0.2)',
-            'rgba(153, 102, 255, 0.2)',
-            'rgba(201, 203, 207, 0.2)'
-          ],
-          borderColor: [
-            'rgb(255, 99, 132)',
-            'rgb(255, 159, 64)',
-            'rgb(255, 205, 86)',
-            'rgb(75, 192, 192)',
-            'rgb(54, 162, 235)',
-            'rgb(153, 102, 255)',
-            'rgb(201, 203, 207)'
-          ],
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            beginAtZero: true
-          }
-        }
+  Highcharts: typeof Highcharts = Highcharts;
+  chartOptions: Highcharts.Options = {
+    chart: {
+      type: 'bar'
+    },
+    title: {
+      text: 'Factures par Status/Mois (Uniquement les 7 derniers mois)'
+    },
+    xAxis: {
+      categories: ['Abandonnees', 'En Cours', 'Non Lances', 'Clotures']
+    },
+    yAxis: {
+      title: {
+        text: 'Number of Invoices'
       }
-    });
+    },
+    series: [{
+      name: 'Factures',
+      type: 'bar',
+      data: [65, 59, 80, 81, 56, 55, 40]
+    }]
+  };
+
+  constructor() { }
+
+  ngAfterViewInit(): void {
+    // Initialization code if needed
   }
 }
 <nb-card accent="primary">
   <ng-container>
     <ng-container>
       <!-- <rpa-portal-loading></rpa-portal-loading> -->
-    </ng-container> 
+    </ng-container>
     <ng-container>
       <nb-card-body>
         <!-- <div class="alert alert-danger" role="alert"></div> -->
@@ -203,7 +123,11 @@ export class BillingTrackingComponent implements AfterViewInit {
         </div>
         <div id="divBarChart" class="mt-4 col-lg-4" style="padding:2%">
           <h5 class="fs-5">Factures par Status/Mois (Uniquement les 7 derniers mois) :</h5>
-          <canvas #barChart id="barChart" style="position: relative;"></canvas>
+          <highcharts-chart
+            [Highcharts]="Highcharts"
+            [options]="chartOptions"
+            style="width: 100%; height: 400px; display: block;">
+          </highcharts-chart>
         </div>
       </nb-card-body>
     </ng-container>
