@@ -172,3 +172,15 @@ chartElementRef !: ElementRef<HTMLCanvasElement>;
       },
     });
   }
+  -------
+ERROR TypeError: Cannot read properties of null (reading 'id')
+    at new Chart (chart.js:5622:175)
+    at BillingTrackingComponent.renderBar (billing-tracking.component.ts:258:20)
+    at BillingTrackingComponent.ngAfterViewInit (billing-tracking.component.ts:65:10)
+    at callHookInternal (core.mjs:4024:14)
+    at callHook (core.mjs:4051:13)
+    at callHooks (core.mjs:4006:17)
+    at executeInitAndCheckHooks (core.mjs:3956:9)
+    at refreshView (core.mjs:13569:21)
+    at detectChangesInView (core.mjs:13663:9)
+    at detectChangesInEmbeddedViews (core.mjs:13606:13)
