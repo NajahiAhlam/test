@@ -81,6 +81,54 @@ export class BillingTrackingComponent implements AfterViewInit {
     }]
   };
 
+  pieChartOptions: Highcharts.Options = {
+    chart: {
+      type: 'pie'
+    },
+    title: {
+      text: 'Browser market shares in January, 2018'
+    },
+    tooltip: {
+      pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+    },
+    plotOptions: {
+      pie: {
+        allowPointSelect: true,
+        cursor: 'pointer',
+        dataLabels: {
+          enabled: true,
+          format: '<b>{point.name}</b>: {point.percentage:.1f} %'
+        }
+      }
+    },
+    series: [{
+      type: 'pie',
+      name: 'Browser share',
+      colorByPoint: true,
+      data: [{
+        name: 'Chrome',
+        y: 61.41,
+        sliced: true,
+        selected: true
+      }, {
+        name: 'Internet Explorer',
+        y: 11.84
+      }, {
+        name: 'Firefox',
+        y: 10.85
+      }, {
+        name: 'Edge',
+        y: 4.67
+      }, {
+        name: 'Safari',
+        y: 4.18
+      }, {
+        name: 'Other',
+        y: 7.05
+      }]
+    }]
+  };
+
   constructor() { }
 
   ngAfterViewInit(): void {
@@ -176,6 +224,13 @@ export class BillingTrackingComponent implements AfterViewInit {
           <highcharts-chart
             [Highcharts]="Highcharts"
             [options]="barChartOptions"
+            style="width: 100%; height: 400px; display: block;">
+          </highcharts-chart>
+        </div>
+        <div id="divPieChart" class="mt-4 col-lg-6" style="padding:2%">
+          <highcharts-chart
+            [Highcharts]="Highcharts"
+            [options]="pieChartOptions"
             style="width: 100%; height: 400px; display: block;">
           </highcharts-chart>
         </div>
