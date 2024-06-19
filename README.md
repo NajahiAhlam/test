@@ -1,240 +1,89 @@
-import { AfterViewInit, Component } from '@angular/core';
-import * as Highcharts from 'highcharts';
+// Data retrieved from https://www.ssb.no/statbank/table/10467/
+const chart = Highcharts.chart('container', {
 
-@Component({
-  selector: 'app-billing-tracking',
-  templateUrl: './billing-tracking.component.html',
-  styleUrls: ['./billing-tracking.component.css']
-})
-export class BillingTrackingComponent implements AfterViewInit {
-  Highcharts: typeof Highcharts = Highcharts;
-
-  barChartOptions: Highcharts.Options = {
     chart: {
-      type: 'bar'
+        type: 'column'
     },
+
     title: {
-      text: 'Historic World Population by Region',
-      align: 'left'
+        text: 'Born persons, by girls\' name'
     },
+
     subtitle: {
-      text: 'Source: <a href="https://en.wikipedia.org/wiki/List_of_continents_and_continental_subregions_by_population" target="_blank">Wikipedia.org</a>',
-      align: 'left'
+        text: 'Resize the frame or click buttons to change appearance'
     },
-    xAxis: {
-      categories: ['Africa', 'America', 'Asia', 'Europe'],
-      title: {
-        text: null
-      },
-      gridLineWidth: 1,
-      lineWidth: 0
-    },
-    yAxis: {
-      min: 0,
-      title: {
-        text: 'Population (millions)',
-        align: 'high'
-      },
-      labels: {
-        overflow: 'justify'
-      },
-      gridLineWidth: 0
-    },
-    tooltip: {
-      valueSuffix: ' millions'
-    },
-    plotOptions: {
-      bar: {
-        borderRadius: 5,
-        dataLabels: {
-          enabled: true
-        },
-        groupPadding: 0.1
-      }
-    },
+
     legend: {
-      layout: 'vertical',
-      align: 'right',
-      verticalAlign: 'top',
-      x: -40,
-      y: 80,
-      floating: true,
-      borderWidth: 1,
-      backgroundColor: (Highcharts.defaultOptions.legend?.backgroundColor) || '#FFFFFF',
-      shadow: true
+        align: 'right',
+        verticalAlign: 'middle',
+        layout: 'vertical'
     },
-    credits: {
-      enabled: false
-    },
-    series: [{
-      type: 'bar',
-      name: 'Year 1990',
-      data: [631, 727, 3202, 721]
-    }, {
-      type: 'bar',
-      name: 'Year 2000',
-      data: [814, 841, 3714, 726]
-    }, {
-      type: 'bar',
-      name: 'Year 2018',
-      data: [1276, 1007, 4561, 746]
-    }]
-  };
 
-  pieChartOptions: Highcharts.Options = {
-    chart: {
-      type: 'pie'
-    },
-    title: {
-      text: 'Browser market shares in January, 2018'
-    },
-    tooltip: {
-      pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
-    },
-    plotOptions: {
-      pie: {
-        allowPointSelect: true,
-        cursor: 'pointer',
-        dataLabels: {
-          enabled: true,
-          format: '<b>{point.name}</b>: {point.percentage:.1f} %'
+    xAxis: {
+        categories: ['2019', '2020', '2021'],
+        labels: {
+            x: -10
         }
-      }
     },
+
+    yAxis: {
+        allowDecimals: false,
+        title: {
+            text: 'Amount'
+        }
+    },
+
     series: [{
-      type: 'pie',
-      name: 'Browser share',
-      colorByPoint: true,
-      data: [{
-        name: 'Chrome',
-        y: 61.41,
-        sliced: true,
-        selected: true
-      }, {
-        name: 'Internet Explorer',
-        y: 11.84
-      }, {
-        name: 'Firefox',
-        y: 10.85
-      }, {
-        name: 'Edge',
-        y: 4.67
-      }, {
-        name: 'Safari',
-        y: 4.18
-      }, {
-        name: 'Other',
-        y: 7.05
-      }]
-    }]
-  };
+        name: 'Ava',
+        data: [38, 51, 34]
+    }, {
+        name: 'Dina',
+        data: [31, 26, 27]
+    }, {
+        name: 'Malin',
+        data: [38, 42, 41]
+    }],
 
-  constructor() { }
+    responsive: {
+        rules: [{
+            condition: {
+                maxWidth: 500
+            },
+            chartOptions: {
+                legend: {
+                    align: 'center',
+                    verticalAlign: 'bottom',
+                    layout: 'horizontal'
+                },
+                yAxis: {
+                    labels: {
+                        align: 'left',
+                        x: 0,
+                        y: -5
+                    },
+                    title: {
+                        text: null
+                    }
+                },
+                subtitle: {
+                    text: null
+                },
+                credits: {
+                    enabled: false
+                }
+            }
+        }]
+    }
+});
 
-  ngAfterViewInit(): void {
-    // Initialization code if needed
-  }
-}
-<nb-card accent="primary">
-  <ng-container>
-    <ng-container>
-      <!-- <rpa-portal-loading></rpa-portal-loading> -->
-    </ng-container>
-    <ng-container>
-      <nb-card-body>
-        <!-- <div class="alert alert-danger" role="alert"></div> -->
-      </nb-card-body>
-    </ng-container>
-    <ng-container>
-      <nb-card-header class="d-flex flex-row justify-content-between">
-        <h5 class="title-animation title-heading text-uppercase my-auto p-2">Billing Tracking</h5>
-        <nb-select placeholder="date de chargement">
-          <nb-option value="2024-01-01">2024-01-01</nb-option>
-        </nb-select>
-      </nb-card-header>
-      <nb-card-body>
-        <div class="row d-flex flex-row justify-content-around mt-2">
-          <!-- Cards for different metrics -->
-          <!-- Card 1 -->
-          <div class="col-lg-2 my-5">
-            <div class="card small-cards shadow mb-5 bg-white">
-              <div class="card-body d-flex flex-column">
-                <div class="icon-row1 d-flex justify-content-center align-items-center shadow">
-                  <nb-icon icon="list" style="font-size: 40px;"></nb-icon>
-                </div>
-                <div class="title-row mt-2 pb-0">
-                  <p class="fs-5">Nombre Total Factures</p>
-                </div>
-                <div class="stats-row align-self-end justify-content-start pb-0">
-                  <h4>133</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Card 2 -->
-          <div class="col-lg-2 my-5">
-            <div class="card small-cards shadow mb-5 bg-white">
-              <div class="card-body d-flex flex-column">
-                <div class="icon-row2 d-flex justify-content-center align-items-center shadow">
-                  <nb-icon icon="truck" pack="fas" style="font-size: 40px;"></nb-icon>
-                </div>
-                <div class="title-row mt-2 pb-0">
-                  <p class="fs-5">Nombre Factures Pénalités</p>
-                </div>
-                <div class="stats-row align-self-end justify-content-start pb-0">
-                  <h4>0</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Card 3 -->
-          <div class="col-lg-2 my-5">
-            <div class="card small-cards shadow mb-2 bg-white">
-              <div class="card-body d-flex flex-column">
-                <div class="icon-row4 d-flex justify-content-center align-items-center shadow">
-                  <nb-icon icon="check" pack="fas" style="font-size: 40px;"></nb-icon>
-                </div>
-                <div class="title-row mt-2 pb-0">
-                  <p class="fs-5">Volumne Factures (MAD)</p>
-                </div>
-                <div class="stats-row align-self-end justify-content-start pb-0">
-                  <h4>3</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Card 4 -->
-          <div class="col-lg-2 my-5">
-            <div class="card small-cards shadow mb-5 bg-white">
-              <div class="card-body d-flex flex-column">
-                <div class="icon-row2 d-flex justify-content-center align-items-center shadow">
-                  <nb-icon icon="money-bill" pack="fas" style="font-size: 40px;"></nb-icon>
-                </div>
-                <div class="title-row mt-2 pb-0">
-                  <p class="fs-5">Budget</p>
-                </div>
-                <div class="stats-row align-self-end justify-content-start pb-0">
-                  <h4>177,690.6</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="divBarChart" class="mt-4 col-lg-6" style="padding:2%">
-          <highcharts-chart
-            [Highcharts]="Highcharts"
-            [options]="barChartOptions"
-            style="width: 100%; height: 400px; display: block;">
-          </highcharts-chart>
-        </div>
-        <div id="divPieChart" class="mt-4 col-lg-6" style="padding:2%">
-          <highcharts-chart
-            [Highcharts]="Highcharts"
-            [options]="pieChartOptions"
-            style="width: 100%; height: 400px; display: block;">
-          </highcharts-chart>
-        </div>
-      </nb-card-body>
-    </ng-container>
-  </ng-container>
-</nb-card>
+document.getElementById('small').addEventListener('click', function () {
+    chart.setSize(400);
+});
+
+document.getElementById('large').addEventListener('click', function () {
+    chart.setSize(600);
+});
+
+document.getElementById('auto').addEventListener('click', function () {
+    chart.setSize(null);
+});
