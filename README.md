@@ -1,4 +1,4 @@
-import { AfterViewInit, Component } from '@angular/core';
+**import { AfterViewInit, Component } from '@angular/core';
 import * as Highcharts from 'highcharts';
 
 @Component({
@@ -8,7 +8,8 @@ import * as Highcharts from 'highcharts';
 })
 export class BillingTrackingComponent implements AfterViewInit {
   Highcharts: typeof Highcharts = Highcharts;
-  chartOptions: Highcharts.Options = {
+  
+  barChartOptions: Highcharts.Options = {
     chart: {
       type: 'bar'
     },
@@ -30,13 +31,26 @@ export class BillingTrackingComponent implements AfterViewInit {
     }]
   };
 
-  constructor() { }
+  pieChartOptions: Highcharts.Options = {
+    chart: {
+      type: 'pie'
+    },
+    title: {
+      text: 'Factures Distribution'
+    },
+    series: [{
+      name: 'Factures',
+      type: 'pie',
+      data: [
+        { name: 'Abandonnees', y: 65 },
+        { name: 'En Cours', y: 59 },
+        { name: 'Non Lances', y: 80 },
+        { name: 'Clotures', y: 81 }
+      ]
+    }]
+  };
 
-  ngAfterViewInit(): void {
-    // Initialization code if needed
-  }
-}
-<nb-card accent="primary">
+  <nb-card accent="primary">
   <ng-container>
     <ng-container>
       <!-- <rpa-portal-loading></rpa-portal-loading> -->
@@ -121,11 +135,19 @@ export class BillingTrackingComponent implements AfterViewInit {
             </div>
           </div>
         </div>
-        <div id="divBarChart" class="mt-4 col-lg-4" style="padding:2%">
+        <div id="divBarChart" class="mt-4 col-lg-6" style="padding:2%">
           <h5 class="fs-5">Factures par Status/Mois (Uniquement les 7 derniers mois) :</h5>
           <highcharts-chart
             [Highcharts]="Highcharts"
-            [options]="chartOptions"
+            [options]="barChartOptions"
+            style="width: 100%; height: 400px; display: block;">
+          </highcharts-chart>
+        </div>
+        <div id="divPieChart" class="mt-4 col-lg-6" style="padding:2%">
+          <h5 class="fs-5">Factures Distribution :</h5>
+          <highcharts-chart
+            [Highcharts]="Highcharts"
+            [options]="pieChartOptions"
             style="width: 100%; height: 400px; display: block;">
           </highcharts-chart>
         </div>
@@ -133,3 +155,12 @@ export class BillingTrackingComponent implements AfterViewInit {
     </ng-container>
   </ng-container>
 </nb-card>
+
+
+  constructor() { }
+
+  ngAfterViewInit(): void {
+    // Initialization code if needed
+  }
+}
+**
