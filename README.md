@@ -1,53 +1,12 @@
-createPieChart(data: any): void {
-  if (!data || typeof data !== 'object') {
-    console.error('Invalid data for pie chart:', data);
-    return;
-  }
+Type '{ name: string; y: unknown; }[]' is not assignable to type '(number | PointOptionsObject | [string, number | null] | null)[]'.
+  Type '{ name: string; y: unknown; }' is not assignable to type 'number | PointOptionsObject | [string, number | null] | null'.
+    Type '{ name: string; y: unknown; }' is not assignable to type 'PointOptionsObject'.
+      Types of property 'y' are incompatible.
+        Type 'unknown' is not assignable to type 'number | null | undefined'.ts(2322)
+(property) SeriesPieOptions.data?: (number | Highcharts.PointOptionsObject | [string, number | null] | null)[] | undefined
+(Highcharts, Highmaps) An array of data points for the series. For the pie series type, points can be given in the following ways:
 
-  // Convert the object properties into an array of [name, value]
-  const seriesData = Object.entries(data)
-    .map(([key, value]) => ({ name: key, y: value }))
-    .filter(item => item.y > 0); // Filter out items with zero values if needed
+An array of numerical values. In this case, the numerical values will be interpreted as y options. Example: (see online documentation for example)
 
-  if (seriesData.length === 0) {
-    console.error('No valid data available for pie chart.');
-    return;
-  }
-
-  this.pieChartOptions = {
-    chart: {
-      type: 'pie'
-    },
-    title: {
-      text: 'Enjeux Initiative P1'
-    },
-    series: [{
-      type: 'pie',
-      name: 'Initiatives Count',
+An array of objects with named values. The following snippet shows only a few settings, see the complete options set below. If the total number of data points exceeds 
       data: seriesData,
-      colors: ['#E4003A', '#4535C1', '#3357FF', '#FF33A1', '#FFBF00']
-    }],
-    plotOptions: {
-      pie: {
-        allowPointSelect: true,
-        cursor: 'pointer',
-        dataLabels: {
-          enabled: true,
-          format: '{point.name}: {point.percentage:.1f}%',
-          style: {
-            color: 'black'
-          }
-        }
-      }
-    },
-    credits: { enabled: false }
-  };
-
-  // Ensure that the chart container is available
-  const chartContainer = document.getElementById('pie-chart-container');
-  if (chartContainer) {
-    Highcharts.chart('pie-chart-container', this.pieChartOptions);
-  } else {
-    console.error('Chart container not found.');
-  }
-}
