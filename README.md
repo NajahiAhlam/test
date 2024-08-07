@@ -1,175 +1,172 @@
-<nb-card accent="primary">
-  <ng-container>
-    <ng-container>
-      <nb-card-body>
-        <!-- Optional: Add any alerts if needed -->
-      </nb-card-body>
-    </ng-container>
-    <ng-container>
-      <nb-card-header class="d-flex flex-row justify-content-between">
-        <h5 class="title-animation title-heading text-uppercase my-auto p-2">Billing Tracking</h5>
-        <nb-select [(selected)]="selectedDate" placeholder="date de chargement">
-          <nb-option value="2024-01-01">2024-01-01</nb-option>
-        </nb-select>
-      </nb-card-header>
-      <nb-card-body>
-        <!-- Filter for Cards -->
-        <div class="row d-flex flex-row justify-content-around mt-2">
-          <div class="col-lg-12 mb-4 d-flex justify-content-end">
-            <nb-select [(selected)]="selectedStatus" placeholder="Filter by Status">
-              <nb-option *ngFor="let status of statuses" [value]="status">{{ status }}</nb-option>
-            </nb-select>
-          </div>
-          <!-- Cards for different metrics -->
-          <div class="col-lg-2 my-5" *ngFor="let card of filteredCards">
-            <div class="card small-cards shadow mb-5 bg-white">
-              <div class="card-body d-flex flex-column">
-                <div class="icon-row1 d-flex justify-content-center align-items-center shadow">
-                  <nb-icon [icon]="card.icon" style="font-size: 40px;"></nb-icon>
-                </div>
-                <div class="title-row mt-2 pb-0">
-                  <p class="fs-5">{{ card.title }}</p>
-                </div>
-                <div class="stats-row align-self-end justify-content-start pb-0">
-                  <h4>{{ card.value }}</h4>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Filter for Pie Chart -->
-        <div class="row d-flex flex-row justify-content-around mt-2">
-          <div class="col-lg-6 mb-4 d-flex justify-content-end">
-            <nb-select [(selected)]="selectedIntervenant" placeholder="Filter by Intervenant">
-              <nb-option *ngFor="let intervenant of intervenants" [value]="intervenant">{{ intervenant }}</nb-option>
-            </nb-select>
-          </div>
-          <!-- Pie Chart -->
-          <nb-card class="col-lg-6" style="padding:2%">
-            <nb-card-header class="key">
-              <h5 class="fs-5">Factures Distribution :</h5>
-            </nb-card-header>
-            <nb-card-body>
-              <highcharts-chart
-                [Highcharts]="Highcharts"
-                [options]="filteredPieChartOptions"
-                style="width: 100%; height: 400px; display: block;">
-              </highcharts-chart>
-            </nb-card-body>
-          </nb-card>
-        </div>
-        <!-- Other Charts -->
-        <div id="divBarChart" class="mt-4 col-lg-4" style="padding:2%">
-          <h5 class="fs-5">Factures par Status/Mois (Uniquement les 7 derniers mois) :</h5>
-          <highcharts-chart
-            [Highcharts]="Highcharts"
-            [options]="chartOptions"
-            style="width: 100%; height: 400px; display: block;">
-          </highcharts-chart>
-        </div>
-        <nb-card class="mt-4 col-lg-6" style="padding:2%">
-          <nb-card-header class="key">
-            <h5 class="fs-5">Factures Distribution :</h5>
-          </nb-card-header>
-          <nb-card-body>
-            <highcharts-chart
-              [Highcharts]="Highcharts"
-              [options]="pieChartOptions"
-              style="width: 100%; height: 400px; display: block;">
-            </highcharts-chart>
-          </nb-card-body>
-        </nb-card>
-        <nb-card>
-          <nb-card-header>
-            <h5 class="fs-5">Factures Distribution :</h5>
-          </nb-card-header>
-          <nb-card-body>
-            <highcharts-chart
-              [Highcharts]="Highcharts"
-              [options]="barChartOptions"
-              style="width: 100%; height: 400px; display: block;">
-            </highcharts-chart>
-          </nb-card-body>
-        </nb-card>
-        <nb-card>
-          <nb-card-header>
-            <h5 class="fs-5">Factures Distribution :</h5>
-          </nb-card-header>
-          <nb-card-body>
-            <highcharts-chart
-              [Highcharts]="Highcharts"
-              [options]="chartOptions1"
-              style="width: 100%; height: 400px; display: block;">
-            </highcharts-chart>
-          </nb-card-body>
-        </nb-card>
-      </nb-card-body>
-    </ng-container>
-  </ng-container>
-</nb-card>
+auth-interceptor.service.ts:41 
+ POST http://localhost:9090/api/cockpit/sciforma/upload 404 (Not Found)
+excel.service.ts:40 Error uploading file: 
+HttpErrorResponse {headers: HttpHeaders, status: 404, statusText: 'OK', url: 'http://localhost:9090/api/cockpit/sciforma/upload', ok: false, …}
+error
+: 
+{timestamp: '2024-08-07T15:15:51.571+00:00', status: 404, error: 'Not Found', message: 'No message available', path: '/api/cockpit/sciforma/upload'}
+headers
+: 
+HttpHeaders {normalizedNames: Map(0), lazyUpdate: null, lazyInit: ƒ}
+message
+: 
+"Http failure response for http://localhost:9090/api/cockpit/sciforma/upload: 404 OK"
+name
+: 
+"HttpErrorResponse"
+ok
+: 
+false
+status
+: 
+404
+statusText
+: 
+"OK"
+url
+: 
+"http://localhost:9090/api/cockpit/sciforma/upload"
+[[Prototype]]
+: 
+HttpResponseBase
+(anonyme)	@	excel.service.ts:40
+Zone - Promise.then (asynchrone)		
+getUserEmail	@	auth-interceptor.service.ts:41
+handleRequest	@	auth-interceptor.service.ts:20
+intercept	@	auth-interceptor.service.ts:13
+intercept	@	http-error-handling-…eptor.service.ts:15
+(anonyme)	@	request-auth-interceptor.service.ts:21
+intercept	@	request-auth-interceptor.service.ts:14
+Zone - Promise.then (asynchrone)		
+uploadFile	@	dashboard-vue-projets.component.ts:81
+DashboardVueProjetsComponent_Template_input_change_7_listener	@	dashboard-vue-projets.component.html:9
+Zone - HTMLInputElement.addEventListener:change (asynchrone)		
+DashboardVueProjetsComponent_Template	@	dashboard-vue-projets.component.html:9
+load (asynchrone)		
+p	@	node_modules\pace-js\pace.min.js:6
+a	@	node_modules\pace-js\pace.min.js:6
+nt.watch	@	node_modules\pace-js\pace.min.js:6
+(anonyme)	@	node_modules\pace-js\pace.min.js:6
+tt.trigger	@	node_modules\pace-js\pace.min.js:6
+r.open	@	node_modules\pace-js\pace.min.js:6
+Zone - Promise.then (asynchrone)		
+getUserEmail	@	auth-interceptor.service.ts:41
+handleRequest	@	auth-interceptor.service.ts:20
+intercept	@	auth-interceptor.service.ts:13
+intercept	@	http-error-handling-…eptor.service.ts:15
+(anonyme)	@	request-auth-interceptor.service.ts:21
+intercept	@	request-auth-interceptor.service.ts:14
+Zone - Promise.then (asynchrone)		
+loadChildren	@	app-routing.module.ts:9
+Afficher 1 620 autres frames
+app-init.ts:9 Token expired
+﻿
+  private uploadUrl = environment.baseUrl+ '/api/cockpit/sciforma/upload';
 
-import { Component } from '@angular/core';
-import * as Highcharts from 'highcharts';
+ uploadFile(file: File): Observable<any> {
+    const formData: FormData = new FormData();
+    formData.append('file', file, file.name);
+  
+    const headers = new HttpHeaders({
+      'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryabcdefg'
+    });
+  
+    const options = {
+      headers,
+      reportProgress: true,
+      responseType: 'json'
+    };
+  
+    return this._http.post(this.uploadUrl, formData, options as any).pipe(
+      catchError(error => {
+        console.error('Error uploading file:', error);
+        return throwError(error);
+      })
+    );
+  }
+ package com.example.cockpit.controller;
 
-@Component({
-  selector: 'app-chart-example',
-  templateUrl: './chart-example.component.html',
-  styleUrls: ['./chart-example.component.scss']
-})
-export class ChartExampleComponent {
-  Highcharts: typeof Highcharts = Highcharts;
-  selectedDate: string = '2024-01-01';
-  selectedStatus: string = '';
-  selectedIntervenant: string = '';
-  dates = ['2024-01-01', '2024-02-01', '2024-03-01'];
-  statuses = ['All', 'Paid', 'Pending', 'Overdue'];
-  intervenants = ['All', 'Intervenant1', 'Intervenant2', 'Intervenant3'];
+import com.example.cockpit.entities.Canvas;
+import com.example.cockpit.entities.Sciforma;
+import com.example.cockpit.exception.SsoException;
+import com.example.cockpit.repositories.CanvasRepository;
+import com.example.cockpit.repositories.SciformaRepository;
+import com.example.cockpit.service.impl.ExcelService;
+import com.example.cockpit.service.impl.SciformaServiceImp;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
-  cards = [
-    { title: 'Nombre Total Factures', value: 133, icon: 'list', status: 'All' },
-    { title: 'Nombre Factures Pénalités', value: 0, icon: 'truck', status: 'All' },
-    { title: 'Volumne Factures (MAD)', value: 3, icon: 'check', status: 'All' },
-    { title: 'Budget', value: 177690.6, icon: 'money-bill', status: 'All' },
-  ];
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 
-  filteredCards = this.cards;
+@RequestMapping("api/cockpit/sciforma")
+@RequiredArgsConstructor
+public class SciformaController {
 
-  chartOptions: Highcharts.Options = {
-    // Your chart options here
-  };
+    private final SciformaServiceImp sciformaServiceImp;
+    private final SciformaRepository sciformaRepository;
 
-  pieChartOptions: Highcharts.Options = {
-    // Your pie chart options here
-  };
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws SsoException {
+        if (!sciformaServiceImp.validateExcelFile(file)) {
+            return ResponseEntity.badRequest().body("Invalid file format");
+        }
 
-  filteredPieChartOptions: Highcharts.Options = this.pieChartOptions;
-
-  barChartOptions: Highcharts.Options = {
-    // Your bar chart options here
-  };
-
-  chartOptions1: Highcharts.Options = {
-    // Your chart options here
-  };
-
-  filterCards() {
-    if (this.selectedStatus === 'All') {
-      this.filteredCards = this.cards;
-    } else {
-      this.filteredCards = this.cards.filter(card => card.status === this.selectedStatus);
+        try (InputStream inputStream = file.getInputStream()) {
+            List<Sciforma> sciformas = sciformaServiceImp.parseExcel(inputStream);
+            sciformaRepository.saveAll(sciformas);
+            return ResponseEntity.ok("File uploaded and parsed successfully");
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body("Failed to parse the file");
+        }
     }
-  }
 
-  filterPieChart() {
-    if (this.selectedIntervenant === 'All') {
-      this.filteredPieChartOptions = this.pieChartOptions;
-    } else {
-      // Update this.filteredPieChartOptions based on selectedIntervenant
+
+    @GetMapping("/download")
+    public ResponseEntity<byte[]> downloadFile() {
+        List<Sciforma> sciformas = sciformaRepository.findAll();
+        ByteArrayInputStream in = sciformaServiceImp.generateExcel(sciformas);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=factures.xlsx");
+        try {
+            byte[] bytes = toByteArray(in);
+            return ResponseEntity
+                    .ok()
+                    .headers(headers)
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(bytes);
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(null);
+        }
     }
-  }
 
-  ngOnChanges() {
-    this.filterCards();
-    this.filterPieChart();
-  }
+    private byte[] toByteArray(InputStream in) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        int nRead;
+        byte[] data = new byte[1024];
+        while ((nRead = in.read(data, 0, data.length)) != -1) {
+            buffer.write(data, 0, nRead);
+        }
+        buffer.flush();
+        return buffer.toByteArray();
+    }
+
+    @GetMapping("/getCountByPhase")
+    public List<Object[]> getCountByPhase(
+            @RequestParam Long year,
+            @RequestParam(value = "programme", required = false) String programme,
+            @RequestParam(value = "lead", required = false) String lead) {
+        return sciformaServiceImp.getCountByPhase(year, programme, lead);
+    }
 }
+ 
