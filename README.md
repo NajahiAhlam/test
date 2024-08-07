@@ -1,7 +1,6 @@
 nb-list-item {
   display: flex;
   align-items: center;
-  justify-content: center;
   padding: 10px 0;
 }
 
@@ -12,13 +11,18 @@ nb-list-item {
 .list-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
   flex: 1;
+}
+
+.list-item-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .data-label {
   font-weight: bold;
+  margin-right: 20px; /* Adjust the margin to control space between label and value */
 }
 
 .data-value {
