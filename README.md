@@ -1,12 +1,42 @@
-Type '{ name: string; y: unknown; }[]' is not assignable to type '(number | PointOptionsObject | [string, number | null] | null)[]'.
-  Type '{ name: string; y: unknown; }' is not assignable to type 'number | PointOptionsObject | [string, number | null] | null'.
-    Type '{ name: string; y: unknown; }' is not assignable to type 'PointOptionsObject'.
-      Types of property 'y' are incompatible.
-        Type 'unknown' is not assignable to type 'number | null | undefined'.ts(2322)
-(property) SeriesPieOptions.data?: (number | Highcharts.PointOptionsObject | [string, number | null] | null)[] | undefined
-(Highcharts, Highmaps) An array of data points for the series. For the pie series type, points can be given in the following ways:
-
-An array of numerical values. In this case, the numerical values will be interpreted as y options. Example: (see online documentation for example)
-
-An array of objects with named values. The following snippet shows only a few settings, see the complete options set below. If the total number of data points exceeds 
-      data: seriesData,
+createPieChart(data: any[]): void {
+    if (!data || !Array.isArray(data)) {
+      console.error('Invalid data for pie chart:', data);
+      return;
+    }
+  
+    const seriesData = data.map(item => ({
+      name: item[0],
+      y: Number(item[1])  // Ensure y is a number
+    }));
+  
+    this.pieChartOptions = {
+      chart: {
+        type: 'pie'
+      },
+      title: {
+        text: 'Enjeux Initiative P1'
+      },
+      series: [{
+        type: 'pie',
+        name: 'Initiatives Count',
+        data: seriesData,
+        colors: ['#E4003A', '#4535C1', '#3357FF', '#FF33A1', '#FFBF00']
+      }],
+      plotOptions: {
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          dataLabels: {
+            enabled: true,
+            format: '{point.name}: {point.percentage:.1f}%',
+            style: {
+              color: 'black'
+            }
+          }
+        }
+      },
+      credits: { enabled: false }
+    };
+  
+    Highcharts.chart('pie-chart-container', this.pieChartOptions);
+  }
