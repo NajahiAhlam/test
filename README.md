@@ -5,10 +5,14 @@ createPieChart(data: any): void {
   }
 
   // Convert the object properties into an array of [name, value]
-  const seriesData = Object.entries(data).map(([key, value]) => ({
-    name: key,
-    y: value
-  }));
+  const seriesData = Object.entries(data)
+    .map(([key, value]) => ({ name: key, y: value }))
+    .filter(item => item.y > 0); // Filter out items with zero values if needed
+
+  if (seriesData.length === 0) {
+    console.error('No valid data available for pie chart.');
+    return;
+  }
 
   this.pieChartOptions = {
     chart: {
@@ -39,15 +43,11 @@ createPieChart(data: any): void {
     credits: { enabled: false }
   };
 
-  Highcharts.chart('pie-chart-container', this.pieChartOptions);
-}
-togglePieChart(): void {
-  if (this.aggregatedDataa) {
-    this.showPieChart = !this.showPieChart;
-    if (this.showPieChart) {
-      this.createPieChart(this.aggregatedDataa);
-    }
+  // Ensure that the chart container is available
+  const chartContainer = document.getElementById('pie-chart-container');
+  if (chartContainer) {
+    Highcharts.chart('pie-chart-container', this.pieChartOptions);
   } else {
-    console.error('No data available for pie chart');
+    console.error('Chart container not found.');
   }
 }
