@@ -1,4 +1,4 @@
-2024-08-08 11:06:34.120 ERROR 20152 --- [nio-9090-exec-8] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.dao.DataIntegrityViolationException: could not extract ResultSet; SQL [n/a]; nested exception is org.hibernate.exception.DataException: could not extract ResultSet] with root cause
+2024-08-08 11:12:55.229 ERROR 21968 --- [nio-9090-exec-2] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.dao.DataIntegrityViolationException: could not extract ResultSet; SQL [n/a]; nested exception is org.hibernate.exception.DataException: could not extract ResultSet] with root cause
 
 org.postgresql.util.PSQLException: ERREUR: division par zéro
 	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2675) ~[postgresql-42.3.8.jar:42.3.8]
@@ -152,16 +152,31 @@ org.postgresql.util.PSQLException: ERREUR: division par zéro
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) [tomcat-embed-core-9.0.76.jar:9.0.76]
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) [tomcat-embed-core-9.0.76.jar:9.0.76]
 	at java.lang.Thread.run(Thread.java:750) [na:1.8.0_352-352]
------------------
-    @Query("SELECT COUNT(CASE WHEN p.typeInvestissement = 'RTB' AND p.isInitiative = false THEN 1 ELSE NULL END) AS countProjetsTransverse, "
-            +"SUM(CASE WHEN p.isInitiative = false THEN l.budgetInitial.intern ELSE 0 END) / SUM(CASE WHEN p.isInitiative = false THEN l.budgetInitial.intern ELSE 0 END) + SUM(CASE WHEN p.isInitiative = false THEN l.budgetInitial.extern ELSE 0 END) AS sumTotalETP, "
-            + "COUNT(CASE WHEN p.isInitiative = false AND p.phase <> 'Opportunité' THEN 1 ELSE NULL END) "
-            + " + COUNT(CASE WHEN p.isInitiative = true AND p.phase <> 'Opportunité' AND f.dateOuverture >= CURRENT_DATE AND f.dateCloture <= CURRENT_DATE THEN 1 ELSE NULL END) AS numerator, "
-            + "COUNT(CASE WHEN p.isInitiative = false OR (p.isInitiative = true AND f.dateOuverture >= CURRENT_DATE AND f.dateCloture <= CURRENT_DATE) THEN 1 ELSE NULL END) AS denominator "
-            + "FROM Projet p "
-            + "LEFT JOIN p.fdr f "
-            + "LEFT JOIN p.leadPrincipal l "
-            + "WHERE (:programme IS NULL OR p.programme.nom = :programme) "
-            +"  AND f.annee = :year "
-            + "AND (:lead IS NULL OR p.leadPrincipal.intitule = :lead) ")
-    Map<String, Object> getAggregatedMetrics(@Param("year") Long year,@Param("programme") String programme, @Param("lead") String lead);
+    public Map<String, Object> getAggregatedMetrics(Long year, String programme, String lead) {
+        Map<String, Object> result = projetRepository.getAggregatedMetrics(year, programme, lead);
+        double tauxAnnuelLancement = 0;
+
+        Long countProjetsTransverse = ((Number) result.get("countProjetsTransverse")).longValue();
+        Long sumTotalETP = ((Number) result.get("sumTotalETP")).longValue();
+        Long numerator = ((Number) result.get("numerator")).longValue();
+        Long denominator = ((Number) result.get("denominator")).longValue();
+
+        //Double tauxAnnuelLancement = (denominator == 0) ? null : numerator.doubleValue() / denominator.doubleValue();
+
+        // Calculate tauxAnnuelLancement
+        if(denominator != 0){
+          tauxAnnuelLancement = denominator > 0 ? (double) numerator / denominator * 100 : 0;
+        }
+
+       // Calculate sumTotalRtp as percentage
+        double sumTotalRtp = sumTotalETP > 0 ? (double) countProjetsTransverse / sumTotalETP * 100 : 0;
+
+        Map<String, Object> metrics = new HashMap<>();
+        metrics.put("countProjetsTransverse", countProjetsTransverse);
+        metrics.put("sumTotalETP", sumTotalETP);
+        metrics.put("numerator", numerator);
+        metrics.put("denominator", denominator);
+        metrics.put("tauxAnnuelLancement", tauxAnnuelLancement);
+
+        return metrics;
+    }
