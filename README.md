@@ -1,49 +1,133 @@
-public ObjectPagination<ProjetDTO> findAllInitiatives(int page, int size, String sortDirection, String sortValue, Map<String, String> filters) throws SsoException {
-    // ... existing code ...
+<nb-card accent="primary" class="">
+    <ng-container >
+     
+      
+      <ng-container >
+  
+        <nb-card-header>
+          <h5 class="title-animation title-heading text-uppercase my-auto p-2">Traitement Cockpit - <span
+            style="color:#DC3545">Deposer un fichier</span></h5>
+        </nb-card-header>
+        <nb-card-body>
+          <br>
+          <div class="d-flex justify-content-center box">
+            <div class="w-50">
+              <form>
+                <nb-select  fullWidth
+                           placeholder="Choisir un processus"
+                >
+                  <nb-option *ngFor="let option of options" [value]="option">
+                    {{ option }}
+                  </nb-option>
+                </nb-select>
+              </form>
+            </div>
+            <div
+                class="upload-container">
+              <div class="upload-box" id="drop-area">
+                <label for="fileElem" class="m-auto w-100">
+                    <input type="file" id="fileElem" #fileElem
+                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+             >
+                  <div class="upload-box-img">
+                    <nb-icon icon="file-excel-2-line">
+                    </nb-icon>
+                  </div>
+                  <div class="upload-box-description">
+                    <p>Faites glisser et déposez un fichier ici ou <span class="fw-bold text-danger">choisissez un fichier</span><br>
+                      <span class="text-muted">Xlsx, xls (10 MB Max) par fichier</span></p>
+                  </div>
+                </label>
+              </div>
+              <br>
+              <div *ngIf="isUploading" class="upload-progess d-flex justify-content-between shadow d-flex flex-row">
+                <div class=" col-lg-1 upload-progress-icon my-auto">
+                  <nb-icon icon="file-text-line"></nb-icon>
+                </div>
+                <div class="col-md-8 col-lg-10 upload-progress-values my-auto">
+                  <div class="file-name fw-bold"></div>
+                  <div class="file-size text-muted"></div>
+                  <div class="progress-bar w-100">
+                    <div [ngStyle]="{width: (progress)+'%'}" class="progress-bar-value"></div>
+                  </div>
+                </div>
+                <div  class="col-lg-1 cancel-icon my-auto">
+                  <nb-icon icon="close-line"></nb-icon>
+                </div>
+              </div>
+            </div>
+          </div>
+        </nb-card-body>
+      
+      </ng-container>
+    </ng-container>
+  </nb-card>
+  
+  import { Component } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { NbWindowService } from '@nebular/theme';
+import { Subscription } from 'rxjs';
+import { Projet } from 'src/app/@core/models/project.model';
+import { UtilsService } from 'src/app/@core/services/utils.service';
+import { AppDataState, DataStateEnum } from 'src/app/@core/state';
 
-    ObjectPagination<ProjetDTO> pagination = new ObjectPagination<>();
-    pagination.setContent(pageOfInitiative.stream()
-            .map(initiative -> {
-                ProjetDTO dto = modelMapper.map(initiative, ProjetDTO.class);
-                // Ensure categoriIds are set
-                dto.setCategoriIds(initiative.getCategories().stream().map(Categorie::getId).collect(Collectors.toList()));
-                return dto;
-            })
-            .collect(Collectors.toList()));
+@Component({
+  selector: 'app-deposer-fichier',
+  templateUrl: './deposer-fichier.component.html',
+  styleUrls: ['./deposer-fichier.component.scss']
+})
+export class DeposerFichierComponent {
+  options= ['Extract du Suivi des Portefeuilles Projets', 
+    'Sciforma Suivi des Timesheets SGMA', 
+    'P2P du Suivi des Engagements'];
+  allOptions = ['Extract du Suivi des Portefeuilles Projets', 
+    'Sciforma Suivi des Timesheets SGMA', 
+    'P2P du Suivi des Engagements'];
+  selectedOption: string = '';
+  loading = false;
+  progress = 0;
 
-    // ... existing code ...
-    return pagination;
-}
-@ManyToMany(fetch = FetchType.LAZY)
-@JoinTable(name = "projet_categories",
-        joinColumns = @JoinColumn(name = "projet_id"),
-        inverseJoinColumns = @JoinColumn(name = "categorie_id"))
-private List<Categorie> categories;
-modelMapper.addMappings(new PropertyMap<Projet, ProjetDTO>() {
-    @Override
-    protected void configure() {
-        map().setCategoriIds(source.getCategories().stream().map(Categorie::getId).collect(Collectors.toList()));
-    }
-});
-private Projet convertDTOToProjet(ProjetDTO dto) {
-    Projet projet = modelMapper.map(dto, Projet.class);
-    System.out.println("Categories IDs: " + dto.getCategoriesIds()); // Debugging line
-    setCategoriess(projet, dto.getCategoriesIds());
-    updateProjetFields(projet);
-    cloneBudgets(projet);
-    logConversionHistory(projet);
-    return projet;
-}
-private void setCategoriess(Projet projet, List<Long> categoryIds) {
-    if (categoryIds != null && !categoryIds.isEmpty()) {
-        List<Categorie> categories = categorieRepository.findAllById(categoryIds);
-        if (categories.isEmpty()) {
-            // Log a warning or handle the case where no categories are found
-            System.out.println("No categories found for IDs: " + categoryIds);
-        }
-        projet.setCategories(categories);
-    } else {
-        projet.setCategories(Collections.emptyList());
-    }
-}
+  readonly DataStateEnum = DataStateEnum;
+  submitted = false;
+  disableUpload = true;
 
+  // Subscriptions
+  formSubscription?: Subscription;
+  fileSendSubscription?: Subscription
+  isUploading: boolean = false;
+  selectedFile!: File
+
+  constructor(
+              private fb: FormBuilder,
+              private utilsService: UtilsService,
+              private windowService: NbWindowService) {
+  }
+
+  ngOnInit(): void {
+  }
+
+
+
+
+
+  sendFile() {
+ 
+  }
+
+ 
+  ngOnDestroy(): void {
+    this.fileSendSubscription?.unsubscribe()
+    this.formSubscription?.unsubscribe()
+  }
+
+  onRecordChange(){
+    this.checkPermissions();
+  }
+
+
+  checkPermissions() {
+   
+  }
+
+
+}
