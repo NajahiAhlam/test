@@ -1,117 +1,136 @@
-deposer-fichier.component.ts:71 Error uploading file: 
-HttpErrorResponse {headers: HttpHeaders, status: 200, statusText: 'OK', url: 'http://localhost:9090/api/cockpit/sciformaTimeSheets/upload', ok: false, …}
-error
-: 
-error
-: 
-SyntaxError: Unexpected token 'F', "File uploa"... is not valid JSON at JSON.parse (<anonymous>) at XMLHttpRequest.onLoad (http://localhost:4200/vendor.js:68343:41) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:171) at http://localhost:4200/vendor.js:80081:49 at AsyncStackTaggingZoneSpec.onInvokeTask (http://localhost:4200/vendor.js:80081:30) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:54) at Object.onInvokeTask (http://localhost:4200/vendor.js:80395:25) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:54) at Zone.runTask (http://localhost:4200/polyfills.js:8078:37) at ZoneTask.invokeTask [as invoke] (http://localhost:4200/polyfills.js:8351:26)
-text
-: 
-"File uploaded and parsed successfully"
-[[Prototype]]
-: 
-Object
-headers
-: 
-HttpHeaders
-lazyInit
-: 
-() => {…}
-lazyUpdate
-: 
-null
-normalizedNames
-: 
-Map(0) {size: 0}
-[[Prototype]]
-: 
-Object
-message
-: 
-"Http failure during parsing for http://localhost:9090/api/cockpit/sciformaTimeSheets/upload"
-name
-: 
-"HttpErrorResponse"
-ok
-: 
-false
-status
-: 
-200
-statusText
-: 
-"OK"
-url
-: 
-"http://localhost:9090/api/cockpit/sciformaTimeSheets/upload"
-[[Prototype]]
-: 
-HttpResponseBase
-deposer-fichier.component.ts:80 Upload error: 
-HttpErrorResponse {headers: HttpHeaders, status: 200, statusText: 'OK', url: 'http://localhost:9090/api/cockpit/sciformaTimeSheets/upload', ok: false, …}
-error
-: 
-error
-: 
-SyntaxError: Unexpected token 'F', "File uploa"... is not valid JSON at JSON.parse (<anonymous>) at XMLHttpRequest.onLoad (http://localhost:4200/vendor.js:68343:41) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:171) at http://localhost:4200/vendor.js:80081:49 at AsyncStackTaggingZoneSpec.onInvokeTask (http://localhost:4200/vendor.js:80081:30) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:54) at Object.onInvokeTask (http://localhost:4200/vendor.js:80395:25) at _ZoneDelegate.invokeTask (http://localhost:4200/polyfills.js:8274:54) at Zone.runTask (http://localhost:4200/polyfills.js:8078:37) at ZoneTask.invokeTask [as invoke] (http://localhost:4200/polyfills.js:8351:26)
-text
-: 
-"File uploaded and parsed successfully"
-[[Prototype]]
-: 
-Object
-headers
-: 
-HttpHeaders {normalizedNames: Map(0), lazyUpdate: null, lazyInit: ƒ}
-message
-: 
-"Http failure during parsing for http://localhost:9090/api/cockpit/sciformaTimeSheets/upload"
-name
-: 
-"HttpErrorResponse"
-ok
-: 
-false
-status
-: 
-200
-statusText
-: 
-"OK"
-url
-: 
-"http://localhost:9090/api/cockpit/sciformaTimeSheets/upload"
-[[Prototype]]
-: 
-HttpResponseBase
-error	@	deposer-fichier.component.ts:80
-Zone - Promise.then (asynchrone)		
-getUserEmail	@	auth-interceptor.service.ts:41
-handleRequest	@	auth-interceptor.service.ts:20
-intercept	@	auth-interceptor.service.ts:13
-intercept	@	http-error-handling-…eptor.service.ts:15
-(anonyme)	@	request-auth-interceptor.service.ts:21
-intercept	@	request-auth-interceptor.service.ts:14
-Zone - XMLHttpRequest.addEventListener:readystatechange (asynchrone)		
-uploadFile	@	deposer-fichier.component.ts:74
-onFileSelected	@	deposer-fichier.component.ts:39
-DeposerFichierComponent_Template_input_change_15_listener	@	deposer-fichier.component.html:22
-Zone - HTMLInputElement.addEventListener:change (asynchrone)		
-DeposerFichierComponent_Template	@	deposer-fichier.component.html:22
-load (asynchrone)		
-p	@	node_modules\pace-js\pace.min.js:6
-a	@	node_modules\pace-js\pace.min.js:6
-nt.watch	@	node_modules\pace-js\pace.min.js:6
-(anonyme)	@	node_modules\pace-js\pace.min.js:6
-tt.trigger	@	node_modules\pace-js\pace.min.js:6
-r.open	@	node_modules\pace-js\pace.min.js:6
-Zone - Promise.then (asynchrone)		
-getUserEmail	@	auth-interceptor.service.ts:41
-handleRequest	@	auth-interceptor.service.ts:20
-intercept	@	auth-interceptor.service.ts:13
-intercept	@	http-error-handling-…eptor.service.ts:15
-(anonyme)	@	request-auth-interceptor.service.ts:21
-intercept	@	request-auth-interceptor.service.ts:14
-Zone - Promise.then (asynchrone)		
-loadChildren	@	app-routing.module.ts:9
-Afficher 1 605 autres frames
+// excel.service.ts (or your corresponding service file)
+import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ExcelService {
+  private apiUrl = 'http://localhost:9090/api/cockpit/sciformaTimeSheets/upload';
+
+  constructor(private http: HttpClient) {}
+
+  uploadFile(formData: FormData): Observable<string> {
+    return this.http.post(this.apiUrl, formData, { responseType: 'text' });
+  }
+}
+import { Component } from '@angular/core';
+import { FormBuilder } from '@angular/forms';
+import { catchError, Observable, throwError } from 'rxjs';
+import { UtilsService } from 'src/app/@core/services/utils.service';
+import { ExcelService } from '../../service/excel.service';
+
+@Component({
+  selector: 'app-deposer-fichier',
+  templateUrl: './deposer-fichier.component.html',
+  styleUrls: ['./deposer-fichier.component.scss']
+})
+export class DeposerFichierComponent {
+  options = ['Extract du Suivi des Portefeuilles Projets', 
+             'Sciforma Suivi des Timesheets SGMA', 
+             'P2P du Suivi des Engagements'];
+  selectedOption: string = '';
+  isUploading: boolean = false;
+  selectedFile!: File;
+  progress = 0;
+  fileSize = '';
+  
+  private fileSendSubscription?: Subscription;
+
+  constructor(
+    private fb: FormBuilder,
+    private utilsService: UtilsService,
+    private excelService: ExcelService) {
+  }
+
+  onFileSelected(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+
+    if (files && files.length > 0) {
+      this.selectedFile = files[0];
+      this.fileSize = (this.selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB';
+      this.uploadFile(this.selectedFile);
+    }
+  }
+
+  onProcessChange(event: any) {
+    this.selectedOption = event.value;
+  }
+
+  uploadFile(file: File): void {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+  
+    let uploadObservable: Observable<string> | undefined;
+    console.log("selectedOption", this.selectedOption)
+    switch (this.selectedOption) {
+      case 'Extract du Suivi des Portefeuilles Projets':
+        uploadObservable = this.excelService.uploadFile(formData);
+        break;
+      case 'Sciforma Suivi des Timesheets SGMA':
+        // Assign the appropriate service method for this case
+        // uploadObservable = this.sciformaService.uploadFile(formData);
+        break;
+      case 'P2P du Suivi des Engagements':
+        // Assign the appropriate service method for this case
+        // uploadObservable = this.p2pService.uploadFile(formData);
+        break;
+      default:
+        console.error('Unknown process selected');
+        return; // Exit if no valid option is selected
+    }
+  
+    if (uploadObservable) {
+      uploadObservable.pipe(
+        catchError(error => {
+          console.error('Error uploading file:', error);
+          return throwError(error);
+        })
+      ).subscribe({
+        next: (response) => {
+          // response is plain text
+          this.utilsService.displaySucess(response, "WorkFlow Cockpit");
+          this.resetUpload();
+        },
+        error: (err) => {
+          console.error('Upload error:', err);
+        }
+      });
+    } else {
+      console.error('No upload observable available');
+    }
+  }
+  
+  handleUploadProgress(event: any) {
+    if (event.lengthComputable) {
+      this.progress = Math.round((100 * event.loaded) / event.total);
+    }
+  }
+
+  handleError(error: any) {
+    console.error('Upload error:', error);
+    this.isUploading = false;
+  }
+
+  handleComplete() {
+    console.log('Upload complete');
+    this.isUploading = false;
+    this.resetUpload();
+  }
+
+  cancelUpload() {
+    this.isUploading = false;
+  }
+
+  resetUpload() {
+    this.selectedFile = null as any;
+    this.progress = 0;
+    this.fileSize = '';
+  }
+
+  ngOnDestroy(): void {
+    this.fileSendSubscription?.unsubscribe();
+  }
+}
