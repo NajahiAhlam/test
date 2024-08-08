@@ -2,9 +2,7 @@ import { Component } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { NbWindowService } from '@nebular/theme';
 import { catchError, Observable, Subscription, throwError } from 'rxjs';
-import { Projet } from 'src/app/@core/models/project.model';
 import { UtilsService } from 'src/app/@core/services/utils.service';
-import { AppDataState, DataStateEnum } from 'src/app/@core/state';
 import { ExcelService } from '../../service/excel.service';
 
 @Component({
@@ -14,8 +12,8 @@ import { ExcelService } from '../../service/excel.service';
 })
 export class DeposerFichierComponent {
   options = ['Extract du Suivi des Portefeuilles Projets', 
-    'Sciforma Suivi des Timesheets SGMA', 
-    'P2P du Suivi des Engagements'];
+             'Sciforma Suivi des Timesheets SGMA', 
+             'P2P du Suivi des Engagements'];
   selectedOption: string = '';
   isUploading: boolean = false;
   selectedFile!: File;
@@ -25,19 +23,19 @@ export class DeposerFichierComponent {
   private fileSendSubscription?: Subscription;
 
   constructor(
-              private fb: FormBuilder,
-              private utilsService: UtilsService,
-              private windowService: NbWindowService,
-              private excelService: ExcelService) {
+    private fb: FormBuilder,
+    private utilsService: UtilsService,
+    private windowService: NbWindowService,
+    private excelService: ExcelService) {
   }
 
- 
   onFileSelected(event: Event): void {
     const target = event.target as HTMLInputElement;
     const files = target.files;
 
     if (files && files.length > 0) {
       this.selectedFile = files[0];
+      this.fileSize = (this.selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB';
       this.uploadFile(this.selectedFile);
     }
   }
@@ -46,53 +44,53 @@ export class DeposerFichierComponent {
     this.selectedOption = event.value;
   }
 
-  onFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      this.selectedFile = input.files[0];
-      this.fileSize = (this.selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB';
-      this.uploadFile();
-    }
-  }
   uploadFile(file: File): void {
     const formData = new FormData();
     formData.append('file', file, file.name);
-  
+
     let uploadObservable: Observable<any>;
-  
+
     switch (this.selectedOption) {
       case 'Extract du Suivi des Portefeuilles Projets':
         uploadObservable = this.excelService.uploadFilee(formData);
         break;
       case 'Sciforma Suivi des Timesheets SGMA':
-        // Assign different service or URL
+        // Replace with appropriate method
+        uploadObservable = this.excelService.uploadSciforma(formData);
         break;
       case 'P2P du Suivi des Engagements':
-        // Assign different service or URL
+        // Replace with appropriate method
+        uploadObservable = this.excelService.uploadP2P(formData);
         break;
       default:
         console.error('Unknown process selected');
         return;
     }
-  
+
+    this.isUploading = true;
+
     uploadObservable.pipe(
       catchError(error => {
         console.error('Error uploading file:', error);
+        this.handleError(error);
         return throwError(error);
       })
     ).subscribe({
       next: (data) => {
         this.utilsService.displaySucess("Piece jointe ajoutée avec succès", "WorkFlow Cockpit");
-        this.resetUpload();
+        this.handleComplete();
       },
       error: (err) => {
         console.error('Upload error:', err);
+        this.handleError(err);
       }
     });
   }
+
   handleUploadProgress(event: any) {
-    // Update progress and handle file upload progress
-    this.progress = Math.round((100 * event.loaded) / event.total);
+    if (event.lengthComputable) {
+      this.progress = Math.round((100 * event.loaded) / event.total);
+    }
   }
 
   handleError(error: any) {
@@ -103,34 +101,21 @@ export class DeposerFichierComponent {
   handleComplete() {
     console.log('Upload complete');
     this.isUploading = false;
-    this.selectedFile = null as any;
-    this.progress = 0;
+    this.resetUpload();
   }
 
   cancelUpload() {
-    // Cancel upload logic if applicable
+    // Logic to cancel upload if applicable
     this.isUploading = false;
   }
+
   resetUpload() {
-    // Reset file input and progress
     this.selectedFile = null as any;
     this.progress = 0;
+    this.fileSize = '';
   }
 
   ngOnDestroy(): void {
     this.fileSendSubscription?.unsubscribe();
   }
-
-
-
-
-
-
-
- 
-
-
-  
-
-
 }
