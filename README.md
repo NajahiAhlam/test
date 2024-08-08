@@ -1,26 +1,11 @@
-public Metrics calculateMetrics(String programme, String lead, String enjeux) {
-    List<Object[]> results = yourRepository.getAggregatedMetrics(programme, lead, enjeux);
-
-    if (results.isEmpty()) {
-        throw new RuntimeException("No data found.");
-    }
-
-    Object[] row = results.get(0);
-    
-    long countProjetsTransverse = ((Number) row[0]).longValue();
-    long sumTotalETP = ((Number) row[1]).longValue();
-    long numerator = ((Number) row[2]).longValue();
-    long denominator = ((Number) row[3]).longValue();
-
-    // Calculate tauxAnnuelLancement
-    double tauxAnnuelLancement = denominator > 0 ? (double) numerator / denominator * 100 : 0;
-
-    // Calculate sumTotalRtp as percentage
-    double sumTotalRtp = sumTotalETP > 0 ? (double) countProjetsTransverse / sumTotalETP * 100 : 0;
-
-    // Create and return Metrics object or format your results as needed
-    Metrics metrics = new Metrics();
-    metrics.setTauxAnnuelLancement(tauxAnnuelLancement);
-    metrics.setSumTotalRtp(sumTotalRtp);
-    return metrics;
-}
+<nb-card class="metrics-card">
+  <nb-card-body>
+    <div class="metrics-row" *ngFor="let metric of metrics">
+      <nb-icon [icon]="metric.icon" pack="fa" class="metrics-icon"></nb-icon>
+      <div class="metrics-info">
+        <div class="metrics-label">{{ metric.label }}</div>
+        <div class="metrics-value">{{ metric.value | percent }}</div>
+      </div>
+    </div>
+  </nb-card-body>
+</nb-card>
