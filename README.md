@@ -153,30 +153,35 @@ org.postgresql.util.PSQLException: ERREUR: division par zéro
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) [tomcat-embed-core-9.0.76.jar:9.0.76]
 	at java.lang.Thread.run(Thread.java:750) [na:1.8.0_352-352]
     public Map<String, Object> getAggregatedMetrics(Long year, String programme, String lead) {
-        Map<String, Object> result = projetRepository.getAggregatedMetrics(year, programme, lead);
-        double tauxAnnuelLancement = 0;
+    Map<String, Object> result = projetRepository.getAggregatedMetrics(year, programme, lead);
 
-        Long countProjetsTransverse = ((Number) result.get("countProjetsTransverse")).longValue();
-        Long sumTotalETP = ((Number) result.get("sumTotalETP")).longValue();
-        Long numerator = ((Number) result.get("numerator")).longValue();
-        Long denominator = ((Number) result.get("denominator")).longValue();
+    // Safely retrieve values and handle nulls
+    Long countProjetsTransverse = result.containsKey("countProjetsTransverse") ? 
+                                   ((Number) result.get("countProjetsTransverse")).longValue() : 0L;
+    Long sumTotalETP = result.containsKey("sumTotalETP") ? 
+                       ((Number) result.get("sumTotalETP")).longValue() : 0L;
+    Long numerator = result.containsKey("numerator") ? 
+                     ((Number) result.get("numerator")).longValue() : 0L;
+    Long denominator = result.containsKey("denominator") ? 
+                       ((Number) result.get("denominator")).longValue() : 0L;
 
-        //Double tauxAnnuelLancement = (denominator == 0) ? null : numerator.doubleValue() / denominator.doubleValue();
+    // Calculate tauxAnnuelLancement
+    double tauxAnnuelLancement = (denominator != 0) ? 
+                                  (double) numerator / denominator * 100 : 0;
 
-        // Calculate tauxAnnuelLancement
-        if(denominator != 0){
-          tauxAnnuelLancement = denominator > 0 ? (double) numerator / denominator * 100 : 0;
-        }
+    // Calculate sumTotalRtp as percentage
+    double sumTotalRtp = (sumTotalETP > 0) ? 
+                          (double) countProjetsTransverse / sumTotalETP * 100 : 0;
 
-       // Calculate sumTotalRtp as percentage
-        double sumTotalRtp = sumTotalETP > 0 ? (double) countProjetsTransverse / sumTotalETP * 100 : 0;
+    // Prepare metrics map
+    Map<String, Object> metrics = new HashMap<>();
+    metrics.put("countProjetsTransverse", countProjetsTransverse);
+    metrics.put("sumTotalETP", sumTotalETP);
+    metrics.put("numerator", numerator);
+    metrics.put("denominator", denominator);
+    metrics.put("tauxAnnuelLancement", tauxAnnuelLancement);
+    metrics.put("sumTotalRtp", sumTotalRtp);
 
-        Map<String, Object> metrics = new HashMap<>();
-        metrics.put("countProjetsTransverse", countProjetsTransverse);
-        metrics.put("sumTotalETP", sumTotalETP);
-        metrics.put("numerator", numerator);
-        metrics.put("denominator", denominator);
-        metrics.put("tauxAnnuelLancement", tauxAnnuelLancement);
+    return metrics;
+}
 
-        return metrics;
-    }
