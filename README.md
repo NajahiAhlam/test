@@ -1,67 +1,48 @@
-Here's a cleaned-up and fixed version of your code with the following changes:
-
-### \u2705 Fixes & Improvements:
-1. **Fixed return for exception cases** \u2013 added appropriate return or rethrow.
-2. **Removed duplicate `StartProcessRequest` object**.
-3. **Fixed missing setters in `buildStartProcessRequest`**.
-4. **Improved readability and code structure**.
+Awesome! Here's a basic REST controller for your `startBpmProcess` method, assuming your service is called `WfService` (you can rename it if needed) and your endpoint should accept a POST request with a `StartWfRequestDto` as input.
 
 ---
 
-### \u2705 Updated Code
+### \u2705 `WfController.java`
 
 ```java
-public WfRequest startBpmProcess(StartWfRequestDto startWfRequestDto) {
-    try {
-        log.info("Starting BPM process ...");
+@RestController
+@RequestMapping("/api/workflow")
+@RequiredArgsConstructor
+public class WfController {
 
-        User auth = userService.getAuthenticatedUser();
-        WfRequest wfRequest = this.buildWfRequest(startWfRequestDto, auth);
-        StartProcessRequest startProcessRequest = this.buildStartProcessRequest(startWfRequestDto, auth);
+    private final WfService wfService;
 
-        ProcessResult processResult = this.bpmFacade.startProcess(startProcessRequest);
-
-        log.info("BPM process started successfully with ID: {}", processResult.getProcessInstanceId());
-
-        wfRequest.setProcessInstanceId(processResult.getProcessInstanceId());
-        wfRequest.setCurrentActivityId(processResult.getCurrentActivityId());
-        wfRequest.setCurrentActivityName(processResult.getCurrentActivityName());
-
-        return wfRequestRepository.save(wfRequest);
-
-    } catch (RestClientException e) {
-        log.error("Failed to start BPM process", e);
-        throw new RuntimeException("Failed to start BPM process", e);
-    } catch (PermissionException e) {
-        log.error("Permission denied when starting BPM process", e);
-        throw new RuntimeException("Permission denied", e);
+    @PostMapping("/start")
+    public ResponseEntity<WfRequest> startWorkflowProcess(@RequestBody StartWfRequestDto startWfRequestDto) {
+        try {
+            WfRequest wfRequest = wfService.startBpmProcess(startWfRequestDto);
+            return ResponseEntity.ok(wfRequest);
+        } catch (RuntimeException ex) {
+            // Log is optional here as it might already be logged inside the service
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null); // You can return a proper error DTO if preferred
+        }
     }
-}
-
-private WfRequest buildWfRequest(StartWfRequestDto dto, User auth) {
-    return WfRequest.builder()
-            .reporter(auth)
-            .status(WfStatus.INITIALISATION.toString())
-            .createdAt(LocalDateTime.now())
-            .updatedAt(LocalDateTime.now())
-            .build();
-}
-
-private StartProcessRequest buildStartProcessRequest(StartWfRequestDto dto, User user) {
-    StartProcessRequest request = new StartProcessRequest();
-    request.setParams(null); // Add real params if needed
-    request.setActorFullName(user.getEmail());
-    request.setActorReference(user.getEmail());
-    request.setInitiatorFullName(user.getEmail());
-    request.setInitiatorReference(user.getEmail());
-    request.setDataObjectUUID(UUID.randomUUID().toString());
-    return request;
 }
 ```
 
 ---
 
-Let me know if:
-- You want to customize `params` or pass something from the DTO.
-- You want to return a response DTO instead of the entity.
-- You need better error handling with a custom exception class.
+### Optional Enhancements:
+- **Use a DTO for the response** instead of returning the full entity (`WfRequest`).
+- **Add validation** to the request DTO using `@Valid`.
+- **Implement global exception handling** with `@ControllerAdvice`.
+
+---
+
+### If you're using Swagger/OpenAPI:
+```java
+@Operation(summary = "Start a new workflow process")
+@ApiResponse(responseCode = "200", description = "Workflow started successfully")
+@PostMapping("/start")
+public ResponseEntity<WfRequest> startWorkflowProcess(@RequestBody StartWfRequestDto dto) {
+    ...
+}
+```
+
+Want me to help with the response DTO or exception handling as well?
