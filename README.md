@@ -1,64 +1,82 @@
-2025-02-25 15:24:23.212 ERROR 18600 --- [nio-9090-exec-3] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.dao.InvalidDataAccessApiUsageException: org.hibernate.TransientPropertyValueException: object references an unsaved transient instance - save the transient instance before flushing : com.sgma.cockpit.entities.ChargeCout.fournisseur -> com.sgma.cockpit.entities.referentiels.Fournisseur; nested exception is java.lang.IllegalStateException: org.hibernate.TransientPropertyValueException: object references an unsaved transient instance - save the transient instance before flushing : com.sgma.cockpit.entities.ChargeCout.fournisseur -> com.sgma.cockpit.entities.referentiels.Fournisseur] with root cause
+Sure! Let\u2019s break it down into what you need:
 
-org.hibernate.TransientPropertyValueException: object references an unsaved transient instance - save the transient instance before flushing : com.sgma.cockpit.entities.ChargeCout.fournisseur -> com.sgma.cockpit.entities.referentiels.Fournisseur
-	at org.hibernate.engine.spi.CascadingActions$8.noCascade(CascadingActions.java:379) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.engine.internal.Cascade.cascade(Cascade.java:169) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.AbstractSaveEventListener.cascadeBeforeSave(AbstractSaveEventListener.java:426) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.DefaultPersistEventListener.justCascade(DefaultPersistEventListener.java:167) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.DefaultPersistEventListener.entityIsPersistent(DefaultPersistEventListener.java:160) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.DefaultPersistEventListener.onPersist(DefaultPersistEventListener.java:124) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:118) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-  @Override
-    @Transactional
-    public void updateDemande(@RequestBody DemandeDTO demandeDTO) throws PermissionException, ActionNONAuthoriseException {
+1. A new method called `buildWfRequest` that:
+   - Creates a `WfRequest` entity.
+   - Sets the `reporter` to the currently authenticated user.
+   - Prepares other fields (you can later extend this).
 
+2. The `startBpmProcess` method should:
+   - Call `buildWfRequest`.
+   - Use the data to populate the `StartProcessRequest`.
+   - Return a `ProcessResult`.
 
-        if (!userService.canDo("Modifier Demande COPRO")) {
-            throw new PermissionException("ressource introuvable");
-        }
+3. You want to include details like the `WfRequest` info inside your `ProcessResult`.
 
-        System.out.println(demandeDTO);
-        Optional<Demande> optionalDemande = demandeRepository.findById(demandeDTO.getId());
+---
 
-        if (!optionalDemande.isPresent()) {
-            throw new RuntimeException("Demande a modifié est introuvable");
-        }
+Here\u2019s how you can do it:
 
-        if (demandeDTO.getSession() == null || demandeDTO.getSession().getId() == 0) {
-            demandeDTO.setSession(null); // Set session to null if ID is 0 or session is null
-        }
-        Demande demande = modelMapper.map(demandeDTO, Demande.class);
-        List<String> statusList = Arrays.asList("COPRO", "rejetée", "validé");
+### \u2705 `startBpmProcess` Updated
+```java
+public ProcessResult startBpmProcess(StartWffRequestDto startWfRequestDto) {
+    try {
+        log.info("Starting BPM process ...");
 
-        if (statusList.contains(demande.getStatusFicheCopro())) {
-            throw new ActionNONAuthoriseException("Action non authoriser");
-        }
-        demande.getDispositifRh().forEach(dispositifRh -> {
-            dispositifRh.setDemande(demande);
+        // Step 1: Build your WfRequest entity
+        WfRequest wfRequest = buildWfRequest(startWfRequestDto);
 
-            dispositifRhRepository.save(dispositifRh);
+        // Step 2: Map WfRequest to StartProcessRequest
+        StartProcessRequest request = new StartProcessRequest();
+        request.setBusinessKey(String.valueOf(wfRequest.getId()));
+        request.setVariables(Map.of(
+            "reporterEmail", wfRequest.getReporter().getEmail(),
+            "status", wfRequest.getStatus()
+        ));
 
-        });
-      /* demande.getChargeCout().forEach(chargeCout -> {
-           chargeCout.setDemande(demande);
+        // Step 3: Start BPM process
+        ProcessResult processResult = bpmFacade.startProcess(request);
 
-            chargeCoutRepository.save(chargeCout);
+        // Step 4: Add wfRequest info into result (optional: wrap in a DTO)
+        processResult.setBusinessKey(String.valueOf(wfRequest.getId()));
+        processResult.setReporter(wfRequest.getReporter().getEmail());
+        processResult.setStatus(wfRequest.getStatus());
 
-        });*/
-        if (demande.getChargeCout() != null) {
-            demande.getChargeCout().removeIf(Objects::isNull);
-            for (ChargeCout charge : demande.getChargeCout()) {
-                if (charge.getFournisseur() == null) {
-                    charge.setFournisseur(null);
-                }
+        return processResult;
 
-                charge.setDemande(demande);
-                chargeCoutRepository.save(charge);
-            }
-        }
-
-        Demande saveDemande = demandeRepository.save(demande);
-        DemandeDTO map = modelMapper.map(saveDemande, DemandeDTO.class);
-       // return map;
+    } catch (RestClientException e) {
+        log.error("Failed to start BPM process", e);
+        throw e;
     }
+}
+```
 
+---
+
+### \u2705 `buildWfRequest` Method
+```java
+private WfRequest buildWfRequest(StartWffRequestDto dto) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    User authenticatedUser = userRepository.findByUsername(auth.getName())
+                                           .orElseThrow(() -> new RuntimeException("User not found"));
+
+    WfRequest wfRequest = WfRequest.builder()
+        .reporter(authenticatedUser)
+        .status("DRAFT") // or from dto if needed
+        .createdAt(LocalDateTime.now())
+        .updatedAt(LocalDateTime.now())
+        .build();
+
+    // Save to DB
+    return wfRequestRepository.save(wfRequest);
+}
+```
+
+---
+
+### \U0001f4dd Notes
+
+- You'll need `userRepository` and `wfRequestRepository` injected in your service.
+- `ProcessResult` must have `setBusinessKey`, `setReporter`, and `setStatus` methods \u2014 you can extend it or use a custom DTO.
+- `StartWffRequestDto` is your input DTO \u2014 you can extend this to populate more fields like assignee, people, etc.
+
+Let me know if you want to turn the `ProcessResult` into a custom response DTO (`WfResponseDto`) with more details.
