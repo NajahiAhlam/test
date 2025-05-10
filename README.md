@@ -1,2 +1,1 @@
-    .assigne(userRepository.findByEmail(c.getAssigne())
-             .orElseThrow(() -> new RuntimeException("User not found: " + c.getAssigne())))
+Non-static field 'userRepository' cannot be referenced from a static context
