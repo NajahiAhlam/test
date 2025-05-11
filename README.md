@@ -1,73 +1,179 @@
-2025-05-11 01:24:18.030 ERROR [mycnp-bff,25944e3bbc91ef98,25944e3bbc91ef98] 20076 --- [nio-8081-exec-2] o.a.c.c.C.[.[.[.[dispatcherServlet]      : Servlet.service() for servlet [dispatcherServlet] in context with path [/api] threw exception [Request processing failed; nested exception is org.springframework.dao.InvalidDataAccessApiUsageException: org.hibernate.TransientObjectException: object references an unsaved transient instance - save the transient instance before flushing: com.example.mycnp.domain.ZoneRisqueInstance; nested exception is java.lang.IllegalStateException: org.hibernate.TransientObjectException: object references an unsaved transient instance - save the transient instance before flushing: com.example.mycnp.domain.ZoneRisqueInstance] with root cause
+public class AnalyseInstance {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(columnDefinition="text")
+    private String reponse;
+    private String facteur;
+    @ManyToOne
+    private AnalyseRisque analyseRisque;
+}
+public class AnalyseRisque {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(columnDefinition="text")
+    private String description;
+}
+public class Conditions {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @Column(columnDefinition="text")
+    private String detail;
+    private String categorie;
+    @ManyToOne
+    private User assigne;
+    @OneToMany(mappedBy = "conditions", cascade = CascadeType.ALL)
+    private List<ConditionComment> comments =new ArrayList<>();
+    private Long numberSemaineApresLancement;
+    private LocalDate dateLancement;
+    private LocalDate dateEcheance;
+    private LocalDateTime dateColoture;
+    private String etat;
+    @OneToMany(mappedBy="condition",fetch = FetchType.LAZY)
+    private List<AttachementClotureCondition> attachments=new ArrayList<>();
+}
+public class Risque {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    @ManyToOne
+    private User validateur;
+    @OneToMany
+    private List<ZoneRisque> zoneRisques;
+    @Column(updatable = false)
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
+public class RisqueInstance {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    @Column(columnDefinition = "TEXT")
+    private String contexte;
+    private String niveauRisqueResiduel;
+    private String NiveauIntrinseque;
+    @OneToMany
+    private List<ZoneRisqueInstance> zoneRisques;
+    @OneToMany
+    private List<Conditions> conditions;
+    private String typeValidation;
+    @Column(updatable = false)
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+    private boolean valider=false;
+    private boolean initier=false;
+    private LocalDateTime dateValidation;
+    @Column(columnDefinition = "TEXT")
+    private String comment;
+    @Column(columnDefinition = "TEXT")
+    private String autreRisque;
+    @ManyToOne
+    private Risque risque;
+}
+public class ZoneRisque {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    private String name;
+    @OneToMany
+    private List<AnalyseRisque> analyseRisques;
+}
+public class ZoneRisqueInstance {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    @ManyToOne
+    private ZoneRisque zoneRisque;
+    @OneToMany
+    private List<AnalyseInstance> analyseInstances;
+}
+hey chat i have those entities i ahev user with role admin enter risque and zonerisque and analyse like template and the validateur that admin enter on risque and enter the risqueInstance and zoneRisque analyseInstance repondre the create i did of the template and of the risqueInstance this is the create methode of risqueInstance 
+  @Transactional
+    public RisqueInstanceDTO createRisqueInstance(RisqueInstanceDTO dto, Long demandeId) {
+        List<Conditions> conditionsList = new ArrayList<>();
+        for (ConditionsDTO conditionDTO : dto.getConditions()) {
+            // Fetch user by email (assigne)
+            Optional<User> assigneeUser = userRepository.findByEmail(conditionDTO.getAssigne());
+            if (!assigneeUser.isPresent()) {
+                // Handle the case where the user is not found
+                throw new RuntimeException("User with email " + conditionDTO.getAssigne() + " not found");
+            }
 
-org.hibernate.TransientObjectException: object references an unsaved transient instance - save the transient instance before flushing: com.example.mycnp.domain.ZoneRisqueInstance
-	at org.hibernate.engine.internal.ForeignKeys.getEntityIdentifierIfNotUnsaved(ForeignKeys.java:347) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.type.EntityType.getIdentifier(EntityType.java:508) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.type.EntityType.nullSafeSet(EntityType.java:281) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.persister.collection.AbstractCollectionPersister.writeElement(AbstractCollectionPersister.java:925) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.persister.collection.AbstractCollectionPersister.recreate(AbstractCollectionPersister.java:1347) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.action.internal.CollectionRecreateAction.execute(CollectionRecreateAction.java:50) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:604) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.engine.spi.ActionQueue.lambda$executeActions$1(ActionQueue.java:478) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at java.util.LinkedHashMap.forEach(LinkedHashMap.java:684) ~[na:1.8.0_352-352]
-	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:475) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:344) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:40) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:107) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1407) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:489) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:3303) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:2438) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:449) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:183) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.access$300(JdbcResourceLocalTransactionCoordinatorImpl.java:40) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:281) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-5.6.15.Final.jar:5.6.15.Final]
-	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562) ~[spring-orm-5.3.27.jar:5.3.27]
-	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:743) ~[spring-tx-5.3.27.jar:5.3.27]
-	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:711) ~[spring-tx-5.3.27.jar:5.3.27]
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:654) ~[spring-tx-5.3.27.jar:5.3.27]
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:407) ~[spring-tx-5.3.27.jar:5.3.27]
-	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-5.3.27.jar:5.3.27]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:186) ~[spring-aop-5.3.27.jar:5.3.27]
-	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:763) ~[spring-aop-5.3.27.jar:5.3.27]
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:708) ~[spring-aop-5.3.27.jar:5.3.27]
-	at com.example.mycnp.service.impl.RequestServiceImpl$$EnhancerBySpringCGLIB$$1fe86cfb.createRisqueInstance(<generated>) ~[classes/:na]
-	at com.example.mycnp.controller.WfController.updateRisque(WfController.java:151) ~[classes/:na]
-	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:1.8.0_352-352]
-	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[na:1.8.0_352-352]
-	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:1.8.0_352-352]
-	at java.lang.reflect.Method.invoke(Method.java:498) ~[na:1.8.0_352-352]
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-5.3.27.jar:5.3.27]
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.FrameworkServlet.doPut(FrameworkServlet.java:920) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:558) ~[tomcat-embed-core-9.0.74.jar:4.0.FR]
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623) ~[tomcat-embed-core-9.0.74.jar:4.0.FR]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:209) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:337) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:122) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:116) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:126) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:81) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:109) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.keycloak.adapters.springsecurity.filter.KeycloakAuthenticatedActionsFilter.doFilter(KeycloakAuthenticatedActionsFilter.java:74) ~[keycloak-spring-security-adapter-12.0.4.jar:12.0.4]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	
+            // Create the Conditions object
+            Conditions condition = new Conditions();
+            condition.setCategorie(conditionDTO.getCategorie());
+            condition.setDateEcheance(conditionDTO.getDateEcheance());
+            condition.setDateLancement(conditionDTO.getDateLancement());
+            condition.setDetail(conditionDTO.getDetail());
+            condition.setEtat(conditionDTO.getEtat());
+            condition.setNumberSemaineApresLancement(conditionDTO.getNumberSemaineApresLancement());
+
+            // Set the assignee for the condition
+            condition.setAssigne(assigneeUser.get());
+
+            // Save the condition first
+            conditionsRepository.save(condition);
+            conditionsList.add(condition);  // Add the condition to the list
+
+            conditionDTO.setId(condition.getId());
+        }
+
+        List<ZoneRisqueInstance> zoneRisqueInstances = new ArrayList<>();;
+        for (ZoneRisqueInstanceDTO zoneRisqueInstanceDTO : dto.getZoneRisques()) {
+            ZoneRisqueInstance zoneRisqueInstance = new ZoneRisqueInstance();
+            zoneRisqueInstance.setName(zoneRisqueInstanceDTO.getName());
+
+            ZoneRisque zoneRisque = zoneRisqueRepository.findById(zoneRisqueInstanceDTO.getZoneRisqueId())
+                    .orElseThrow(() -> new IllegalArgumentException("Aucune zone risque avec id = " + zoneRisqueInstanceDTO.getZoneRisqueId()));
+            zoneRisqueInstance.setZoneRisque(zoneRisque);
+
+            List<AnalyseInstance> analyseRisques = new ArrayList<>();
+            for (AnalyseReponseDTO analyseDTO : zoneRisqueInstanceDTO.getAnalyseRisques()) {
+                AnalyseInstance analyseRisque = new AnalyseInstance();
+                analyseRisque.setReponse(analyseDTO.getReponse());
+
+                 AnalyseRisque analyseRis = analyseRisqueRepository.findById(analyseDTO.getAnalyseRisqueId())
+                        .orElseThrow(() -> new IllegalArgumentException("Aucune analyse risque avec id = " + analyseDTO.getAnalyseRisqueId()));
+                analyseRisque.setAnalyseRisque(analyseRis);
+                analyseRisques.add(analyseRisque);
+
+                analyseInstanceRepository.save(analyseRisque);
+            }
+            zoneRisqueInstance.setAnalyseInstances(analyseRisques);
+            zoneRisqueInstanceRepository.save(zoneRisqueInstance);
+            zoneRisqueInstances.add(zoneRisqueInstance);
+        }
+
+        // Now, create and save the RisqueInstance
+        RisqueInstance risqueInstance = RisqueInstanceMapper.toEntity(dto, userRepository);
+        risqueInstance.setConditions(conditionsList); // Set the conditions to the RisqueInstance
+        Risque risque = risqueRepository.findById(dto.getRisqueId())
+                .orElseThrow(() -> new IllegalArgumentException("Aucune risque avec id = " + dto.getRisqueId()));
+        risqueInstance.setRisque(risque);
+        risqueInstance.setZoneRisques(zoneRisqueInstances);
+        RisqueInstance savedRisqueInstance = risqueInstanceRepository.save(risqueInstance);
+
+        // Find and update the DemandeQualification
+        DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
+                .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
+
+        // Add the new RisqueInstance to the DemandeQualification
+        List<RisqueInstance> risqueInstances = Optional.ofNullable(demande.getRisques()).orElse(new ArrayList<>());
+        risqueInstances.add(savedRisqueInstance);
+        demande.setRisques(risqueInstances);
+
+        // Save the updated DemandeQualification
+        demandeQualificationRepository.save(demande);
+
+        // Return the saved RisqueInstance as a DTO
+        return RisqueInstanceMapper.toDTO(savedRisqueInstance);
+    }
+hey i want you to create for me dtos of theme and mapper and getById want it to come like this risqueInstance all his variable and risque with his variable and zoneRisqueInstance with zoneRisque and  analyseInstance  
