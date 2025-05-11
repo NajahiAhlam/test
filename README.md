@@ -1,3 +1,74 @@
+// AnalyseRisqueDTO
+public class AnalyseRisqueDTO {
+    private Long id;
+    private String description;
+}
+
+// AnalyseInstanceDTO
+public class AnalyseInstanceDTO {
+    private Long id;
+    private String reponse;
+    private String facteur;
+    private AnalyseRisqueDTO analyseRisque;
+}
+
+// ZoneRisqueDTO
+public class ZoneRisqueDTO {
+    private Long id;
+    private String name;
+}
+
+// ZoneRisqueInstanceDTO
+public class ZoneRisqueInstanceDTO {
+    private Long id;
+    private ZoneRisqueDTO zoneRisque;
+    private List<AnalyseInstanceDTO> analyseInstances;
+}
+
+// RisqueDTO
+public class RisqueDTO {
+    private Long id;
+    private String name;
+    private String validateurEmail;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+}
+
+// ConditionsDTO (if needed)
+public class ConditionsDTO {
+    private Long id;
+    private String detail;
+    private String categorie;
+    private String assigne;
+    private Long numberSemaineApresLancement;
+    private LocalDate dateLancement;
+    private LocalDate dateEcheance;
+    private LocalDateTime dateColoture;
+    private String etat;
+}
+
+// RisqueInstanceDTO
+public class RisqueInstanceDTO {
+    private Long id;
+    private String name;
+    private String contexte;
+    private String niveauRisqueResiduel;
+    private String niveauIntrinseque;
+    private String typeValidation;
+    private boolean valider;
+    private boolean initier;
+    private LocalDateTime dateValidation;
+    private String comment;
+    private String autreRisque;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    
+    private RisqueDTO risque;
+    private List<ZoneRisqueInstanceDTO> zoneRisques;
+    private List<ConditionsDTO> conditions;
+}
+
+
 public class RisqueInstanceMapper {
 
     public static RisqueInstanceDTO toDTO(RisqueInstance entity) {
