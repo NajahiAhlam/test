@@ -2,42 +2,35 @@ public boolean canAddRisqueInstance(Long demandeId) throws PermissionException {
     User user = userService.getAuthenticatedUser();
     String userEmail = user.getEmail();
 
-    // Get the demande
-    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
-            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
-
-    // Get all risques
-    List<Risque> allRisques = risqueRepository.findAll();
-
-    // Filter risques where the current user is the validateur
+    // Get all risques where the current user is validateur
     List<Risque> risquesOfUser = new ArrayList<>();
-    for (Risque r : allRisques) {
+    for (Risque r : risqueRepository.findAll()) {
         if (r.getValidateur() != null && r.getValidateur().getEmail().equals(userEmail)) {
             risquesOfUser.add(r);
         }
     }
 
-    // If user is not a validateur of any risque, return false
+    // If the user is not validateur of any risque → return false
     if (risquesOfUser.isEmpty()) {
         return false;
     }
 
-    // Get all existing RisqueInstances in this demande
+    // Get all risqueInstances already linked to the demande
     List<RisqueInstance> existingInstances = risqueInstanceRepository.findByDemandeQualificationId(demandeId);
     Set<Long> instantiatedRisqueIds = new HashSet<>();
-    for (RisqueInstance ri : existingInstances) {
-        if (ri.getRisque() != null) {
-            instantiatedRisqueIds.add(ri.getRisque().getId());
+    for (RisqueInstance instance : existingInstances) {
+        if (instance.getRisque() != null) {
+            instantiatedRisqueIds.add(instance.getRisque().getId());
         }
     }
 
-    // If there's at least one risque (where user is validateur) that hasn't been instantiated yet → return true
-    for (Risque risque : risquesOfUser) {
-        if (!instantiatedRisqueIds.contains(risque.getId())) {
-            return true;
+    // Check if there’s any risque (where user is validateur) that has NOT been instantiated
+    for (Risque r : risquesOfUser) {
+        if (!instantiatedRisqueIds.contains(r.getId())) {
+            return true; // user is validateur of a risque not yet added as instance
         }
     }
 
-    // All risques for this user have already been instantiated → return false
+    // All risques of the user already instantiated, or user has none → return false
     return false;
 }
