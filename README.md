@@ -1,167 +1,95 @@
-// AnalyseRisqueDTO
-public class AnalyseRisqueDTO {
-    private Long id;
-    private String description;
-}
+@Transactional
+    public RisqueInstanceDTO createRisqueInstance(RisqueInstanceDTO dto, Long demandeId) {
+        List<Conditions> conditionsList = new ArrayList<>();
+        for (ConditionsDTO conditionDTO : dto.getConditions()) {
+            // Fetch user by email (assigne)
+            Optional<User> assigneeUser = userRepository.findByEmail(conditionDTO.getAssigne());
+            if (!assigneeUser.isPresent()) {
+                // Handle the case where the user is not found
+                throw new RuntimeException("User with email " + conditionDTO.getAssigne() + " not found");
+            }
 
-// AnalyseInstanceDTO
-public class AnalyseInstanceDTO {
-    private Long id;
-    private String reponse;
-    private String facteur;
-    private AnalyseRisqueDTO analyseRisque;
-}
+            // Create the Conditions object
+            Conditions condition = new Conditions();
+            condition.setCategorie(conditionDTO.getCategorie());
+            condition.setDateEcheance(conditionDTO.getDateEcheance());
+            condition.setDateLancement(conditionDTO.getDateLancement());
+            condition.setDetail(conditionDTO.getDetail());
+            condition.setEtat("en cours");
+            condition.setNumberSemaineApresLancement(conditionDTO.getNumberSemaineApresLancement());
+            // Set the assignee for the condition
+            condition.setAssigne(assigneeUser.get());
 
-// ZoneRisqueDTO
-public class ZoneRisqueDTO {
-    private Long id;
-    private String name;
-}
+            // Save the condition first
+            conditionsRepository.save(condition);
+            try {
+                risqueService.joinCommentCondition(condition.getId(), conditionDTO.getCommentCond());
+            } catch (PermissionException e) {
+                throw new RuntimeException(e);
+            }
+            conditionsList.add(condition);  // Add the condition to the list
 
-// ZoneRisqueInstanceDTO
-public class ZoneRisqueInstanceDTO {
-    private Long id;
-    private ZoneRisqueDTO zoneRisque;
-    private List<AnalyseInstanceDTO> analyseInstances;
-}
+            conditionDTO.setId(condition.getId());
+        }
 
-// RisqueDTO
-public class RisqueDTO {
-    private Long id;
-    private String name;
-    private String validateurEmail;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-}
+        List<ZoneRisqueInstance> zoneRisqueInstances = new ArrayList<>();;
+        for (ZoneRisqueInstanceDTO zoneRisqueInstanceDTO : dto.getZoneRisques()) {
+            ZoneRisqueInstance zoneRisqueInstance = new ZoneRisqueInstance();
+            zoneRisqueInstance.setName(zoneRisqueInstanceDTO.getName());
 
-// ConditionsDTO (if needed)
-public class ConditionsDTO {
-    private Long id;
-    private String detail;
-    private String categorie;
-    private String assigne;
-    private Long numberSemaineApresLancement;
-    private LocalDate dateLancement;
-    private LocalDate dateEcheance;
-    private LocalDateTime dateColoture;
-    private String etat;
-}
+            ZoneRisque zoneRisque = zoneRisqueRepository.findById(zoneRisqueInstanceDTO.getZoneRisqueId())
+                    .orElseThrow(() -> new IllegalArgumentException("Aucune zone risque avec id = " + zoneRisqueInstanceDTO.getZoneRisqueId()));
+            zoneRisqueInstance.setZoneRisque(zoneRisque);
 
-// RisqueInstanceDTO
-public class RisqueInstanceDTO {
-    private Long id;
-    private String name;
-    private String contexte;
-    private String niveauRisqueResiduel;
-    private String niveauIntrinseque;
-    private String typeValidation;
-    private boolean valider;
-    private boolean initier;
-    private LocalDateTime dateValidation;
-    private String comment;
-    private String autreRisque;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    
-    private RisqueDTO risque;
-    private List<ZoneRisqueInstanceDTO> zoneRisques;
-    private List<ConditionsDTO> conditions;
-}
+            List<AnalyseInstance> analyseRisques = new ArrayList<>();
+            for (AnalyseReponseDTO analyseDTO : zoneRisqueInstanceDTO.getAnalyseRisques()) {
+                AnalyseInstance analyseRisque = new AnalyseInstance();
+                analyseRisque.setReponse(analyseDTO.getReponse());
+
+                 AnalyseRisque analyseRis = analyseRisqueRepository.findById(analyseDTO.getAnalyseRisqueId())
+                        .orElseThrow(() -> new IllegalArgumentException("Aucune analyse risque avec id = " + analyseDTO.getAnalyseRisqueId()));
+                analyseRisque.setAnalyseRisque(analyseRis);
+                analyseRisques.add(analyseRisque);
+
+                analyseInstanceRepository.save(analyseRisque);
+            }
+            zoneRisqueInstance.setAnalyseInstances(analyseRisques);
+            zoneRisqueInstanceRepository.save(zoneRisqueInstance);
+            zoneRisqueInstances.add(zoneRisqueInstance);
+        }
+
+        // Now, create and save the RisqueInstance
+        RisqueInstance risqueInstance = RisqueInstanceMapper.toEntity(dto, userRepository);
+        risqueInstance.setConditions(conditionsList); // Set the conditions to the RisqueInstance
 
 
-public class RisqueInstanceMapper {
+        if (dto.getConditions() == null || dto.getConditions().isEmpty()) {
+            risqueInstance.setTypeValidation("validation sans condition");
+        } else {
+            risqueInstance.setTypeValidation("validation avec condition");
+        }
+        Risque risque = risqueRepository.findById(dto.getRisqueId())
+                .orElseThrow(() -> new IllegalArgumentException("Aucune risque avec id = " + dto.getRisqueId()));
+        risqueInstance.setRisque(risque);
+        risqueInstance.setInitier(true);
+        risqueInstance.setZoneRisques(zoneRisqueInstances);
+        risqueInstance.setNiveauIntrinseque(dto.getNiveauIntrinseque());
+        risqueInstance.setNiveauRisqueResiduel(dto.getNiveauRisqueResiduel());
+        RisqueInstance savedRisqueInstance = risqueInstanceRepository.save(risqueInstance);
 
-    public static RisqueInstanceDTO toDTO(RisqueInstance entity) {
-        if (entity == null) return null;
+        // Find and update the DemandeQualification
+        DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
+                .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
 
-        RisqueInstanceDTO dto = new RisqueInstanceDTO();
-        dto.setId(entity.getId());
-        dto.setName(entity.getName());
-        dto.setContexte(entity.getContexte());
-        dto.setNiveauRisqueResiduel(entity.getNiveauRisqueResiduel());
-        dto.setNiveauIntrinseque(entity.getNiveauIntrinseque());
-        dto.setTypeValidation(entity.getTypeValidation());
-        dto.setValider(entity.isValider());
-        dto.setInitier(entity.isInitier());
-        dto.setDateValidation(entity.getDateValidation());
-        dto.setComment(entity.getComment());
-        dto.setAutreRisque(entity.getAutreRisque());
-        dto.setCreatedAt(entity.getCreatedAt());
-        dto.setUpdatedAt(entity.getUpdatedAt());
+        // Add the new RisqueInstance to the DemandeQualification
+        List<RisqueInstance> risqueInstances = Optional.ofNullable(demande.getRisques()).orElse(new ArrayList<>());
+        risqueInstances.add(savedRisqueInstance);
+        demande.setRisques(risqueInstances);
 
-        // Map Risque
-        dto.setRisque(toRisqueDTO(entity.getRisque()));
+        // Save the updated DemandeQualification
+        demandeQualificationRepository.save(demande);
 
-        // Map ZoneRisqueInstances
-        List<ZoneRisqueInstanceDTO> zoneDTOs = entity.getZoneRisques().stream().map(zri -> {
-            ZoneRisqueInstanceDTO zriDTO = new ZoneRisqueInstanceDTO();
-            zriDTO.setId(zri.getId());
-
-            // ZoneRisque
-            zriDTO.setZoneRisque(toZoneRisqueDTO(zri.getZoneRisque()));
-
-            // AnalyseInstances
-            List<AnalyseInstanceDTO> analyseDTOs = zri.getAnalyseInstances().stream().map(ai -> {
-                AnalyseInstanceDTO aiDTO = new AnalyseInstanceDTO();
-                aiDTO.setId(ai.getId());
-                aiDTO.setReponse(ai.getReponse());
-                aiDTO.setFacteur(ai.getFacteur());
-                aiDTO.setAnalyseRisque(toAnalyseRisqueDTO(ai.getAnalyseRisque()));
-                return aiDTO;
-            }).collect(Collectors.toList());
-
-            zriDTO.setAnalyseInstances(analyseDTOs);
-            return zriDTO;
-        }).collect(Collectors.toList());
-        dto.setZoneRisques(zoneDTOs);
-
-        // Map Conditions
-        dto.setConditions(entity.getConditions().stream().map(c -> {
-            ConditionsDTO cDTO = new ConditionsDTO();
-            cDTO.setId(c.getId());
-            cDTO.setDetail(c.getDetail());
-            cDTO.setCategorie(c.getCategorie());
-            cDTO.setAssigne(c.getAssigne().getEmail());
-            cDTO.setNumberSemaineApresLancement(c.getNumberSemaineApresLancement());
-            cDTO.setDateLancement(c.getDateLancement());
-            cDTO.setDateEcheance(c.getDateEcheance());
-            cDTO.setDateColoture(c.getDateColoture());
-            cDTO.setEtat(c.getEtat());
-            return cDTO;
-        }).collect(Collectors.toList()));
-
-        return dto;
+        // Return the saved RisqueInstance as a DTO
+        return RisqueInstanceMapper.toDTO(savedRisqueInstance);
     }
-
-    private static RisqueDTO toRisqueDTO(Risque r) {
-        if (r == null) return null;
-        RisqueDTO dto = new RisqueDTO();
-        dto.setId(r.getId());
-        dto.setName(r.getName());
-        dto.setValidateurEmail(r.getValidateur() != null ? r.getValidateur().getEmail() : null);
-        dto.setCreatedAt(r.getCreatedAt());
-        dto.setUpdatedAt(r.getUpdatedAt());
-        return dto;
-    }
-
-    private static ZoneRisqueDTO toZoneRisqueDTO(ZoneRisque zr) {
-        if (zr == null) return null;
-        ZoneRisqueDTO dto = new ZoneRisqueDTO();
-        dto.setId(zr.getId());
-        dto.setName(zr.getName());
-        return dto;
-    }
-
-    private static AnalyseRisqueDTO toAnalyseRisqueDTO(AnalyseRisque ar) {
-        if (ar == null) return null;
-        AnalyseRisqueDTO dto = new AnalyseRisqueDTO();
-        dto.setId(ar.getId());
-        dto.setDescription(ar.getDescription());
-        return dto;
-    }
-}
-public RisqueInstanceDTO getRisqueInstanceById(Long id) {
-    RisqueInstance entity = risqueInstanceRepository.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("RisqueInstance not found with id = " + id));
-    return RisqueInstanceMapper.toDTO(entity);
-}
+hey chat this is my create methode want if user create risque the button of ajout risque in front not showing again how can i do it chaque user ajout risque that he validateur of it
