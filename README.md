@@ -1,67 +1,67 @@
-public class Conditions {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @Column(columnDefinition="text")
-    private String detail;
-    private String categorie;
-    @ManyToOne
-    private User assigne;
-    @OneToMany(mappedBy = "conditions", cascade = CascadeType.ALL)
-    private List<ConditionComment> comments =new ArrayList<>();
-    private Long numberSemaineApresLancement;
-    private LocalDate dateLancement;
-    private LocalDate dateEcheance;
-    private LocalDateTime dateColoture;
-    private String etat;
-    @OneToMany(mappedBy="condition",fetch = FetchType.LAZY)
-    private List<AttachementClotureCondition> attachments=new ArrayList<>();
-}
-public class RisqueInstance {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @Column(columnDefinition = "TEXT")
-    private String contexte;
-    private String niveauRisqueResiduel;
-    private String NiveauIntrinseque;
-    @ManyToOne
-    private User validateur;
-    @OneToMany
-    private List<ZoneRisqueInstance> zoneRisques;
-    @OneToMany
-    private List<Conditions> conditions;
-    private String typeValidation;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    private boolean valider=false;
-    private boolean initier=false;
-    private LocalDateTime dateValidation;
-    @Column(columnDefinition = "TEXT")
-    private String comment;
-    @Column(columnDefinition = "TEXT")
-    private String autreRisque;
-    @ManyToOne
-    private Risque risque;
-    @ManyToOne
-    private DemandeQualification demandeQualification;
-}
-hey create for me methode in backend service want to add conditions pass in parametre idRisque and list of conditions and comment 
-    initForm(risque?: RisqueInstance) {
-      this.form = this.formBuilder.group({
-        validation: [''],
-        comment: [''],
-          conditions: this.formBuilder.array(
-          risque?.conditions?.length
-            ? risque.conditions.map(c => this.createConditionGroup(c))
-            : []
-        ),
+@Transactional
+public RisqueInstance validerRisqueInstance(Long idRisque, List<Conditions> conditions, String comment, String typeValidation) {
+    RisqueInstance risqueInstance = risqueInstanceRepository.findById(idRisque)
+            .orElseThrow(() -> new EntityNotFoundException("RisqueInstance not found with id: " + idRisque));
 
-      });
+    boolean hasConditions = conditions != null && !conditions.isEmpty();
+    boolean hasComment = comment != null && !comment.isBlank();
+
+    if (hasConditions) {
+        for (Conditions condition : conditions) {
+            condition.setDateLancement(LocalDate.now()); // Optional: you can customize defaults
+            condition.setEtat("EN_ATTENTE"); // Optional default state
+        }
+
+        // Link to parent
+        conditions.forEach(c -> c.setRisqueInstance(risqueInstance)); // If bidirectional
+        risqueInstance.setConditions(conditions);
+    } else if (hasComment) {
+        risqueInstance.setComment(comment);
     }
-i have this if there is conditions set in risque dataValidation localDateTime.now and set isValider true and add conditions list with risque if there is comment and no condition
-set in  dataValidation localDateTime.now and set isValider true and in risque comment the comment and set in typeValidation validation that came in form
+
+    if (hasConditions || hasComment) {
+        risqueInstance.setDateValidation(LocalDateTime.now());
+        risqueInstance.setValider(true);
+        risqueInstance.setTypeValidation(typeValidation);
+    }
+
+    return risqueInstanceRepository.save(risqueInstance);
+}
+public class RisqueValidationRequest {
+    private List<Conditions> conditions;
+    private String comment;
+    private String typeValidation;
+}
+@PostMapping("/risques/{id}/valider")
+public ResponseEntity<RisqueInstance> validerRisque(
+        @PathVariable Long id,
+        @RequestBody RisqueValidationRequest request) {
+
+    RisqueInstance updated = service.validerRisqueInstance(
+        id, request.getConditions(), request.getComment(), request.getTypeValidation()
+    );
+    return ResponseEntity.ok(updated);
+}
+  validerRisque(id: number, payload: RisqueValidationRequest): Observable<RisqueInstance> {
+    return this.http.post<RisqueInstance>(`${this.apiUrl}/${id}/valider`, payload);
+  }
+  submit() {
+  const formValue = this.form.value;
+
+  const payload: RisqueValidationRequest = {
+    conditions: formValue.conditions && formValue.conditions.length > 0 ? formValue.conditions : [],
+    comment: formValue.comment,
+    typeValidation: formValue.validation
+  };
+
+  this.risqueInstanceService.validerRisque(this.risqueId, payload).subscribe({
+    next: (updatedRisque) => {
+      console.log('Risque validé :', updatedRisque);
+      // Afficher toast ou naviguer
+    },
+    error: (err) => {
+      console.error('Erreur validation risque :', err);
+      // Afficher message d'erreur
+    }
+  });
+}
