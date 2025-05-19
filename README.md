@@ -1,3 +1,8 @@
+export interface RisqueValidationRequest {
+  conditions: Conditions[];
+  comment: string;
+  typeValidation: string;
+}
 @Transactional
 public RisqueInstance validerRisqueInstance(Long idRisque, List<Conditions> conditions, String comment, String typeValidation) {
     RisqueInstance risqueInstance = risqueInstanceRepository.findById(idRisque)
