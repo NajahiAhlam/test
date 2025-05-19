@@ -1,38 +1,18 @@
-getRisquesDisponibles(demandeId: number): Observable<Risque[]> {
-    return this.http.get<Risque[]>(`${this.apiUrl}/disponibles/${demandeId}`);
-  }
+public List<Risque> getRisquesNonUtilisesDansDemande(Long demandeId) {
+    // 1. Récupérer la demande avec ses instances de risques
+    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
+        .orElseThrow(() -> new RuntimeException("Demande introuvable"));
 
-  import { Component, Input, OnInit } from '@angular/core';
-import { RisqueService, Risque } from '../services/risque.service';
+    // 2. Obtenir tous les risques existants
+    List<Risque> tousLesRisques = risqueRepository.findAll();
 
-@Component({
-  selector: 'app-risque-selection',
-  templateUrl: './risque-selection.component.html'
-})
-export class RisqueSelectionComponent implements OnInit {
-  @Input() demandeId: number;
-  risquesDisponibles: Risque[] = [];
-  loading = false;
+    // 3. Extraire les risques déjà liés à cette demande via une RisqueInstance
+    Set<Long> risquesLiesIds = demande.getRisqueInstances().stream()
+        .map(ri -> ri.getRisque().getId())
+        .collect(Collectors.toSet());
 
-  constructor(private risqueService: RisqueService) {}
-
-  ngOnInit() {
-    if (this.demandeId) {
-      this.loadRisques();
-    }
-  }
-
-  loadRisques() {
-    this.loading = true;
-    this.risqueService.getRisquesDisponibles(this.demandeId).subscribe({
-      next: (data) => {
-        this.risquesDisponibles = data;
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error('Erreur chargement risques', err);
-        this.loading = false;
-      }
-    });
-  }
+    // 4. Filtrer les risques qui ne sont pas dans la liste des liés
+    return tousLesRisques.stream()
+        .filter(risque -> !risquesLiesIds.contains(risque.getId()))
+        .collect(Collectors.toList());
 }
