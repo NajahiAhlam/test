@@ -1,21 +1,15 @@
-addCondition(): void {
-  const conditionGroup = this.createConditionGroup();
-  this.conditions.push(conditionGroup);
-
-  const index = this.conditions.length - 1;
-
-  // Create a filtered observable for this specific assigne field
-  conditionGroup.get('assigne')!.valueChanges
-    .pipe(
-      startWith(''),
-      map(value => this.filterOptions(value || '', this.user, 'email'))
-    )
-    .subscribe(filtered => {
-      // Assign filtered list to a per-index property
-      this.filteredAssigneOptions[index] = filtered;
-    });
-}
-filteredAssigneOptions: { [index: number]: any[] } = {};
-<nb-option *ngFor="let user of filteredAssigneOptions[i]" [value]="user.email">
-  {{ user.email }}
-</nb-option>
+this.userService.getUsersList().subscribe(sponsors => {
+  this.user = sponsors.filter(el => el.enabled === true);
+  
+  // Add filtering for existing condition inputs
+  this.conditions.controls.forEach((group, index) => {
+    group.get('assigne')!.valueChanges
+      .pipe(
+        startWith(''),
+        map(value => this.filterOptions(value || '', this.user, 'email'))
+      )
+      .subscribe(filtered => {
+        this.filteredAssigneOptions[index] = filtered;
+      });
+  });
+});
