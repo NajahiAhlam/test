@@ -1,26 +1,38 @@
-@Query("SELECT r FROM Risque r WHERE r.id NOT IN " +
-       "(SELECT ri.risque.id FROM RisqueInstance ri WHERE ri.demandeQualification.id = :demandeId)")
-List<Risque> findRisqueNotLinkedToDemande(@Param("demandeId") Long demandeId);
-@Service
-public class RisqueService {
+getRisquesDisponibles(demandeId: number): Observable<Risque[]> {
+    return this.http.get<Risque[]>(`${this.apiUrl}/disponibles/${demandeId}`);
+  }
 
-    @Autowired
-    private RisqueRepository risqueRepository;
+  import { Component, Input, OnInit } from '@angular/core';
+import { RisqueService, Risque } from '../services/risque.service';
 
-    public List<Risque> getRisquesNotInDemande(Long demandeId) {
-        return risqueRepository.findRisqueNotLinkedToDemande(demandeId);
+@Component({
+  selector: 'app-risque-selection',
+  templateUrl: './risque-selection.component.html'
+})
+export class RisqueSelectionComponent implements OnInit {
+  @Input() demandeId: number;
+  risquesDisponibles: Risque[] = [];
+  loading = false;
+
+  constructor(private risqueService: RisqueService) {}
+
+  ngOnInit() {
+    if (this.demandeId) {
+      this.loadRisques();
     }
-}
-@RestController
-@RequestMapping("/api/risques")
-public class RisqueController {
+  }
 
-    @Autowired
-    private RisqueService risqueService;
-
-    @GetMapping("/disponibles/{demandeId}")
-    public ResponseEntity<List<Risque>> getRisquesDisponibles(@PathVariable Long demandeId) {
-        List<Risque> risques = risqueService.getRisquesNotInDemande(demandeId);
-        return ResponseEntity.ok(risques);
-    }
+  loadRisques() {
+    this.loading = true;
+    this.risqueService.getRisquesDisponibles(this.demandeId).subscribe({
+      next: (data) => {
+        this.risquesDisponibles = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Erreur chargement risques', err);
+        this.loading = false;
+      }
+    });
+  }
 }
