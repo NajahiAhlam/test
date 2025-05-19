@@ -1,6 +1,13 @@
-{
-    "timestamp": "2025-05-19T13:27:27.726+00:00",
-    "status": 415,
-    "error": "Unsupported Media Type",
-    "path": "/api/risque/1/valider"
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+
+// ...
+
+validerRisque(id: number, payload: RisqueValidationRequest): Observable<RisqueInstance> {
+  const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+
+  return this.http.post<RisqueInstance>(
+    `${this.apiUrl}/${id}/valider`,
+    payload,
+    { headers }
+  );
 }
