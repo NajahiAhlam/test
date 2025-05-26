@@ -1,4 +1,5 @@
-body.scroll-block {
-  overflow: hidden;
-  padding-right: 15px; /* compensate scrollbar disappearance */
-}
+constructor(
+  private overlay: Overlay,
+  private scrollStrategyOptions: ScrollStrategyOptions
+) {}
+ scrollStrategy: this.scrollStrategyOptions.noop()
