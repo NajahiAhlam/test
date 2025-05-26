@@ -1,171 +1,164 @@
-hey chat this is my entities and relations
-public class DemandeQualification {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-
-    @NotNull(message = "Nom de la filiale est obligatoire")
-    //@Enumerated(EnumType.STRING)
+public class FullReportingDTO {
+    private Long demandeId;
     private String nomFiliale;
-
-    @NotNull(message = "Objet de la demande est obligatoire")
-    @Size(max = 100, message = "Objet de la demande ne doit pas dépasser 100 caractères")
     private String objetDemande;
-
-    @NotNull(message = "Type est obligatoire")
-  //  @Enumerated(EnumType.STRING)
-    private String type;
-
-    @NotNull(message = "Description détaillée de la demande est obligatoire")
-    @Size(max = 1550, message = "Description détaillée de la demande ne doit pas dépasser 1550 caractères")
-    private String description;
-
-    private LocalDate dateLancement;
-    private LocalDate dateDemande;
-    @Lob
-    private String attachBase64; // Contenu du fichier encodé en Base64
-
-    @NotNull(message = "Porteur projet est obligatoire")
-    @ManyToOne
-    private User porteurProjet;
-
-    @NotNull(message = "Porteur métier est obligatoire")
-    @ManyToOne
-    private User porteurMetier;
-
-    @Enumerated(EnumType.STRING)
-    private Statut statut;
-
-    @NotNull(message = "Leader est obligatoire")
-    @ManyToOne
-    private User reporter;
-
-    @Enumerated(EnumType.STRING)
-    private Decision decision;
-    @Enumerated(EnumType.STRING)
-    private Criticite criticite;
-    @Enumerated(EnumType.STRING)
-    private Local local;
-    private boolean transmet;
-    private boolean transmetSponsor;
-    private Date dateKickOff;
-     private String commentaire;
-    @ManyToOne
-    private User coordinateurCNP;
-    @ManyToOne
-    private User sponsorM;
-
     private Long numeroDemande;
-    private LocalDateTime dateQualification ;
-    private Long risquesAjoutes;
-    @OneToMany
-    private List<RisqueInstance> risques;
+    private LocalDateTime dateQualification;
 
-    private String etape;
-   /* @OneToMany(mappedBy = "demandeQualification", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JsonManagedReference
-    private List<DemandeQualificationQuestionReponse> demandeQualificationQuestionReponses;*/
-    @OneToMany(mappedBy = "demandeQualification", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    private List<DemandeQualificationQuestionReponse> demandeQualificationQuestionReponses= new ArrayList<>();;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime dateCreation;
-    @UpdateTimestamp
-    private LocalDateTime dateModification;
-
-    @OneToMany(mappedBy = "demandeQualification", cascade = CascadeType.ALL)
-    private List<Comment> comments =new ArrayList<>();
-    @OneToMany(mappedBy="demandeQualification",fetch = FetchType.LAZY)
-    private List<DemandeHistory> demandeHistories=new ArrayList<>();
-    @OneToMany(mappedBy="demandeQualification",fetch = FetchType.LAZY)
-    private List<Attachment> attachments=new ArrayList<>();
-
-
-    @ManyToOne
-    @JoinColumn(name = "assigne_id")
-    private User assigne;
-
-    // List of people
-    @OneToMany(mappedBy = "demandeQualification", fetch = FetchType.LAZY)
-    private List<People> peopeles;
-
-    private String status;
-    private String kickOffDecision;
-
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-
-    private String processInstanceId;
-    private String currentActivityId;
-    private String currentActivityName;
-    private String codeProduit;
-    private String nomProduit;
-    @Column(columnDefinition="text")
-    private String descriptionProduit;
-    private Date datePreCnp;
-    private Date dateCnp;
-    private String typeCnp;
-    }
-    public class RisqueInstance {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @Column(columnDefinition = "TEXT")
-    private String contexte;
+    private Long risqueId;
+    private String risqueName;
     private String niveauRisqueResiduel;
-    private String NiveauIntrinseque;
-    @ManyToOne
-    private User validateur;
-    @OneToMany
-    private List<ZoneRisqueInstance> zoneRisques;
-    @OneToMany
-    private List<Conditions> conditions;
-    private String typeValidation;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    private boolean valider=false;
-    private boolean initier=false;
-    private LocalDateTime dateValidation;
-    @Column(columnDefinition = "TEXT")
-    private String comment;
-    @Column(columnDefinition = "TEXT")
-    private String autreRisque;
-    @ManyToOne
-    private Risque risque;
-    @ManyToOne
-    private DemandeQualification demandeQualification;
-    @OneToMany(mappedBy = "risque", cascade = CascadeType.ALL)
-    private List<RisqueComment> comments =new ArrayList<>();
-}
-public class Conditions {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @Column(columnDefinition="text")
+    private String niveauIntrinseque;
+
+    private Long conditionId;
     private String detail;
     private String categorie;
-    @ManyToOne
-    private User assigne;
-    @OneToMany(mappedBy = "conditions", cascade = CascadeType.ALL)
-    private List<ConditionComment> comments =new ArrayList<>();
-    private Long numberSemaineApresLancement;
     private LocalDate dateLancement;
-    private LocalDate dateEcheance;
-    private LocalDateTime dateColoture;
-    private String etat;
-    @OneToMany(mappedBy="condition",fetch = FetchType.LAZY)
-    private List<AttachementClotureCondition> attachments=new ArrayList<>();
-    @ManyToOne
-    @JsonIgnore
-    private RisqueInstance risqueInstance;
+    private Long numberSemaineApresLancement;
+    private LocalDate dateEcheanceEffective;
+
+    // Constructor, Getters, Setters...
 }
-i want to do a reporting getting the demande and risque and conditions filter by  plage of date is dateEchoue in conditions if conditions.categorie is postCondition the dateEchoue calcul numberSemaineApresLancement+dateLancement and if conditions.categorie is preCondition i have dateEchoue comme attribut fill
+@Query("SELECT DISTINCT d FROM DemandeQualification d " +
+       "LEFT JOIN FETCH d.risques r " +
+       "LEFT JOIN FETCH r.conditions c")
+List<DemandeQualification> findAllWithRisquesAndConditions();
+public List<FullReportingDTO> getFullReport(LocalDate startDate, LocalDate endDate) {
+    List<DemandeQualification> demandes = demandeQualificationRepository.findAllWithRisquesAndConditions();
+
+    List<FullReportingDTO> report = new ArrayList<>();
+
+    for (DemandeQualification d : demandes) {
+        if (d.getRisques() == null) continue;
+
+        for (RisqueInstance r : d.getRisques()) {
+            if (r.getConditions() == null) continue;
+
+            for (Conditions c : r.getConditions()) {
+                LocalDate effectiveDateEcheance;
+
+                if ("postCondition".equalsIgnoreCase(c.getCategorie()) &&
+                    c.getDateLancement() != null &&
+                    c.getNumberSemaineApresLancement() != null) {
+                    effectiveDateEcheance = c.getDateLancement()
+                        .plusWeeks(c.getNumberSemaineApresLancement());
+                } else {
+                    effectiveDateEcheance = c.getDateEcheance();
+                }
+
+                if (effectiveDateEcheance != null &&
+                    !effectiveDateEcheance.isBefore(startDate) &&
+                    !effectiveDateEcheance.isAfter(endDate)) {
+
+                    FullReportingDTO dto = new FullReportingDTO();
+                    dto.setDemandeId(d.getId());
+                    dto.setNomFiliale(d.getNomFiliale());
+                    dto.setObjetDemande(d.getObjetDemande());
+                    dto.setNumeroDemande(d.getNumeroDemande());
+                    dto.setDateQualification(d.getDateQualification());
+
+                    dto.setRisqueId(r.getId());
+                    dto.setRisqueName(r.getName());
+                    dto.setNiveauRisqueResiduel(r.getNiveauRisqueResiduel());
+                    dto.setNiveauIntrinseque(r.getNiveauIntrinseque());
+
+                    dto.setConditionId(c.getId());
+                    dto.setDetail(c.getDetail());
+                    dto.setCategorie(c.getCategorie());
+                    dto.setDateLancement(c.getDateLancement());
+                    dto.setNumberSemaineApresLancement(c.getNumberSemaineApresLancement());
+                    dto.setDateEcheanceEffective(effectiveDateEcheance);
+
+                    report.add(dto);
+                }
+            }
+        }
+    }
+
+    return report;
+}
+@RestController
+@RequestMapping("/api/reporting")
+@RequiredArgsConstructor
+public class ReportingController {
+
+    private final ReportingService reportingService;
+
+    @GetMapping
+    public ResponseEntity<List<FullReportingDTO>> getReport(
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        List<FullReportingDTO> report = reportingService.getFullReport(start, end);
+        return ResponseEntity.ok(report);
+    }
+}
+// full-reporting.model.ts
+export interface FullReporting {
+  demandeId: number;
+  nomFiliale: string;
+  objetDemande: string;
+  numeroDemande: number;
+  dateQualification: string;
+
+  risqueId: number;
+  risqueName: string;
+  niveauRisqueResiduel: string;
+  niveauIntrinseque: string;
+
+  conditionId: number;
+  detail: string;
+  categorie: string;
+  dateLancement: string;
+  numberSemaineApresLancement: number;
+  dateEcheanceEffective: string;
+}
+// reporting.service.ts
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { FullReporting } from './full-reporting.model';
+import { Observable } from 'rxjs';
+
+@Injectable({ providedIn: 'root' })
+export class ReportingService {
+  private readonly apiUrl = '/api/reporting';
+
+  constructor(private http: HttpClient) {}
+
+  getReport(start: string, end: string): Observable<FullReporting[]> {
+    const params = new HttpParams().set('start', start).set('end', end);
+    return this.http.get<FullReporting[]>(this.apiUrl, { params });
+  }
+}
+// reporting.component.ts
+import { Component } from '@angular/core';
+import { ReportingService } from './reporting.service';
+import { FullReporting } from './full-reporting.model';
+
+@Component({
+  selector: 'app-reporting',
+  templateUrl: './reporting.component.html',
+})
+export class ReportingComponent {
+  reports: FullReporting[] = [];
+  startDate: string = '';
+  endDate: string = '';
+  loading = false;
+
+  constructor(private reportingService: ReportingService) {}
+
+  fetchReport() {
+    if (!this.startDate || !this.endDate) return;
+    this.loading = true;
+    this.reportingService.getReport(this.startDate, this.endDate).subscribe({
+      next: data => {
+        this.reports = data;
+        this.loading = false;
+      },
+      error: err => {
+        console.error(err);
+        this.loading = false;
+      }
+    });
+  }
+}
+
