@@ -1,130 +1,67 @@
-public class Risque {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @ManyToOne
-    private User validateur;
-
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-
-}
-public class RisqueInstance {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @Column(columnDefinition = "TEXT")
-    private String contexte;
-    private String niveauRisqueResiduel;
-    private String NiveauIntrinseque;
-    @ManyToOne
-    private User validateur;
-    @OneToMany
-    private List<ZoneRisqueInstance> zoneRisques;
-    @OneToMany
-    private List<Conditions> conditions;
-    private String typeValidation;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    private boolean valider=false;
-    private boolean initier=false;
-    private LocalDateTime dateValidation;
-    @Column(columnDefinition = "TEXT")
-    private String comment;
-    @Column(columnDefinition = "TEXT")
-    private String autreRisque;
-    @ManyToOne
-    private Risque risque;
-    @ManyToOne
-    private DemandeQualification demandeQualification;
-    @OneToMany(mappedBy = "risque", cascade = CascadeType.ALL)
-    private List<RisqueComment> comments =new ArrayList<>();
-}
-public class Conditions {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    @Column(columnDefinition="text")
-    private String detail;
-    private String categorie;
-    @ManyToOne
-    private User assigne;
-    @OneToMany(mappedBy = "conditions", cascade = CascadeType.ALL)
-    private List<ConditionComment> comments =new ArrayList<>();
-    private Long numberSemaineApresLancement;
-    private LocalDate dateLancement;
-    private LocalDate dateEcheance;
-    private LocalDateTime dateColoture;
-    private String etat;
-    @OneToMany(mappedBy="condition",fetch = FetchType.LAZY)
-    private List<AttachementClotureCondition> attachments=new ArrayList<>();
-    @ManyToOne
-    @JsonIgnore
-    private RisqueInstance risqueInstance;
-}
-public class DemandeQualification {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-
-    @NotNull(message = "Nom de la filiale est obligatoire")
-    //@Enumerated(EnumType.STRING)
-    private String nomFiliale;
-
-    @NotNull(message = "Objet de la demande est obligatoire")
-    @Size(max = 100, message = "Objet de la demande ne doit pas dépasser 100 caractères")
-    private String objetDemande;
-
-    @NotNull(message = "Type est obligatoire")
-  //  @Enumerated(EnumType.STRING)
-    private String type;
-
-    @NotNull(message = "Description détaillée de la demande est obligatoire")
-    @Size(max = 1550, message = "Description détaillée de la demande ne doit pas dépasser 1550 caractères")
-    private String description;
-
-    private LocalDate dateLancement;
-    private LocalDate dateDemande;
-
-    private Date dateKickOff;
-    private LocalDateTime dateQualification ;
-    @OneToMany
-    private List<RisqueInstance> risques;
-
+SELECT 
+  u.id AS validateur_id,
+  u.nom AS validateur_nom,
+  u.prenom AS validateur_prenom,
   
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime dateCreation;
-    @UpdateTimestamp
-    private LocalDateTime dateModification;
-
+  r.id AS risque_id,
+  r.name AS risque_name,
   
-    private String status;
-    private String kickOffDecision;
+  ri.id AS risque_instance_id,
+  ri.name AS risque_instance_name,
+  ri.contexte,
+  ri.niveauRisqueResiduel,
+  ri.NiveauIntrinseque,
+  ri.typeValidation,
+  ri.createdAt AS ri_createdAt,
+  ri.updatedAt AS ri_updatedAt,
+  ri.valider,
+  ri.initier,
+  ri.dateValidation,
+  ri.comment,
+  ri.autreRisque,
+  
+  dq.id AS demande_id,
+  dq.nomFiliale,
+  dq.objetDemande,
+  dq.type AS demande_type,
+  dq.description AS demande_description,
+  dq.dateLancement AS demande_dateLancement,
+  dq.dateDemande,
+  dq.dateKickOff,
+  dq.dateQualification,
+  dq.status,
+  dq.kickOffDecision,
+  dq.codeProduit,
+  dq.nomProduit,
+  dq.descriptionProduit,
+  dq.datePreCnp,
+  dq.dateCnp,
+  dq.typeCnp,
+  
+  c.id AS condition_id,
+  c.detail AS condition_detail,
+  c.categorie AS condition_categorie,
+  c.assigne_id AS condition_assigne_id,
+  c.numberSemaineApresLancement,
+  c.dateLancement AS condition_dateLancement,
+  c.dateEcheance,
+  c.dateColoture,
+  c.etat
+  
+FROM risque r
+JOIN user u ON r.validateur_id = u.id
+JOIN risque_instance ri ON ri.risque_id = r.id
+LEFT JOIN demande_qualification dq ON ri.demande_qualification_id = dq.id
+LEFT JOIN conditions c ON c.risque_instance_id = ri.id
 
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    private String codeProduit;
-    private String nomProduit;
-    @Column(columnDefinition="text")
-    private String descriptionProduit;
-    private Date datePreCnp;
-    private Date dateCnp;
-    private String typeCnp;
-
-}
-hey this my entities and relation i want to do a reporting is that i want to get for chaque validateur in entite risque the name of risque and the list of his conditions and risqueInstance
-with demande filter not obligatoir with range of date in condition.dateEchoue if the conditions.categorie = postCondition if it preCondition see the numberSemaineApresLancement+dateLancement
-be in that range not obligatoir the only parametre pass in qury is range date and they arent obligatoir and as you see the risque in my entitie doesnt get me the risqueInstance
+WHERE 
+  (
+    (:startDate IS NULL OR :endDate IS NULL)
+    OR
+    (
+      (c.categorie = 'postCondition' AND c.dateEcheance BETWEEN :startDate AND :endDate)
+      OR
+      (c.categorie = 'preCondition' AND DATE_ADD(c.dateLancement, INTERVAL c.numberSemaineApresLancement WEEK) BETWEEN :startDate AND :endDate)
+    )
+  )
+ORDER BY u.id, r.id, ri.id, c.id;
