@@ -1,7 +1,15 @@
+/* This ensures scroll block does not impact layout height */
+body.cdk-global-scrollblock,
+body.nb-global-scrollblock {
+  overflow: hidden !important;
+  position: relative; /* prevent layout shift */
+}
+.cdk-overlay-container {
+  position: fixed;
+  z-index: 1000; /* or higher if needed */
+  pointer-events: none;
+}
 
-
-i have a probleme is when i open popup on page have scroll and in the popUp open a select this show in elemnt in console
-class="fontawesome-i2svg-active cdk-global-scrollblock fontawesome-i2svg-complete nb-global-scrollblock"
-and when i close it it back like that
-class="fontawesome-i2svg-active cdk-global-scrollblock fontawesome-i2svg-complete"
-and my layout footer change his size under the popup
+.cdk-overlay-pane {
+  pointer-events: auto;
+}
