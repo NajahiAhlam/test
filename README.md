@@ -1,3 +1,14 @@
+tbody tr.grouped-row td {
+  border-bottom: none;
+}
+
+tbody tr.grouped-row:first-child td {
+  border-bottom: 1px solid #ccc; /* or your border style */
+}
+
+
+
+
 <table class="table w-100">
   <thead class="bg-header fw-bold">
     <tr>
