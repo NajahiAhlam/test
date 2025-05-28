@@ -1,34 +1,74 @@
-{
-    "jean.dupont@example.com": [
-        {
-            "dateLancement": "2025-05-08",
-            "productNom": "ttt",
-            "NbrS": 3,
-            "productCode": null,
-            "categorie": "poste condition",
-            "validateur": "pierre.lambert@example.com",
-            "conditionId": 2,
-            "risqueName": "Risques de crédit ",
-            "productStatus": "CLOTURE",
-            "dateEcheance": null,
-            "assigneeId": 1,
-            "conditionCount": 1
-        }
-    ],
-    "claire.martin@example.com": [
-        {
-            "dateLancement": "2025-05-08",
-            "productNom": "ttt",
-            "NbrS": null,
-            "productCode": null,
-            "categorie": "précondition",
-            "validateur": "laura.faure@example.com",
-            "conditionId": 1,
-            "risqueName": "Risques de marché",
-            "productStatus": "CLOTURE",
-            "dateEcheance": "2025-05-12",
-            "assigneeId": 2,
-            "conditionCount": 1
-        }
-    ]
+import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-grouped-table',
+  templateUrl: './grouped-table.component.html',
+  styleUrls: ['./grouped-table.component.scss']
+})
+export class GroupedTableComponent implements OnInit {
+  rawGroupedData: any = {};
+  tableData: any[] = [];
+  filteredData: any[] = [];
+  columns: string[] = ['assigneeName', 'title', 'status', 'date'];
+  filterText: string = '';
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.http.get('https://your-api-url.com/your-endpoint').subscribe((data: any) => {
+      this.rawGroupedData = data;
+      this.tableData = this.flattenGroupedData(data);
+      this.filteredData = [...this.tableData]; // initialize filtered
+    });
+  }
+
+  flattenGroupedData(data: any): any[] {
+    return Object.entries(data).flatMap(([assigneeName, items]: [string, any[]]) =>
+      items.map(item => ({ ...item, assigneeName }))
+    );
+  }
+
+  onFilterChange(): void {
+    const term = this.filterText.toLowerCase();
+    this.filteredData = this.tableData.filter(row =>
+      this.columns.some(col =>
+        (row[col] || '').toString().toLowerCase().includes(term)
+      )
+    );
+  }
 }
+<nb-card>
+  <nb-card-header>
+    Grouped Table (Flat View with Filter)
+  </nb-card-header>
+
+  <nb-card-body>
+
+    <input
+      nbInput
+      fullWidth
+      placeholder="Filter..."
+      [(ngModel)]="filterText"
+      (ngModelChange)="onFilterChange()"
+    />
+
+    <nb-table [nbSort]="true">
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns">{{ col | titlecase }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of filteredData">
+          <td *ngFor="let col of columns">
+            {{ row[col] }}
+          </td>
+        </tr>
+      </tbody>
+    </nb-table>
+    
+  </nb-card-body>
+</nb-card>
+
+
