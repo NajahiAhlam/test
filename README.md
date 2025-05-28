@@ -1,116 +1,51 @@
-tbody tr.grouped-row td {
-  border-bottom: none;
+exportToCSV(): void {
+  const headers = this.columns.map(col => col.label);
+  const keys = this.columns.map(col => col.key);
+
+  const csvRows = [
+    headers.join(','), // header row
+    ...this.filteredData.map(row => {
+      return keys.map(key => {
+        let cell = row[key];
+
+        // Format pipes or functions
+        if (key === 'validateur' || key === 'assigneeName') {
+          cell = this.formatEmail(cell); // Example: custom formatting
+        } else if (key === 'productStatus') {
+          cell = this.getActionLabel(cell); // Your custom label
+        } else if (key === 'categorie') {
+          cell = this.getCategorieClass(cell); // Your custom label
+        }
+
+        return `"${(cell ?? '').toString().replace(/"/g, '""')}"`; // escape quotes
+      }).join(',');
+    })
+  ];
+
+  const csvContent = csvRows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'report.csv');
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
-tbody tr.grouped-row:first-child td {
-  border-bottom: 1px solid #ccc; /* or your border style */
+// Example helper function
+formatEmail(email: string): string {
+  if (!email) return '';
+  return email.split('@')[0].replace('.', ' ').toUpperCase(); // or use your pipe logic
+}
+formatEmail(email: string): string {
+  if (!email) return '';
+  const [beforeAt] = email.split('@');
+  const [first, last] = beforeAt.split('.');
+  if (!first || !last) return email;
+  return `${this.capitalize(first)} ${this.capitalize(last)}`;
 }
 
-
-
-
-<table class="table w-100">
-  <thead class="bg-header fw-bold">
-    <tr>
-      <th *ngFor="let col of columns">{{ col.label | titlecase }}</th>
-    </tr>
-    <tr>
-      <th *ngFor="let col of columns">
-        <input
-          nbInput
-          fullWidth
-          class="form-control"
-          [(ngModel)]="columnFilters[col.key]"
-          (ngModelChange)="onColumnFilterChange()"
-          placeholder="{{ col.label }}"
-        />
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    <ng-container *ngFor="let group of groupedRows">
-      <tr *ngFor="let row of group.rows; let i = index" [class.grouped-row]="true">
-        
-        <td *ngFor="let col of columns; let c = index">
-
-          <!-- assigneeName with rowspan -->
-          <ng-container *ngIf="col.key === 'assigneeName'">
-            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan" class="assignee-cell">
-              {{ group.assigneeName | mail }}
-            </span>
-          </ng-container>
-
-          <!-- NbrS summed with rowspan -->
-          <ng-container *ngIf="col.key === 'NbrS'">
-            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan" class="nbrs-cell">
-              {{ group.sumNbrS }}
-            </span>
-          </ng-container>
-
-          <!-- other columns -->
-          <ng-container *ngIf="col.key !== 'assigneeName' && col.key !== 'NbrS'">
-            <ng-container [ngSwitch]="col.key">
-
-              <ng-container *ngSwitchCase="'validateur'">
-                {{ row[col.key] | mail }}
-              </ng-container>
-
-              <ng-container *ngSwitchCase="'categorie'">
-                {{ getCategorieClass(row[col.key]) }}
-              </ng-container>
-
-              <ng-container *ngSwitchCase="'productStatus'">
-                {{ getActionLabel(row[col.key]) }}
-              </ng-container>
-
-              <ng-container *ngSwitchDefault>
-                {{ row[col.key] }}
-              </ng-container>
-
-            </ng-container>
-          </ng-container>
-
-        </td>
-      </tr>
-
-      <!-- Optional separator row between groups -->
-      <tr class="group-separator"><td [attr.colspan]="columns.length"></td></tr>
-    </ng-container>
-  </tbody>
-</table>
-/* Highlight entire grouped rows background */
-tbody tr.grouped-row {
-  background-color: #fafafa;
-}
-
-tbody tr.grouped-row td {
-  border-bottom: none;
-}
-
-tbody tr.grouped-row:first-child td {
-  border-bottom: 1px solid #ccc; /* or your border style */
-}
-
-
-/* Border and vertical align for assigneeName cell */
-.assignee-cell {
-  border-right: 2px solid #ddd;
-  vertical-align: middle;
-  font-weight: 600;
-}
-
-/* Style for NbrS summed cell */
-.nbrs-cell {
-  vertical-align: middle;
-  font-weight: 600;
-  text-align: center;
-}
-
-/* Separator row between groups */
-.group-separator td {
-  border-bottom: 2px solid #999;
-  padding: 0;
-  margin: 0;
-  height: 8px;
-  background-color: transparent;
+capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 }
