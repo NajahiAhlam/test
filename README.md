@@ -1,74 +1,10 @@
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-
-@Component({
-  selector: 'app-grouped-table',
-  templateUrl: './grouped-table.component.html',
-  styleUrls: ['./grouped-table.component.scss']
-})
-export class GroupedTableComponent implements OnInit {
-  rawGroupedData: any = {};
-  tableData: any[] = [];
-  filteredData: any[] = [];
-  columns: string[] = ['assigneeName', 'title', 'status', 'date'];
-  filterText: string = '';
-
-  constructor(private http: HttpClient) {}
-
-  ngOnInit(): void {
-    this.http.get('https://your-api-url.com/your-endpoint').subscribe((data: any) => {
-      this.rawGroupedData = data;
-      this.tableData = this.flattenGroupedData(data);
-      this.filteredData = [...this.tableData]; // initialize filtered
-    });
-  }
-
-  flattenGroupedData(data: any): any[] {
+Argument of type '([assigneeName, items]: [string, any[]]) => any[]' is not assignable to parameter of type '(this: undefined, value: [string, unknown], index: number, array: [string, unknown][]) => any'.
+  Types of parameters '__0' and 'value' are incompatible.
+    Type '[string, unknown]' is not assignable to type '[string, any[]]'.
+      Type at position 1 in source is not compatible with type at position 1 in target.
+        Type 'unknown' is not assignable to type 'any[]'.ts(2345)
+            flattenGroupedData(data: any): any[] {
     return Object.entries(data).flatMap(([assigneeName, items]: [string, any[]]) =>
       items.map(item => ({ ...item, assigneeName }))
     );
   }
-
-  onFilterChange(): void {
-    const term = this.filterText.toLowerCase();
-    this.filteredData = this.tableData.filter(row =>
-      this.columns.some(col =>
-        (row[col] || '').toString().toLowerCase().includes(term)
-      )
-    );
-  }
-}
-<nb-card>
-  <nb-card-header>
-    Grouped Table (Flat View with Filter)
-  </nb-card-header>
-
-  <nb-card-body>
-
-    <input
-      nbInput
-      fullWidth
-      placeholder="Filter..."
-      [(ngModel)]="filterText"
-      (ngModelChange)="onFilterChange()"
-    />
-
-    <nb-table [nbSort]="true">
-      <thead>
-        <tr>
-          <th *ngFor="let col of columns">{{ col | titlecase }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of filteredData">
-          <td *ngFor="let col of columns">
-            {{ row[col] }}
-          </td>
-        </tr>
-      </tbody>
-    </nb-table>
-    
-  </nb-card-body>
-</nb-card>
-
-
