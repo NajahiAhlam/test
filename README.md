@@ -1,54 +1,3 @@
-groupedRows: {
-  assigneeName: string;
-  rows: any[];
-  rowspan: number;
-  sumNbrS: number;
-}[] = [];
-buildGroupedRows() {
-  const map = new Map<string, any[]>();
-
-  for (const row of this.filteredData) {
-    const key = row.assigneeName ?? 'Unknown';
-    if (!map.has(key)) {
-      map.set(key, []);
-    }
-    map.get(key)!.push(row);
-  }
-
-  this.groupedRows = [];
-  map.forEach((rows, assigneeName) => {
-    const sumNbrS = rows.reduce((acc, r) => acc + (Number(r.NbrS) || 0), 0);
-    this.groupedRows.push({
-      assigneeName,
-      rows,
-      rowspan: rows.length,
-      sumNbrS
-    });
-  });
-}
-onColumnFilterChange(): void {
-  this.filteredData = this.tableData.filter(row =>
-    this.columns.every(col => {
-      const filterValue = this.columnFilters[col.key].toLowerCase();
-      const rowValue = (row[col.key] ?? '').toString().toLowerCase();
-      return rowValue.includes(filterValue);
-    })
-  );
-  this.buildGroupedRows();
-}
-this.analyticService.getReportConditionByAssigne().subscribe(
-  (data) => {
-    const typedData = data as Record<string, any[]>;
-    this.rawGroupedData = typedData;
-    this.tableData = this.flattenGroupedData(typedData);
-    this.filteredData = [...this.tableData];
-    this.initializeFilters();
-    this.buildGroupedRows();
-  },
-  (error) => {
-    console.error('Error fetching reports:', error);
-  }
-);
 <table class="table w-100">
   <thead class="bg-header fw-bold">
     <tr>
@@ -69,24 +18,25 @@ this.analyticService.getReportConditionByAssigne().subscribe(
   </thead>
   <tbody>
     <ng-container *ngFor="let group of groupedRows">
-      <tr *ngFor="let row of group.rows; let i = index">
+      <tr *ngFor="let row of group.rows; let i = index" [class.grouped-row]="true">
+        
         <td *ngFor="let col of columns; let c = index">
-          
-          <!-- For assigneeName, show once with rowspan -->
+
+          <!-- assigneeName with rowspan -->
           <ng-container *ngIf="col.key === 'assigneeName'">
-            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan">
+            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan" class="assignee-cell">
               {{ group.assigneeName | mail }}
             </span>
           </ng-container>
-          
-          <!-- For NbrS, sum for the group and show in first row -->
+
+          <!-- NbrS summed with rowspan -->
           <ng-container *ngIf="col.key === 'NbrS'">
-            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan">
+            <span *ngIf="i === 0" [attr.rowspan]="group.rowspan" class="nbrs-cell">
               {{ group.sumNbrS }}
             </span>
           </ng-container>
-          
-          <!-- For other columns -->
+
+          <!-- other columns -->
           <ng-container *ngIf="col.key !== 'assigneeName' && col.key !== 'NbrS'">
             <ng-container [ngSwitch]="col.key">
 
@@ -108,9 +58,39 @@ this.analyticService.getReportConditionByAssigne().subscribe(
 
             </ng-container>
           </ng-container>
-          
+
         </td>
       </tr>
+
+      <!-- Optional separator row between groups -->
+      <tr class="group-separator"><td [attr.colspan]="columns.length"></td></tr>
     </ng-container>
   </tbody>
 </table>
+/* Highlight entire grouped rows background */
+tbody tr.grouped-row {
+  background-color: #fafafa;
+}
+
+/* Border and vertical align for assigneeName cell */
+.assignee-cell {
+  border-right: 2px solid #ddd;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+/* Style for NbrS summed cell */
+.nbrs-cell {
+  vertical-align: middle;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Separator row between groups */
+.group-separator td {
+  border-bottom: 2px solid #999;
+  padding: 0;
+  margin: 0;
+  height: 8px;
+  background-color: transparent;
+}
