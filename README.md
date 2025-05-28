@@ -72,6 +72,15 @@ tbody tr.grouped-row {
   background-color: #fafafa;
 }
 
+tbody tr.grouped-row td {
+  border-bottom: none;
+}
+
+tbody tr.grouped-row:first-child td {
+  border-bottom: 1px solid #ccc; /* or your border style */
+}
+
+
 /* Border and vertical align for assigneeName cell */
 .assignee-cell {
   border-right: 2px solid #ddd;
