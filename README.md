@@ -1,19 +1,4 @@
-<div class="rangeCalendar ml-3"
-     title="vs {{ datePreFrom | date:'dd/MM/yyyy' }} - {{ datePreTo | date:'dd/MM/yyyy' }}">
-  <input class="form-control"
-         placeholder="{{ datePreFrom | date:'shortDate' }} - {{ datePreTo | date:'shortDate' }}"
-         [nbDatepicker]="rangepicker"
-         size="21" />
-
-  <nb-rangepicker #rangepicker
-                  [range]="{ start: datePreFrom, end: datePreTo }"
-                  [max]="maxDateRange"
-                  format="dd/MM/yyyy"
-                  (rangeChange)="fetchByRange($event)">
-  </nb-rangepicker>
-</div>
-fetchByRange(range: { start: Date; end: Date }): void {
-  if (range.start && range.end) {
-    this.fetchReportByDateRange(range.start, range.end);
-  }
-}
+Argument of type 'NbCalendarRange<any>' is not assignable to parameter of type '{ start: Date; end: Date; }'.
+  Property 'end' is optional in type 'NbCalendarRange<any>' but required in type '{ start: Date; end: Date; }'.ngtsc(2345)
+pilotage-conditions.component.ts(11, 29): Error occurs in the template of component PilotageConditionsComponent.
+(rangeChange)="fetchByRange($event)"
