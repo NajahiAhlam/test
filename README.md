@@ -1,54 +1,242 @@
-2025-05-29 10:40:20.515 ERROR [mycnp-bff,398bfede2f1a7614,398bfede2f1a7614] 9016 --- [nio-8081-exec-5] o.a.c.c.C.[.[.[.[dispatcherServlet]      : Servlet.service() for servlet [dispatcherServlet] in context with path [/api] threw exception [Request processing failed; nested exception is java.time.format.DateTimeParseException: Text 'Tue Apr 01 2025 00:00:00 GMT+0000 (UTC)' could not be parsed, unparsed text found at index 28] with root cause
+<div id="auditPilotage">
+  <div class="pilotageHeader d-flex justify-content-between">
+    <div class="pilotageTitle">
+      <h4 class="title-heading  text-uppercase"></h4>
+    </div>
+    <div class="paginationFilter d-flex">
+      <div class="control-status-example">
+      </div>
 
-java.time.format.DateTimeParseException: Text 'Tue Apr 01 2025 00:00:00 GMT+0000 (UTC)' could not be parsed, unparsed text found at index 28
-	at java.time.format.DateTimeFormatter.parseResolved0(DateTimeFormatter.java:1952) ~[na:1.8.0_352-352]
-	at java.time.format.DateTimeFormatter.parse(DateTimeFormatter.java:1851) ~[na:1.8.0_352-352]
-	at java.time.ZonedDateTime.parse(ZonedDateTime.java:597) ~[na:1.8.0_352-352]
-	at com.example.mycnp.controller.ReportingController.getGroupedConditionsByAssigne(ReportingController.java:62) ~[classes/:na]
-	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[na:1.8.0_352-352]
-	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[na:1.8.0_352-352]
-	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[na:1.8.0_352-352]
-	at java.lang.reflect.Method.invoke(Method.java:498) ~[na:1.8.0_352-352]
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:205) ~[spring-web-5.3.27.jar:5.3.27]
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:150) ~[spring-web-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:895) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:808) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1072) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:965) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1006) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:898) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:529) ~[tomcat-embed-core-9.0.74.jar:4.0.FR]
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:883) ~[spring-webmvc-5.3.27.jar:5.3.27]
-	at javax.servlet.http.HttpServlet.service(HttpServlet.java:623) ~[tomcat-embed-core-9.0.74.jar:4.0.FR]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:209) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:178) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:153) ~[tomcat-embed-core-9.0.74.jar:9.0.74]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:337) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.invoke(FilterSecurityInterceptor.java:115) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.intercept.FilterSecurityInterceptor.doFilter(FilterSecurityInterceptor.java:81) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:346) ~[spring-security-web-5.7.8.jar:5.7.8]
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:122) ~[spring-security-web-5.7.8.jar:5.7.8]
- @GetMapping("/conditions/by-assigne")
-    public ResponseEntity<Map<String, List<Map<String, Object>>>> getGroupedConditionsByAssigne(
-            @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("EEE MMM dd yyyy HH:mm:ss zzz", Locale.ENGLISH);
+    <div class="rangeCalendar ml-3"
+     title="vs {{ datePreFrom | date:'dd/MM/yyyy' }} - {{ datePreTo | date:'dd/MM/yyyy' }}">
+  <input class="form-control"
+         placeholder="{{ datePreFrom | date:'shortDate' }} - {{ datePreTo | date:'shortDate' }}"
+         [nbDatepicker]="rangepicker"
+         size="21" />
 
-        ZonedDateTime startZoned = ZonedDateTime.parse(startDate, formatter);
-        LocalDate start = startZoned.toLocalDate();
-
-        ZonedDateTime endZoned = ZonedDateTime.parse(endDate, formatter);
-        LocalDate end = endZoned.toLocalDate();
+  <nb-rangepicker #rangepicker
+                  [range]="{ start: datePreFrom, end: datePreTo }"
+                  [max]="maxDateRange"
+                  format="dd/MM/yyyy"
+                  (rangeChange)="fetchByRange($event)">
+  </nb-rangepicker>
+</div>
+    </div>
+  </div>
 
 
 
-        System.out.println("********************************************************start*****: " + start + " end  **** :  " + end);
 
-        Map<String, List<Map<String, Object>>> groupedConditions = reportingService.getGroupedConditionsByAssigne(start, end);
-        return ResponseEntity.ok(groupedConditions);
+</div>
+
+<nb-card>
+  <nb-card-header>Liste des Produits / Conditions 
+
+      <div class="d-flex flex-row justify-content-end">
+              <button type="submit" class="d-flex btn custom-bg m-1"
+                       (click)="exportToCSV()">
+                exporter csv
+              </button>
+
+            </div>
+  </nb-card-header>
+
+  <nb-card-body>
+
+ <table class="table w-100">
+  <thead class="bg-header fw-bold">
+    <tr>
+      <th *ngFor="let col of columns">{{ col.label | titlecase }}</th>
+    </tr>
+    <tr>
+      <th *ngFor="let col of columns">
+        <input
+          nbInput
+          fullWidth
+          class="form-control"
+          [(ngModel)]="columnFilters[col.key]"
+          (ngModelChange)="onColumnFilterChange()"
+          placeholder="{{ col.label }}"
+        />
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let row of filteredData">
+      <td *ngFor="let col of columns">
+         <ng-container [ngSwitch]="col.key">
+
+    <ng-container *ngSwitchCase="'validateur'">
+      {{ row[col.key] | mail }} 
+    </ng-container>
+
+    <ng-container *ngSwitchCase="'assigneeName'">
+      {{ row[col.key] | mail }} 
+    </ng-container>
+    <ng-container *ngSwitchCase="'categorie'">
+      {{getCategorieClass(row[col.key]) }} 
+    </ng-container>
+
+       <ng-container *ngSwitchCase="'productStatus'">
+      {{getActionLabel(row[col.key]) }} 
+    </ng-container>
+
+    <ng-container *ngSwitchDefault>
+      {{ row[col.key] }}
+    </ng-container>
+
+  </ng-container>
+      </td>
+    </tr>
+  </tbody>
+</table> 
+  <p *ngIf="filteredData.length === 0" class="center-text">Aucune donnée disponible pour ces filtres.</p>
+  </nb-card-body>
+</nb-card>
+export class PilotageConditionsComponent {
+  rawGroupedData: any = {};
+  tableData: any[] = [];
+  filteredData: any[] = [];
+  columnss: string[] = ['assigneeName', 'risqueName', 'validateur', 'productNom', 'productCode', 'productStatus', 'dateLancement', 'NbrS', 'dateEcheance', 'categorie'];
+  filterText: string = '';
+  columnFilters: { [key: string]: string } = {};
+    datePreFrom!: Date;
+  datePreTo!: Date;
+  maxDateRange = new Date();
+  
+ columns = [
+  { key: 'assigneeName', label: 'Assigné' },
+{ key: 'risqueName', label: 'Risque' },
+{ key: 'validateur', label: 'Assignant' },
+{ key: 'productNom', label: 'Nom du produit' },
+{ key: 'productCode', label: 'Code du produit' },
+{ key: 'productStatus', label: 'Statut' },
+{ key: 'dateRevenue', label: 'Date de revenu' },
+{ key: 'categorie', label: 'Catégorie' },
+{ key: 'etatCondition', label: 'État de la condition' }
+
+  ];
+  
+  groupedReports: any[] = [];
+
+  constructor(
+    protected dateService: NbDateService<Date>,
+    private utilsService: UtilsService,
+    private analyticService: AnalyticService,
+    @Inject(DOCUMENT) public document: Document
+  ) {
+    this.maxDateRange = this.dateService.addDay(this.dateService.today(), 0);
+
+  }
+   ngOnInit(): void {
+   
+ const now = new Date();
+    const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0); 
+
+    this.datePreFrom = firstDayPrevMonth;
+    this.datePreTo = lastDayPrevMonth;
+
+  this.fetchReportByDateRange(this.datePreFrom, this.datePreTo)
+
+  }
+
+fetchByRange(range: NbCalendarRange<Date>): void {
+  if (range.start && range.end) {
+    this.fetchReportByDateRange(range.start, range.end);
+  }
+}
+
+ fetchReportByDateRange(start: Date, end: Date): void {
+    console.log("************start:", start)
+    console.log("************end:", end)
+    this.datePreFrom = start;
+    this.datePreTo = end;
+
+    this.analyticService.getReportConditionByAssigne(start, end).subscribe(
+      (data) => {
+        const typedData = data as Record<string, any[]>;
+        this.rawGroupedData = typedData;
+        this.tableData = this.flattenGroupedData(typedData);
+        this.filteredData = [...this.tableData];
+        this.initializeFilters();
+        this.buildGroupedRows();
+      },
+      (error) => {
+        console.error('Error fetching reports:', error);
+      }
+    );
+  }
+
+
+  flattenGroupedData(data: Record<string, any[]>): any[] {
+    return Object.entries(data).flatMap(([assigneeName, items]) =>
+      items.map(item => ({ ...item, assigneeName }))
+    );
+  }
+
+  initializeFilters(): void {
+    this.columnFilters = {};
+    this.columns.forEach(col => this.columnFilters[col.key] = '');
+  }
+
+  onColumnFilterChangeold(): void {
+    this.filteredData = this.tableData.filter(row =>
+      this.columns.every(col => {
+        const filterValue = this.columnFilters[col.key].toLowerCase();
+        const rowValue = (row[col.key] ?? '').toString().toLowerCase();
+        return rowValue.includes(filterValue);
+      })
+    );
+  }
+groupedRows: {
+  assigneeName: string;
+  rows: any[];
+  rowspan: number;
+  sumNbrS: number;
+}[] = [];
+
+buildGroupedRows() {
+  const map = new Map<string, any[]>();
+
+  for (const row of this.filteredData) {
+    const key = row.assigneeName ?? 'Unknown';
+    if (!map.has(key)) {
+      map.set(key, []);
     }
+    map.get(key)!.push(row);
+  }
+
+  this.groupedRows = [];
+  map.forEach((rows, assigneeName) => {
+    const sumNbrS = rows.reduce((acc, r) => acc + (Number(r.NbrS) || 0), 0);
+    this.groupedRows.push({
+      assigneeName,
+      rows,
+      rowspan: rows.length,
+      sumNbrS
+    });
+  });
+}
+onColumnFilterChange(): void {
+  this.filteredData = this.tableData.filter(row =>
+    this.columns.every(col => {
+      const filterValue = this.columnFilters[col.key].toLowerCase();
+      const rowValue = (row[col.key] ?? '').toString().toLowerCase();
+      return rowValue.includes(filterValue);
+    })
+  );
+  this.buildGroupedRows();
+}
+
+
+}
+
+
+
+
+
+
+
+
