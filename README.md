@@ -31,9 +31,7 @@ export class PilotageConditionsComponent {
     { key: 'categorie', label: 'Categorie' },
     { key: 'etatCondition', label: 'Etat Condition' },
   ];
-  
   groupedReports: any[] = [];
-
   constructor(
     protected dateService: NbDateService<Date>,
     private utilsService: UtilsService,
@@ -45,11 +43,6 @@ export class PilotageConditionsComponent {
   }
    ngOnInit(): void {
     this.maxDateRange = this.dateService.addDay(this.dateService.today(), 0);
-
-
-
- 
-
    this.analyticService.getReportConditionByAssigne().subscribe(
       (data) => {
         const typedData = data as Record<string, any[]>;
@@ -63,10 +56,7 @@ export class PilotageConditionsComponent {
         console.error('Error fetching reports:', error);
       }
     );
-
   }
-
-
   flattenGroupedData(data: Record<string, any[]>): any[] {
     return Object.entries(data).flatMap(([assigneeName, items]) =>
       items.map(item => ({ ...item, assigneeName }))
@@ -76,16 +66,6 @@ export class PilotageConditionsComponent {
   initializeFilters(): void {
     this.columnFilters = {};
     this.columns.forEach(col => this.columnFilters[col.key] = '');
-  }
-
-  onColumnFilterChangeold(): void {
-    this.filteredData = this.tableData.filter(row =>
-      this.columns.every(col => {
-        const filterValue = this.columnFilters[col.key].toLowerCase();
-        const rowValue = (row[col.key] ?? '').toString().toLowerCase();
-        return rowValue.includes(filterValue);
-      })
-    );
   }
 groupedRows: {
   assigneeName: string;
@@ -156,99 +136,7 @@ onColumnFilterChange(): void {
 
     //this.getAnalytics(dateDemandePrevFrom, dateDemandePrevTo, dateDemandeFrom, dateDemandeTo)
   }
-   getRowSpan(validateur: any): number {
-    return validateur.data.length;
-}
-  getCategorieClass(categorie: string): string {
-    if (categorie === 'poste condition') {
-      return 'PostCondition';
-    } else {
-      return 'PréCondition';
-    }
-  }
-  getActionLabel(action: string): string {
-    if (action === 'INITIALISATION') {
-        return 'Initialisation';
-    } else if (action === 'SOUMETTRE_CORDINATOR') {
-        return 'SOUMETTRE_CORDINATOR';
-    } else if (action === 'SOUMETTRE_LEAD') {
-        return 'Soumettre au Lead';
-    } else if (action === 'SOUMETTRE_SPONSOR') {
-        return 'Soumettre au Sponsor';
-    } else if (action === 'EN_COURS_DE_QUALIFICATION_COOR') {
-        return 'En cours de qualification COOR';
-    } else if (action === 'EN_ATTENTE_DU_CLIENT') {
-        return 'En attente du client';
-    } else if (action === 'EN_COURS_DE_TRAITEMENT') {
-        return 'En cours de traitement';
-    } else if (action === 'REQUALIFICATION_PROJET') {
-        return 'Requalification projet';
-    } else if (action === 'VALIDER') {
-        return 'Traité';
-    } else if (action === 'CLOTURÉ') {
-        return 'Clôturé';
-    } else if (action === 'ABONDONNE') {
-        return 'Abandonné';
-    } else if (action === 'REJETÉ') {
-        return 'Rejeté';
-    } else if (action === 'COMMENT') {
-        return 'Commentaire';
-    } else if (action === 'ASSIGN') {
-        return 'Affectation';
-    } else if (action === 'TAKE_IN_CHARGE') {
-        return 'Prise en charge';
-    } else if (action === 'REOUVERT') {
-        return 'Retourner';
-    } else if (action === 'A_PLANIFIER_KICKOFF') {
-        return 'A planifier kickOff';
-    } else if (action === 'KICK_OFF') {
-        return 'Kick Off';
-    } else if (action === 'MAJ_VALIDATION_QUESTIONNAIRE') {
-        return 'Validation questionnaire';
-    } else if (action === 'A_VALIDER_RESULTAT') {
-        return 'A valider résultat';
-    } else if (action === 'VALIDATION_RESULTAT') {
-        return 'Validation résultat';
-    } else if (action === 'GRID_VALIDATION') {
-        return 'Grid validation';
-    } else if (action === 'ABANDONNER') {
-        return '';
-    } else if (action === 'TRAITER') {
-        return 'Traiter';
-    } else if (action === 'NON_ELIGIBLE') {
-        return 'Non éligible';
-    } else if (action === 'ELIGIBLE') {
-        return 'Éligible';
-    } else if (action === 'DNP_A_ALIMENTER') {
-        return 'Dnp A Alimenter';
-    } else if (action === 'ANALYSE_RISQUE') {
-        return 'Analyse Risque';
-    } else if (action === 'ALIMENTATION_GRILLE_VALIDATION') {
-        return 'Alimentation Grille Validation';
-    } else if (action === 'PRE_CNP_A_PLANIFIER') {
-        return 'PreCNP A Planifier';
-    } else if (action === 'CLOTURER_PRE_CONDITION') {
-        return 'Clôture PreCondition';
-    } else if (action === 'SOUMETTRE_AU_RISQUES') {
-        return 'Soumettre au Risques';
-    } else if (action === 'INITIALISATION_GRILLE') {
-        return 'Initialisation Grille';
-    } else if (action === 'PRE_CNP') {
-        return 'Pre Cnp';
-    } else if (action === 'CLOTURE') {
-        return 'clôturé';
-    } else if (action === 'SUSPENDRE') {
-        return 'Suspendre';
-    } else if (action === 'CLOTURE_POSTE_CONDITION') {
-        return 'Clôture PostCondition';
-    } else if (action === 'CNP_A_PLANIFIER') {
-        return 'Cnp A Planifier';
-    } else if (action === 'SUSPENDU') {
-        return 'Suspendu';
-    } else {
-        return action;
-    }
-}
+ 
 }
 <div id="auditPilotage">
   <div class="pilotageHeader d-flex justify-content-between">
