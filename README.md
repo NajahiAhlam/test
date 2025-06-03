@@ -1,35 +1,26 @@
-isRequiredQuestionsConditionMet(): boolean {
-  const responses = this.demande?.demandeQualificationQuestionReponses || [];
+<tbody>
+  <!-- Section Header: Éligibilité -->
+  <tr>
+    <td colspan="3" style="font-weight: bold; background-color: #f0f0f0;">
+      🟦 Questions Éligibilité (1 à 5)
+    </td>
+  </tr>
 
-  const q1 = responses.find(q => q.parentQuestion?.numQuestion?.toString() === '1');
-  if (!q1 || !q1.answered) return false;
+  <ng-container *ngFor="let item of getParentQuestionsJustFiveFirst()">
+    <!-- Your parent + sub-question rendering for 1–5 here -->
+    <!-- Same structure you already use -->
+  </ng-container>
 
-  // Look for at least one other parent (2-5) or any sub-question of them answered
-  const othersAnswered = responses.some(q => {
-    const parentNum = q.parentQuestion?.numQuestion?.toString();
-    return ['2', '3', '4', '5'].includes(parentNum) && q.answered;
-  });
+  <!-- Only show CNP section if eligible -->
+  <tr *ngIf="isRequiredQuestionsConditionMet()">
+    <td colspan="3" style="font-weight: bold; background-color: #f0f0f0;">
+      🟨 Questions CNP (6 et plus)
+    </td>
+  </tr>
 
-  const subQuestionAnswered = ['2', '3', '4', '5'].some(parentNum =>
-    this.getSubQuestions(parentNum).some(sub => sub.answered)
-  );
-
-  return othersAnswered || subQuestionAnswered;
-}
-getParentQuestions(): any[] {
-  const responses = this.demande?.demandeQualificationQuestionReponses || [];
-  return responses
-    .filter((q, index, self) =>
-      q.parentQuestion &&
-      self.findIndex(p => p.parentQuestion.numQuestion === q.parentQuestion.numQuestion) === index &&
-      (this.isRequiredQuestionsConditionMet() ? true : parseInt(q.parentQuestion.numQuestion) <= 5)
-    )
-    .sort((a, b) =>
-      parseFloat(a.parentQuestion.numQuestion.toString()) - parseFloat(b.parentQuestion.numQuestion.toString())
-    ) || [];
-}
-updateAnswer(item: any, event: Event): void {
-  item.answered = (event.target as HTMLInputElement).checked;
-  this.cdr.detectChanges();
-}
-
+  <ng-container *ngIf="isRequiredQuestionsConditionMet()" 
+                [ngForOf]="getParentQuestionsAllData().filter(p => p.parentQuestion.numQuestion > 5)" 
+                let-item>
+    <!-- Render parent + sub-question as usual for 6+ -->
+  </ng-container>
+</tbody>
