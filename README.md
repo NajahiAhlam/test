@@ -1,44 +1,45 @@
-checkPopupCondition(): void {
-  const hasQ1 = Array.from(this.checkedQuestions).some(q => q === "1" || q.startsWith("1."));
-  const hasAnother = Array.from(this.checkedQuestions).some(q => {
-    if (q === "1" || q.startsWith("1.")) return false;
-    const num = parseInt(q.split('.')[0]);
-    return num >= 1 && num <= 5;
-  });
+<tbody>
+  <ng-container *ngFor="let question of getFilteredParentQuestions(); let i = index">
+    
+    <!-- Insert CNP label row before question 6 -->
+    <tr *ngIf="parseInt(question.numQuestion) === 6">
+      <td colspan="3" style="font-weight: bold; background-color: #f0f0f0;">
+        Section CNP – Merci de répondre aux questions suivantes
+      </td>
+    </tr>
 
-  const newShow = hasQ1 && hasAnother;
+    <!-- Normal question row -->
+    <tr>
+      <td>
+        <span *ngIf="hasSubQuestions(question.numQuestion)"
+              (click)="toggleSubQuestions(question.numQuestion)"
+              style="cursor: pointer;">
+          <nb-icon [icon]="expandedParents[question.numQuestion] ? 'chevron-up' : 'chevron-down'"></nb-icon>
+        </span>
+        {{ question.numQuestion }}
+      </td>
+      <td>{{ question.question }}</td>
+      <td *ngIf="!hasSubQuestions(question.numQuestion)">
+        <label class="switch">
+          <input type="checkbox" [checked]="question.response" (change)="toggleResponse(question)">
+          <span class="slider round"></span>
+        </label>
+      </td>
+    </tr>
 
-  if (newShow && !this.showAdditionalContent) {
-    // condition just became true → show alert again
-    this.closeAlert = true; // reopen the alert
-  }
+    <!-- Sub-questions -->
+    <ng-container *ngIf="expandedParents[question.numQuestion]">
+      <tr *ngFor="let subQuestion of getSubQuestions(question.numQuestion)">
+        <td>&nbsp;&nbsp;{{ subQuestion.numQuestion }}</td>
+        <td>{{ subQuestion.question }}</td>
+        <td>
+          <label class="switch">
+            <input type="checkbox" [checked]="subQuestion.response" (change)="toggleResponse(subQuestion)">
+            <span class="slider round"></span>
+          </label>
+        </td>
+      </tr>
+    </ng-container>
 
-  this.showAdditionalContent = newShow;
-
-
-
-
-
-
-checkPopupCondition(): void {
-  const hasQ1 = Array.from(this.checkedQuestions).some(q => q === "1" || q.startsWith("1."));
-  const hasAnother = Array.from(this.checkedQuestions).some(q => {
-    if (q === "1" || q.startsWith("1.")) return false;
-    const num = parseInt(q.split('.')[0]);
-    return num >= 1 && num <= 5;
-  });
-
-  this.showAdditionalContent = hasQ1 && hasAnother;
-}
-toggleResponse(question: any): void {
-  question.response = !question.response;
-
-  if (question.response) {
-    this.checkedQuestions.add(question.numQuestion);
-  } else {
-    this.checkedQuestions.delete(question.numQuestion);
-  }
-
-  this.checkPopupCondition();
-  setTimeout(() => this.cdr.detectChanges(), 0);
-}
+  </ng-container>
+</tbody>
