@@ -6,6 +6,28 @@ checkPopupCondition(): void {
     return num >= 1 && num <= 5;
   });
 
+  const newShow = hasQ1 && hasAnother;
+
+  if (newShow && !this.showAdditionalContent) {
+    // condition just became true → show alert again
+    this.closeAlert = true; // reopen the alert
+  }
+
+  this.showAdditionalContent = newShow;
+
+
+
+
+
+
+checkPopupCondition(): void {
+  const hasQ1 = Array.from(this.checkedQuestions).some(q => q === "1" || q.startsWith("1."));
+  const hasAnother = Array.from(this.checkedQuestions).some(q => {
+    if (q === "1" || q.startsWith("1.")) return false;
+    const num = parseInt(q.split('.')[0]);
+    return num >= 1 && num <= 5;
+  });
+
   this.showAdditionalContent = hasQ1 && hasAnother;
 }
 toggleResponse(question: any): void {
