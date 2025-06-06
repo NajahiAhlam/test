@@ -1,11 +1,43 @@
-No overload matches this call.
-  Overload 1 of 2, '(observerOrNext?: Partial<Observer<string | null>> | ((value: string | null) => void) | undefined): Subscription | undefined', gave the following error.
-    Argument of type '(value: string) => void' is not assignable to parameter of type 'Partial<Observer<string | null>> | ((value: string | null) => void) | undefined'.
-      Type '(value: string) => void' is not assignable to type '(value: string | null) => void'.
-        Types of parameters 'value' and 'value' are incompatible.
-          Type 'string | null' is not assignable to type 'string'.
-            Type 'null' is not assignable to type 'string'.
-  Overload 2 of 2, '(next?: ((value: string | null) => void) | null | undefined, error?: ((error: any) => void) | null | undefined, complete?: (() => void) | null | undefined): Subscription | undefined', gave the following error.
-    Argument of type '(value: string) => void' is not assignable to parameter of type '(value: string | null) => void'.
-      Types of parameters 'value' and 'value' are incompatible.
-      (value: string) => {
+<input
+  type="text"
+  class="form-control"
+  [formControl]="conditionGroup.get('numberSemaineApresLancement')"
+/>
+<div *ngIf="conditionGroup.get('numberSemaineApresLancement')?.hasError('required')">
+  Ce champ est requis
+</div>
+createConditionGroup(condition?: Condition): FormGroup {
+  const group = this.formBuilder.group({
+    id: [condition ? condition.id : null],
+    detail: [condition ? condition.detail : '', [Validators.required]],
+    categorie: [condition ? condition.categorie : '', [Validators.required]],
+    assigne: ['', [Validators.required]],
+    numberSemaineApresLancement: [condition ? condition.numberSemaineApresLancement : ''],
+    dateEcheance: [condition ? condition.dateEcheance : ''],
+    commentCond: ['', [Validators.required]],
+  });
+
+  // Dynamically apply validators based on categorie value
+  group.get('categorie')?.valueChanges
+    .pipe(startWith(group.get('categorie')?.value ?? ''))
+    .subscribe((value: string | null) => {
+      const dateCtrl = group.get('dateEcheance');
+      const semaineCtrl = group.get('numberSemaineApresLancement');
+
+      if (value === 'poste condition') {
+        dateCtrl?.setValidators([Validators.required]);
+        semaineCtrl?.clearValidators();
+      } else if (value === 'precondition') {
+        semaineCtrl?.setValidators([Validators.required]);
+        dateCtrl?.clearValidators();
+      } else {
+        dateCtrl?.clearValidators();
+        semaineCtrl?.clearValidators();
+      }
+
+      dateCtrl?.updateValueAndValidity();
+      semaineCtrl?.updateValueAndValidity();
+    });
+
+  return group;
+}
