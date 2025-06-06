@@ -13,54 +13,15 @@ getCNPQuestions(): any[] {
       )
     : [];
 }
-<table class="table" aria-label="This table displays the data related to Questionnaire">
-  <thead>
-    <tr>
-      <th>Num Question</th>
-      <th>Question</th>
-      <th>Réponse</th>
-    </tr>
-  </thead>
-  <tbody>
-
-    <!-- Section: Question Éligibilité (1-5) -->
-    <tr class="table-section-header">
-      <td colspan="3"><strong>Question Éligibilité</strong></td>
-    </tr>
-    <ng-container *ngFor="let question of getEligibilityQuestions()">
-      <tr>
-        <td>
-          <span *ngIf="hasSubQuestions(question.numQuestion)"
-                (click)="toggleSubQuestions(question.numQuestion)"
-                style="cursor: pointer;">
-            <nb-icon [icon]="expandedParents[question.numQuestion] ? 'chevron-up' : 'chevron-down'"></nb-icon>
-          </span>
-          {{ question.numQuestion }}
-        </td>
-        <td>{{ question.question }}</td>
-        <td *ngIf="!hasSubQuestions(question.numQuestion)">
-          <label class="switch">
-            <input type="checkbox" [checked]="question.response" (change)="toggleResponse(question)">
-            <span class="slider round"></span>
-          </label>
-        </td>
-      </tr>
-      <ng-container *ngIf="expandedParents[question.numQuestion]">
-        <tr *ngFor="let subQuestion of getSubQuestions(question.numQuestion)">
-          <td>&nbsp;&nbsp;{{ subQuestion.numQuestion }}</td>
-          <td>{{ subQuestion.question }}</td>
-          <td>
-            <label class="switch">
-              <input type="checkbox" [checked]="subQuestion.response" (change)="toggleResponse(subQuestion)">
-              <span class="slider round"></span>
-            </label>
-          </td>
-        </tr>
-      </ng-container>
-    </ng-container>
-
-    <!-- Section: Question CNP (6-15) -->
-    <tr *ngIf="showAdditionalContent" class="table-section-header">
+Can't bind to 'ngForOf' since it isn't a known property of 'ng-container'.
+1. If 'ngForOf' is an Angular directive, then add 'CommonModule' to the '@NgModule.imports' of this component.
+2. To allow any property add 'NO_ERRORS_SCHEMA' to the '@NgModule.schemas' of this component.ngtsc(-998002)
+start-request-form.component.ts(15, 18): Error occurs in the template of component StartRequestFormComponent.
+No quick fixes available
+Property 'numQuestion' does not exist on type 'Observable<Question[]>'.ngtsc(2339)
+start-request-form.component.ts(15, 18): Error occurs in the template of component StartRequestFormComponent.
+Property 'question' does not exist on type 'Observable<Question[]>'.ngtsc(2339)
+ <tr *ngIf="showAdditionalContent" class="table-section-header">
       <td colspan="3"><strong>Question CNP</strong></td>
     </tr>
     <ng-container *ngIf="showAdditionalContent" [ngForOf]="getCNPQuestions()" let-question>
@@ -83,17 +44,4 @@ getCNPQuestions(): any[] {
       </tr>
       <ng-container *ngIf="expandedParents[question.numQuestion]">
         <tr *ngFor="let subQuestion of getSubQuestions(question.numQuestion)">
-          <td>&nbsp;&nbsp;{{ subQuestion.numQuestion }}</td>
-          <td>{{ subQuestion.question }}</td>
-          <td>
-            <label class="switch">
-              <input type="checkbox" [checked]="subQuestion.response" (change)="toggleResponse(subQuestion)">
-              <span class="slider round"></span>
-            </label>
-          </td>
-        </tr>
-      </ng-container>
-    </ng-container>
-
-  </tbody>
-</table>
+       
