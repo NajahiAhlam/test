@@ -1,109 +1,132 @@
-@Component({
-  selector: 'app-update-condition-dialog',
-  templateUrl: './update-condition-dialog.component.html',
-})
-export class UpdateConditionDialogComponent implements OnInit {
-  @Input() data!: ConditionsDTO;
-  formGroup!: FormGroup;
-  user: any[] = [];
-  filteredAssigneOptions$!: Observable<any[]>;
-  etat = ['en cours', 'en attente', 'suspendu'];
-  categorie = ['précondition', 'poste condition'];
+ <nb-tab tabTitle="Questionnaire" style="width: 780px; height: 600px;">
+            <nb-alert *ngIf="showAdditionalContent && closeAlert" status="success"  >
+              Éligible, Il s'agit d'un Nouveau Produit au sens de l'instruction SG. 
+              Un CNP est requis pour valider le lancement de ce produit. Merci de continuer le questionnaire à partir de la question 6.
+            </nb-alert>
+             <nb-alert *ngIf="!showAdditionalContent && closeAlert" status="danger"  >
+              Le questionnaire n'est pas éligible.
+            </nb-alert>
+            <nb-alert *ngIf="message && showAdditionalContent" status="info"  (close)="message = ''">
+              {{ message }}
+            </nb-alert>
 
-  constructor(
-    private _route: ActivatedRoute,
-    private wkfService: WkfService,
-    private formBuilder: FormBuilder,
-    private _utilService: UtilsService,
-    private dialogService: NbDialogService,
-    private userService: UserService,
-    private gestionRisqueService: GestionRisqueService,
-    public _authorizationService: AuthorisationService,
-    private dialogRef: NbDialogRef<UpdateConditionDialogComponent>
-  ) {}
+            <table class="table" aria-label="This table displays the data related to Questionnaire">
+              <thead>
+                <tr>
+                  <th>Num Question</th>
+                  <th>Question</th>
+                  <th>Réponse</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let question of getFilteredParentQuestions()">
+                  <tr>
+                    <td>
+                      <span *ngIf="hasSubQuestions(question.numQuestion)"
+                            (click)="toggleSubQuestions(question.numQuestion)"
+                            style="cursor: pointer;">
+                        <nb-icon [icon]="expandedParents[question.numQuestion] ? 'chevron-up' : 'chevron-down'"></nb-icon>
+                      </span>
+                      {{ question.numQuestion }}
+                    </td>
+                    <td>{{ question.question }}</td>
+                    <td *ngIf="!hasSubQuestions(question.numQuestion)">
+                      <label class="switch">
+                        <input type="checkbox" [checked]="question.response" (change)="toggleResponse(question)"> 
+                      
+                        
+                        
+                        <span class="slider round"></span>
+                      </label>
+                    </td>
+                  </tr>
+          
+                  <ng-container *ngIf="expandedParents[question.numQuestion]">
+                    <tr *ngFor="let subQuestion of getSubQuestions(question.numQuestion)">
+                      <td>&nbsp;&nbsp;{{ subQuestion.numQuestion }}</td> 
+                      <td>{{ subQuestion.question }}</td>
+                      <td>
+                        <label class="switch">
+                           <input type="checkbox" [checked]="subQuestion.response" (change)="toggleResponse(subQuestion)"> 
+                         
+                          <span class="slider round"></span>
+                        </label>
+                      </td>
+                    </tr>
+                  </ng-container>
+                </ng-container>
+              </tbody> 
 
-  ngOnInit() {
-    this.initFormGroup(this.data);
 
-    this.userService.getUsersList().subscribe(users => {
-      this.user = users;
-      this.filteredAssigneOptions$ = this.formGroup.get('assigne')!.valueChanges.pipe(
-        startWith(''),
-        map(filterString => this.filterOptions(filterString, this.user, 'email'))
-      );
-    });
-
-    // Listen to 'categorie' changes and update validators accordingly
-    this.formGroup.get('categorie')?.valueChanges
-      .pipe(startWith(this.formGroup.get('categorie')?.value))
-      .subscribe(value => {
-        this.updateConditionalValidators(value);
-      });
-  }
-
-  initFormGroup(condition?: ConditionsDTO) {
-    this.formGroup = this.formBuilder.group({
-      detail: [condition?.detail ?? '', Validators.required],
-      categorie: [condition?.categorie ?? '', Validators.required],
-      assigne: [condition?.assigne ?? '', Validators.required],
-      numberSemaineApresLancement: [condition?.numberSemaineApresLancement ?? ''],
-      dateEcheance: [condition?.dateEcheance ? new Date(condition.dateEcheance) : ''],
-      etat: [condition?.etat ?? '', Validators.required],
-      commentCond: [condition?.commentCondition ?? '']
-    });
-  }
-
-  updateConditionalValidators(categorieValue: string): void {
-    const semaineCtrl = this.formGroup.get('numberSemaineApresLancement');
-    const dateCtrl = this.formGroup.get('dateEcheance');
-
-    if (categorieValue === 'précondition') {
-      dateCtrl?.setValidators([Validators.required]);
-      semaineCtrl?.clearValidators();
-      semaineCtrl?.setValue('');
-    } else if (categorieValue === 'poste condition') {
-      semaineCtrl?.setValidators([Validators.required]);
-      dateCtrl?.clearValidators();
-      dateCtrl?.setValue('');
-    } else {
-      dateCtrl?.clearValidators();
-      semaineCtrl?.clearValidators();
+            
+            </table>
+          </nb-tab>
+              hasSubQuestions(num: string): boolean {
+      return this.questionList.some(q => q.numQuestion.startsWith(num + "."));
+    }
+      getSubQuestions(parentNum: string): any[] {
+      return this.questionList
+        .filter(q => q.numQuestion.startsWith(parentNum + "."))
+        .sort((a, b) => parseFloat(a.numQuestion) - parseFloat(b.numQuestion)); // Sort numerically
     }
 
-    dateCtrl?.updateValueAndValidity();
-    semaineCtrl?.updateValueAndValidity();
-  }
 
-  filterOptions(filterString: string, options: any[], field: string): any[] {
-    if (!filterString || typeof filterString !== 'string') return options;
-    const filterValue = filterString.toLowerCase();
-    return options.filter(option => option[field].toLowerCase().includes(filterValue));
-  }
 
-  onReset() {
-    this.formGroup.reset();
-  }
-
-  onSubmit() {
-    if (!this.formGroup.valid) {
-      this._utilService.displayWarning("Les champs sont obligatoires", "Attention");
-      return;
+    toggleSubQuestions(parentNum: any) {
+      this.expandedParents[parentNum] = !this.expandedParents[parentNum];
     }
+       getFilteredParentQuestions(): any[] {
+      return this.showAdditionalContent
+        ? this.questionList.filter(q => !q.numQuestion.includes('.') && parseInt(q.numQuestion) >= 1)
+        : this.questionList.filter(q => !q.numQuestion.includes('.') && parseInt(q.numQuestion) >= 1 && parseInt(q.numQuestion) <= 5);
+    }
+    checkPopupCondition(): void {
+  const hasQ1 = Array.from(this.checkedQuestions).some(q => q === "1" || q.startsWith("1."));
+  const hasAnother = Array.from(this.checkedQuestions).some(q => {
+    if (q === "1" || q.startsWith("1.")) return false;
+    const num = parseInt(q.split('.')[0]);
+    return num >= 1 && num <= 5;
+  });
 
-    console.log("form value: ", this.formGroup.value);
+  const newShow = hasQ1 && hasAnother;
 
-    this.gestionRisqueService.updateCondition(this.formGroup.value, this.data.id).subscribe({
-      next: () => {
-        this._utilService.displaySucess("Condition mise à jour avec succès", "Succès");
-        this.dialogRef.close("SUCCESS");
-      },
-      error: (err) => {
-        this._utilService.displayError(err.error.message || "Erreur lors de la mise à jour", "Erreur");
-      },
-    });
+  if (newShow && !this.showAdditionalContent) {
+    // condition just became true → show alert again
+    this.closeAlert = true; // reopen the alert
   }
 
-  closeWindow() {
-    this.dialogRef.close();
-  }
+  this.showAdditionalContent = newShow;
+
 }
+toggleResponse(question: any): void {
+  question.response = !question.response;
+
+  if (question.response) {
+    this.checkedQuestions.add(question.numQuestion);
+  } else {
+    this.checkedQuestions.delete(question.numQuestion);
+  }
+
+  this.checkPopupCondition();
+  setTimeout(() => this.cdr.detectChanges(), 0);
+}
+
+  getExtraQuestions(): any[] {
+    return this.questionList.filter(q => parseInt(q.numQuestion) > 5);
+  }
+
+
+  initFormGroup() {
+    this.form = this.formBuilder.group({
+      filiale: ['', Validators.required],
+      type: [''],
+      date: [''],
+      dateReel: [''],
+      porteurProjet: ['', Validators.required],
+      porteurMetier: ['', Validators.required],
+      sponsor: ['', Validators.required],
+      objet: ['', Validators.required],
+      description: ['']
+    });
+  }
+hey chat i want to saparate my tables by titre from question num 1 to 5 do titre question eligibilite from question num 6 to 15 do titre question cnp
