@@ -1,59 +1,36 @@
+createConditionGroup(condition?: Condition): FormGroup {
+  const group = this.formBuilder.group({
+    id: [condition?.id ?? null],
+    detail: [condition?.detail ?? '', Validators.required],
+    categorie: [condition?.categorie ?? '', Validators.required],
+    assigne: [condition?.assigne ?? '', Validators.required],
+    numberSemaineApresLancement: [condition?.numberSemaineApresLancement ?? ''],
+    dateEcheance: [condition?.dateEcheance ?? ''],
+    commentCond: [condition?.commentCond ?? '', Validators.required],
+  });
 
-    initForm(risque?: RisqueInstance) {
-      this.form = this.formBuilder.group({
-        validation: ['', Validators.required],
-        comment: [''],
-          conditions: this.formBuilder.array(
-          risque?.conditions?.length
-            ? risque.conditions.map(c => this.createConditionGroup(c))
-            : []
-        ),
+  // Set up conditional validators based on `categorie`
+  group.get('categorie')?.valueChanges
+    .pipe(startWith(group.get('categorie')?.value ?? ''))
+    .subscribe((value: string) => {
+      const dateCtrl = group.get('dateEcheance');
+      const semaineCtrl = group.get('numberSemaineApresLancement');
 
-      });
-    }
-      getFormControl(control: any): FormControl {
-          return control as FormControl;
-        }
+      if (value === 'poste condition') {
+        dateCtrl?.setValidators([Validators.required]);
+        semaineCtrl?.clearValidators();
+      } else if (value === 'precondition') {
+        semaineCtrl?.setValidators([Validators.required]);
+        dateCtrl?.clearValidators();
+      } else {
+        // Default: clear both
+        dateCtrl?.clearValidators();
+        semaineCtrl?.clearValidators();
+      }
 
-      createConditionGroup(condition?: Condition): FormGroup {
-            return this.formBuilder.group({
-              id: [condition ? condition.id : null],
-              detail: [condition ? condition.detail : '', [Validators.required]],
-              categorie: [condition ? condition.categorie : '', [Validators.required]],
-              assigne: ['' , [Validators.required]],
-              numberSemaineApresLancement: [condition ? condition.numberSemaineApresLancement : ''],
-              dateEcheance: [condition ? condition.dateEcheance :'' ],
-              commentCond: ['', [Validators.required]],
-            });
-          }
-
-
-          get conditions(): FormArray {
-            return this.form.get('conditions') as FormArray;
-
-          }
-       
-     addCondition(): void {
-  const conditionGroup = this.createConditionGroup();
-  this.conditions.push(conditionGroup);
-
-  const index = this.conditions.length - 1;
-
-  // Create a new BehaviorSubject for this condition
-  const assigneFilter$ = new BehaviorSubject<any[]>(this.user);
-  console.log("assigneFilter$: ",assigneFilter$)
-  this.filteredAssigneOptions[index] = assigneFilter$;
-
-  // Subscribe to changes in the assigne input
-  conditionGroup.get('assigne')?.valueChanges
-    .pipe(startWith(''))
-    .subscribe(value => {
-      const filtered = this.filterOptions(value || '', this.user, 'email');
-      assigneFilter$.next(filtered);
+      dateCtrl?.updateValueAndValidity({ onlySelf: true });
+      semaineCtrl?.updateValueAndValidity({ onlySelf: true });
     });
-}     
-        
-          removeConditions(index: number): void {
-            this.conditions.removeAt(index);
-          }
-        
+
+  return group;
+}
