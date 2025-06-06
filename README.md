@@ -1,36 +1,11 @@
-createConditionGroup(condition?: Condition): FormGroup {
-  const group = this.formBuilder.group({
-    id: [condition?.id ?? null],
-    detail: [condition?.detail ?? '', Validators.required],
-    categorie: [condition?.categorie ?? '', Validators.required],
-    assigne: [condition?.assigne ?? '', Validators.required],
-    numberSemaineApresLancement: [condition?.numberSemaineApresLancement ?? ''],
-    dateEcheance: [condition?.dateEcheance ?? ''],
-    commentCond: [condition?.commentCond ?? '', Validators.required],
-  });
-
-  // Set up conditional validators based on `categorie`
-  group.get('categorie')?.valueChanges
-    .pipe(startWith(group.get('categorie')?.value ?? ''))
-    .subscribe((value: string) => {
-      const dateCtrl = group.get('dateEcheance');
-      const semaineCtrl = group.get('numberSemaineApresLancement');
-
-      if (value === 'poste condition') {
-        dateCtrl?.setValidators([Validators.required]);
-        semaineCtrl?.clearValidators();
-      } else if (value === 'precondition') {
-        semaineCtrl?.setValidators([Validators.required]);
-        dateCtrl?.clearValidators();
-      } else {
-        // Default: clear both
-        dateCtrl?.clearValidators();
-        semaineCtrl?.clearValidators();
-      }
-
-      dateCtrl?.updateValueAndValidity({ onlySelf: true });
-      semaineCtrl?.updateValueAndValidity({ onlySelf: true });
-    });
-
-  return group;
-}
+No overload matches this call.
+  Overload 1 of 2, '(observerOrNext?: Partial<Observer<string | null>> | ((value: string | null) => void) | undefined): Subscription | undefined', gave the following error.
+    Argument of type '(value: string) => void' is not assignable to parameter of type 'Partial<Observer<string | null>> | ((value: string | null) => void) | undefined'.
+      Type '(value: string) => void' is not assignable to type '(value: string | null) => void'.
+        Types of parameters 'value' and 'value' are incompatible.
+          Type 'string | null' is not assignable to type 'string'.
+            Type 'null' is not assignable to type 'string'.
+  Overload 2 of 2, '(next?: ((value: string | null) => void) | null | undefined, error?: ((error: any) => void) | null | undefined, complete?: (() => void) | null | undefined): Subscription | undefined', gave the following error.
+    Argument of type '(value: string) => void' is not assignable to parameter of type '(value: string | null) => void'.
+      Types of parameters 'value' and 'value' are incompatible.
+      (value: string) => {
