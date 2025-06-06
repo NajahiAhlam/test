@@ -1,41 +1,59 @@
-initFormGroup(risque?: Risque) {
-  this.formGroup = this.formBuilder.group({
-    risqueId: [risque?.id ?? ''],
-    contexte: [risque?.contexte ?? '', Validators.required],
-    niveauIntrinseque: [risque?.niveauIntrinseque ?? '', Validators.required],
-    autreRisque: [''], // <- Optional field
-    niveauRisqueResiduel: [risque?.niveauRisqueResiduel ?? '', Validators.required],
-    comment: [risque?.comment ?? '', Validators.required],
-    zoneRisques: this.formBuilder.array(
-      risque?.zoneRisques?.length
-        ? risque.zoneRisques.map(zone => this.createZoneGroup(zone))
-        : []
-    )
-  });
-}
-createAnalyseRisqueGroup(analyseRisque: AnalyseRisque) {
-  return this.formBuilder.group({
-    analyseRisqueId: [analyseRisque.id],
-    description: [analyseRisque.description || '', Validators.required],
-    reponse: [analyseRisque.reponse || '', Validators.required],
-    facteur: [analyseRisque.facteur || '', Validators.required],
-  });
-}
-onSubmit() {
-  if (!this.formGroup.valid) {
-    this.formGroup.markAllAsTouched(); // Mark all fields to show errors
-    this._utilService.displayWarning("Tous les champs obligatoires doivent être remplis", "Attention");
-    return;
-  }
 
-  console.log("form value: ", this.formGroup.value);
-  this.wkfService.updateRisque(this.demandetId!, this.formGroup.value).subscribe({
-    next: () => {
-      this._utilService.displaySucess("Risque ajouté avec succès", "Succès");
-      this.dialogRef.close("SUCCESS");
-    },
-    error: (err) => {
-      this._utilService.displayError(err.error.message, "Erreur");
-    },
-  });
-}
+    initForm(risque?: RisqueInstance) {
+      this.form = this.formBuilder.group({
+        validation: ['', Validators.required],
+        comment: [''],
+          conditions: this.formBuilder.array(
+          risque?.conditions?.length
+            ? risque.conditions.map(c => this.createConditionGroup(c))
+            : []
+        ),
+
+      });
+    }
+      getFormControl(control: any): FormControl {
+          return control as FormControl;
+        }
+
+      createConditionGroup(condition?: Condition): FormGroup {
+            return this.formBuilder.group({
+              id: [condition ? condition.id : null],
+              detail: [condition ? condition.detail : '', [Validators.required]],
+              categorie: [condition ? condition.categorie : '', [Validators.required]],
+              assigne: ['' , [Validators.required]],
+              numberSemaineApresLancement: [condition ? condition.numberSemaineApresLancement : ''],
+              dateEcheance: [condition ? condition.dateEcheance :'' ],
+              commentCond: ['', [Validators.required]],
+            });
+          }
+
+
+          get conditions(): FormArray {
+            return this.form.get('conditions') as FormArray;
+
+          }
+       
+     addCondition(): void {
+  const conditionGroup = this.createConditionGroup();
+  this.conditions.push(conditionGroup);
+
+  const index = this.conditions.length - 1;
+
+  // Create a new BehaviorSubject for this condition
+  const assigneFilter$ = new BehaviorSubject<any[]>(this.user);
+  console.log("assigneFilter$: ",assigneFilter$)
+  this.filteredAssigneOptions[index] = assigneFilter$;
+
+  // Subscribe to changes in the assigne input
+  conditionGroup.get('assigne')?.valueChanges
+    .pipe(startWith(''))
+    .subscribe(value => {
+      const filtered = this.filterOptions(value || '', this.user, 'email');
+      assigneFilter$.next(filtered);
+    });
+}     
+        
+          removeConditions(index: number): void {
+            this.conditions.removeAt(index);
+          }
+        
