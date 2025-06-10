@@ -1,4 +1,7 @@
-Type 'DemandeQualification[]' is not assignable to type '[DemandeQualification]'.
-  Target requires 1 element(s) but source may have fewer.ts(2322)
-(property) ObjectPagination<DemandeQualification>.content: [DemandeQualification]
-          data.content = data.content.filter(d => d.typeDemande=== 'Nouveau Demande')
+const match = data.content.find(d => d.typeDemande === 'Nouveau Demande');
+if (match) {
+  data.content = [match];
+} else {
+  // Handle gracefully (e.g., keep existing, or set a default)
+  data.content = [data.content[0]];
+}
