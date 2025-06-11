@@ -1,4 +1,4 @@
-  @Transactional
+ @Transactional
     public ObjectPagination<DemandeRequestDTO> findAlldemandes(int page, int size, String sortDirection, String sortValue, Map<String, String> filters) throws PermissionException {
         User currentUser = userService.getAuthenticatedUser();
 
@@ -8,9 +8,7 @@
             if (userService.hasRole(currentUser, Role.Leader)) {
                 predicates.add(criteriaBuilder.equal(root.get("reporter").get("user_id"), currentUser.getUser_id()));
             }
-            if (userService.hasRole(currentUser, Role.SponsorM)) {
-                predicates.add(criteriaBuilder.equal(root.get("sponsorM").get("user_id"), currentUser.getUser_id()));
-            }
+        
 
             List<String> validFilterKeys = Arrays.asList(
                     "objetDemande", "nomFiliale", "nom", "description", "porteurProjet", "porteurMetier",
@@ -110,3 +108,5 @@
 
         return pagination;
     }
+hey chat i want if user is sponsorM in this demande to show it to him see just his demande and in demandeQualification
+i have sponsorM type User and the other roles see alll demandes
