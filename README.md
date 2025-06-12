@@ -1,3 +1,53 @@
+[ERROR] [ERROR] Some problems were encountered while processing the POMs:
+[WARNING] 'dependencies.dependency.(groupId:artifactId:type:classifier)' must be unique: org.springframework.cloud:spring-cloud-starter-openfeign:jar -> duplicate declaration of version (?) @ line 197, column 21
+[ERROR] 'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
+[WARNING] 'dependencies.dependency.scope' for org.keycloak.bom:keycloak-adapter-bom:pom must be one of [provided, compile, runtime, test, system] but is 'import'. @ line 233, column 20
+[ERROR] The build could not read 1 project -> [Help 1]
+[ERROR]
+[ERROR]   The project ma.sgma:mycnp-bff:0.1.1-RC-202505261711 (C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml) has 1 error
+[ERROR]     'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException
+PS C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff> ^C
+PS C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff> ^C
+PS C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff> mvn clean install -DskipTests
+[INFO] Scanning for projects...
+[ERROR] [ERROR] Some problems were encountered while processing the POMs:
+[FATAL] Non-parseable POM C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml: expected START_TAG or END_TAG not TEXT (position: TEXT seen ...ngframework.boot/spring-boot-starter-thymeleaf -->\r\n\r\n\r\n        <d... @208:11)  @
+ line 208, column 11
+[ERROR] The build could not read 1 project -> [Help 1]
+[ERROR]
+[ERROR]   The project  (C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml) has 1 error
+[ERROR]     Non-parseable POM C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml: expected START_TAG or END_TAG not TEXT (position: TEXT seen ...ngframework.boot/spring-boot-starter-thymeleaf -->\r\n\r\n\r\n        <d... @208:11
+)  @ line 208, column 11 -> [Help 2]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException
+[ERROR] [Help 2] http://cwiki.apache.org/confluence/display/MAVEN/ModelParseException
+PS C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff> mvn clean install -DskipTests
+[INFO] Scanning for projects...
+PS C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff> mvn clean install -DskipTests
+[INFO] Scanning for projects...
+[ERROR] [ERROR] Some problems were encountered while processing the POMs:                                                                
+[ERROR] 'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
+ @                                                                                                                                       
+[ERROR] The build could not read 1 project -> [Help 1]                                                                                       
+[ERROR]                                                                                                                                      
+[ERROR]   The project ma.sgma:mycnp-bff:0.1.1-RC-202505261711 (C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml) has 1 error               
+[ERROR]     'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
+[ERROR]                                                                                                                                      
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.                                                          
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.                                                                       
+[ERROR]                                                                                                                                      
+[ERROR] For more information about the errors and possible solutions, please read the following articles:                                    
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/ProjectBuildingException
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -195,20 +245,11 @@
 
 
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-spring-boot-starter</artifactId>
-            <version>12.0.4</version>
+            <version>24.0.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.keycloak</groupId>
-            <artifactId>keycloak-spring-boot-2-adapter</artifactId>
-            <version>12.0.4</version>
-        </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-thymeleaf -->
 
@@ -223,14 +264,6 @@
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-admin-client</artifactId>
             <version>12.0.4</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.keycloak.bom</groupId>
-            <artifactId>keycloak-adapter-bom</artifactId>
-            <version>12.0.4</version>
-            <type>pom</type>
-            <scope>import</scope>
         </dependency>
 
         <dependency>
@@ -408,14 +441,3 @@
     </build>
 
 </project>
-[ERROR] [ERROR] Some problems were encountered while processing the POMs:
-[WARNING] 'dependencies.dependency.(groupId:artifactId:type:classifier)' must be unique: org.springframework.cloud:spring-cloud-starter-openfeign:jar -> duplicate declaration of version (?) @ line 197, column 21
-[ERROR] 'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
-[WARNING] 'dependencies.dependency.scope' for org.keycloak.bom:keycloak-adapter-bom:pom must be one of [provided, compile, runtime, test, system] but is 'import'. @ line 233, column 20
- @
-[ERROR] The build could not read 1 project -> [Help 1]
-[ERROR]
-[ERROR]   The project ma.sgma:mycnp-bff:0.1.1-RC-202505261711 (C:\Users\NAJAHIA\Documents\mycnp\mycnp-bff\pom.xml) has 1 error
-[ERROR]     'dependencies.dependency.version' for org.springframework.cloud:spring-cloud-starter-sleuth:jar is missing. @ line 153, column 21
-[ERROR]
-[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
