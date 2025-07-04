@@ -66,4 +66,4 @@ public class RisqueInstance {
     private List<RisqueComment> comments =new ArrayList<>();
 }
 hey chat as you see i have entite risque is like a template that i difine on it the name the validateur and zoneRisque that inside it have name and analyse type Analyse and in risqueInstance 
-i have the risque and zoneRisqueInstance and analyseInstance inside it it like user admin enter template of risque and the validateur enter and saisi the contexte of risqueInstace and do his analyse of the zoneRisque that the admin saisi now i have an evol is in some risque have 
+i have the risque and zoneRisqueInstance and analyseInstance inside it it like user admin enter template of risque and the validateur enter and saisi the contexte of risqueInstace and do his analyse of the zoneRisque that the admin saisi now i have an evol is in some risque have A LIST OF QUESTION WIth boolean response the question is also parametrable in risque and the validateur answer on risqueInstance
