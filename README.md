@@ -1,69 +1,112 @@
-@Entity
-@Table(name="risque")
-@AllArgsConstructor
-@NoArgsConstructor
-@Getter
-@Setter
-@Builder
-public class Risque {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @ManyToOne
-    private User validateur;
-    @OneToMany
-    private List<ZoneRisque> zoneRisques;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt; 
-}
-@Entity
-@Table(name="risque_instance")
-@AllArgsConstructor
-@NoArgsConstructor
-@Getter
-@Setter
-@Builder
-public class RisqueInstance {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    @Column(columnDefinition = "TEXT")
-    private String contexte;
-    private String niveauRisqueResiduel;
-    private String NiveauIntrinseque;
-    @ManyToOne
-    private User validateur;
-    @OneToMany
-    private List<ZoneRisqueInstance> zoneRisques;
-    @OneToMany
-    private List<Conditions> conditions;
-    private String typeValidation;
-    @Column(updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
-    private boolean valider=false;
-    private boolean initier=false;
-    private LocalDateTime dateValidation;
-    @Column(columnDefinition = "TEXT")
-    private String comment;
-    @Column(columnDefinition = "TEXT")
-    private String autreRisque;
-    @ManyToOne
-    @JoinColumn(name = "risque_id")  // This creates a column named 'risque_id'
-    private Risque risque;
+export class DemandePeopleComponent {
+  peopoleCardBody: boolean = true;
+  @Input() data!: DemandeQualificationResponse | undefined;
+  sponsorNames: string = '';
+  reporterNames: string = '';
+  cordinateurNames: string[]  = []; 
 
-    @ManyToOne
-    @JoinColumn(name = "demande_qualification_id")  // This creates a column named 'demande_qualification_id'
-    private DemandeQualification demandeQualification;
-    @OneToMany(mappedBy = "risque", cascade = CascadeType.ALL)
-    private List<RisqueComment> comments =new ArrayList<>();
+
+  constructor() { }
+
+  ngOnInit(): void {
+    console.log('"data peosi', this.data?.reporter)
+    if (this.data) {
+      this.formatNames();
+    }
+  }
+
+  formatNames() {
+    this.sponsorNames = this.getNamesByType('SPONSOR');
+    this.reporterNames = this.getNamesByType('REPORTER');
+    //this.cordinateurNames = this.getNamesByType('COORDINATOR');
+     this.cordinateurNames = this.getCordinateurNames();
+
 }
-hey chat as you see i have entite risque is like a template that i difine on it the name the validateur and zoneRisque that inside it have name and analyse type Analyse and in risqueInstance 
-i have the risque and zoneRisqueInstance and analyseInstance inside it it like user admin enter template of risque and the validateur enter and saisi the contexte of risqueInstace and do his analyse of the zoneRisque that the admin saisi now i have an evol is in some risque have A LIST OF QUESTION WIth boolean response the question is also parametrable in risque and the validateur answer on risqueInstance
+
+  getNamesByType(type: string): string {
+    if (!this.data || !this.data.peoples) {
+        return '';
+    }
+    const filtered = this.data.peoples.filter(people => people.type === type);
+    const nameCounts = filtered.reduce((acc, person) => {
+        acc[person.assignName] = (acc[person.assignName] || 0) + 1;
+        return acc;
+    }, {} as { [key: string]: number });
+
+    return Object.entries(nameCounts)
+        .map(([name, count]) => count > 1 ? `${name} (x${count})` : name)
+        .join(', ');
+}
+  getCordinateurNames(): string[] {
+    if (!this.data?.peoples) return [];
+
+    return this.data.peoples
+      .filter(p => p.type === 'COORDINATOR')
+      .map((p) => p.assignName);
+  }
+
+  isCoordinatorHighlight(person: any): boolean {
+    return person.type === 'COORDINATOR' &&
+      person.assignName === this.data?.assigneeName;
+  }
+
+
+  hideShowPeopoleCardBody() {
+    this.peopoleCardBody = !this.peopoleCardBody;
+  }
+
+
+}
+<nb-card>
+    <nb-card-header >
+      <div class="d-flex flex-row justify-content-between">
+        <div>Personnes</div>
+        <div>
+          <a (click)="hideShowPeopoleCardBody()" *ngIf="peopoleCardBody">
+            <nb-icon  icon="chevron-up"></nb-icon>
+          </a>
+          <a (click)="hideShowPeopoleCardBody()" *ngIf="!peopoleCardBody">
+            <nb-icon  icon="chevron-down"></nb-icon>
+          </a>
+        </div>
+      </div>
+    </nb-card-header>
+    <nb-card-body *ngIf="peopoleCardBody">
+      <!--<div class="key-value-pair" *ngIf="data?.assigne">
+        <div class="key col-6">Responsable:</div>
+         <div class="value col-6">{{data?.assigne?.lastName}} {{data?.assigne?.firstName}}</div> 
+      </div>-->
+      <!-- <div class="key-value-pair">
+        <div class="key col-6">Initiateur:</div>
+         <div class="value col-6">{{data?.reporterName}}</div>
+      </div> -->
+      <div class="key-value-pair" *ngIf="reporterNames">
+        <div class="key col-6">Initiateur:</div>
+        <div class="value col-6">{{ reporterNames }}</div>
+      </div>
+      <div class="key-value-pair" *ngIf="cordinateurNames">
+        <div class="key col-6">Coordinateur:</div>
+        <div class="value col-6">{{ cordinateurNames }}</div>
+      </div>
+ 
+      <div class="key-value-pair" *ngIf="sponsorNames">
+        <div class="key col-6">Sponsor:</div>
+        <div class="value col-6">{{ sponsorNames }}</div>
+      </div>
+  
+      <div class="key-value-pair" >
+        <div class="key col-6">Porteur Métier:</div>
+        <div class="value col-6">{{ data?.porteurMetier }}</div>
+      </div>
+      <div class="key-value-pair" >
+        <div class="key col-6">Porteur Projet:</div>
+        <div class="value col-6">{{ data?.porteurProjet }}</div>
+      </div>
+      <!-- <div class="key-value-pair" *ngIf="data?.sponsort">
+        <div class="key col-6">Sponsor:</div>
+        <div class="value col-6">{{ data?.sponsort }}</div>
+      </div> -->
+    </nb-card-body>
+  </nb-card>
+  hey chat i have table people where i stock all the initiateur coordinateur, sponsor i want if like there is more than one in coordinateur the color the one who is 
+equals to data.coordinateur and same for the others 
