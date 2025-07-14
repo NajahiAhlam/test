@@ -1,27 +1,23 @@
-<div class="key-value-pair" *ngIf="reporterNames">
-  <div class="key col-6">Initiateur:</div>
-  <div class="value col-6" [innerHTML]="getHighlightedNames(reporterNames, data?.lead | emailToName)"></div>
-</div>
-
-<div class="key-value-pair" *ngIf="cordinateurNames">
-  <div class="key col-6">Coordinateur:</div>
-  <div class="value col-6" [innerHTML]="getHighlightedNames(cordinateurNames, data?.assigneeName)"></div>
-</div>
-
-<div class="key-value-pair" *ngIf="sponsorNames">
-  <div class="key col-6">Sponsor:</div>
-  <div class="value col-6" [innerHTML]="getHighlightedNames(sponsorNames, data?.sponsor)"></div>
-</div>
 getHighlightedNames(names: string, activeName: string): string {
   if (!names) return '';
-  const nameList = names.split(',').map(n => n.trim());
 
-  return nameList
-    .map(name => {
-      const isActive = name === activeName;
-      return isActive
-        ? `<span style="color: green; font-weight: bold;">${name}</span>`
-        : name;
-    })
-    .join(', ');
+  const nameArray = names.split(',').map(n => n.trim()).filter(n => !!n);
+
+  // Count occurrences
+  const countMap = new Map<string, number>();
+  nameArray.forEach(name => {
+    countMap.set(name, (countMap.get(name) || 0) + 1);
+  });
+
+  // Build unique display list with counts and highlighting
+  const result = Array.from(countMap.entries()).map(([name, count]) => {
+    const isActive = name === activeName;
+    const display = count > 1 ? `${name} ×${count}` : name;
+
+    return isActive
+      ? `<span style="color: green; font-weight: bold;">${display}</span>`
+      : display;
+  });
+
+  return result.join(', ');
 }
