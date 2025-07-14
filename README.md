@@ -1,17 +1,22 @@
 getHighlightedNames(names: string, activeName: string): string {
-  if (!names) return '';
+  if (!names || !activeName) return '';
 
-  const nameArray = names.split(',').map(n => n.trim()).filter(n => !!n);
+  const cleanedActiveName = activeName.trim().toLowerCase();
 
-  // Count occurrences
+  const nameArray = names
+    .split(',')
+    .map(n => n.trim())
+    .filter(n => !!n);
+
   const countMap = new Map<string, number>();
   nameArray.forEach(name => {
-    countMap.set(name, (countMap.get(name) || 0) + 1);
+    const trimmedName = name.trim();
+    countMap.set(trimmedName, (countMap.get(trimmedName) || 0) + 1);
   });
 
-  // Build unique display list with counts and highlighting
   const result = Array.from(countMap.entries()).map(([name, count]) => {
-    const isActive = name === activeName;
+    const normalized = name.trim().toLowerCase();
+    const isActive = normalized === cleanedActiveName;
     const display = count > 1 ? `${name} ×${count}` : name;
 
     return isActive
