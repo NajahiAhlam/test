@@ -1,15 +1,24 @@
 @Injectable({ providedIn: 'root' })
-export class AppResolver {
-  constructor(private authService: AuthService, private usersService: UserService) {}
+export class AppResolver implements Resolve<User> {
+  constructor(
+    private authService: AuthService,
+    private usersService: UserService
+  ) {}
 
-  resolve(
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ): Observable<User> {
-       return this.usersService.getByUsername(this.authService.getLoggedUser()?.['email']);
+  resolve(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Observable<User> {
+    const email = this.authService.getLoggedUser()?.['email'];
 
-  }
-
-
-
+    return this.usersService.getByUsername(email).pipe(
+      tap((user: User) => {
+        if (user.roles) {
+          sessionStorage.setItem('roles', JSON.stringify(user.roles));
+        } else {
+          sessionStorage.setItem('roles', JSON.stringify([]));
+        }
+      })
+    );
+  }
 }
