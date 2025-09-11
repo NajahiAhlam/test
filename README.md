@@ -1,120 +1,148 @@
- @Transactional
-    public ObjectPagination<DemandeRequestDTO> findAlldemandes(int page, int size, String sortDirection, String sortValue, Map<String, String> filters) throws PermissionException {
-        User currentUser = userService.getAuthenticatedUser();
+Got it \U0001f44d \u2014 your two flows (`moveToNextTask` and `claimRequest`) share a big part of the same skeleton:
 
-        Specification<DemandeQualification> spec = (root, query, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
+* find `DemandeQualification`
+* compute the new status
+* build a decision param map
+* call `submit`
+* update the status
+* save & write history
 
-            if (userService.hasRole(currentUser, Role.Leader)) {
-                predicates.add(criteriaBuilder.equal(root.get("reporter").get("id"), currentUser.getId()));
-            } else if (userService.hasRole(currentUser, Role.SponsorM)) {
-                predicates.add(criteriaBuilder.equal(root.get("sponsorM").get("id"), currentUser.getId()));
-            }
+Only the **status logic**, **decision string**, and maybe the **history action** differ.
 
-            predicates.add(criteriaBuilder.notEqual(
-                    criteriaBuilder.lower(root.get("status")),
-                    "non_eligible"
-            ));
+Here\u2019s how you can refactor this to be more **dynamic** and **DRY**:
 
-            List<String> validFilterKeys = Arrays.asList(
-                    "objetDemande", "nomFiliale", "nom", "description", "porteurProjet", "porteurMetier",
-                    "status", "type", DATE_KICKOFF, "kickOffDecision",
-                    DATE_LANCEMENT, "dateModification", "dateCreation", "typeDemande"
-            );
+---
 
-            filters.forEach((key, value) -> {
-                if (!validFilterKeys.contains(key) || value == null || value.trim().isEmpty()) return;
+### 1\ufe0f\u20e3 Create a generic transition method
 
-                switch (key) {
-                    case "objetDemande":
-                    case "nomFiliale":
-                    case "type":
-                    case "description":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get(key)), "%" + value.toLowerCase() + "%"));
-                        break;
+```java
+@Transactional
+public DemandeQualificationResponse handleTransition(
+        Long demandeId,
+        WfStatus newStatus,
+        String decision,
+        UserAction action,
+        Consumer<DemandeQualification> preTransitionLogic) throws PermissionException {
 
+    // 1. Load demande
+    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
+            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
 
-                    case "porteurProjet":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("porteurProjet").get("nom")), "%" + value.toLowerCase() + "%"));
-                        break;
-
-                    case "porteurMetier":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("porteurMetier").get("nom")), "%" + value.toLowerCase() + "%"));
-                        break;
-
-                    case "status":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("status")), "%" + value.toLowerCase() + "%"));
-                        break;
-
-                    case "typeDemande":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("typeDemande")), "%" + value.toLowerCase() + "%"));
-                        break;
-
-                    case "kickOffDecision":
-                        predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("kickOffDecision")), "%" + value.toLowerCase() + "%"));
-                        break;
-                    case "dateCreation":
-                        String processed = value.substring(4, value.indexOf("GMT")).trim();
-                        DateTimeFormatter df = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm:ss", Locale.ENGLISH);
-                        LocalDateTime dateC = LocalDateTime.parse(processed, df);
-                        LocalDateTime startOfDayC = dateC.toLocalDate().atStartOfDay();
-                        LocalDateTime endOfDate = dateC.plusDays(1).minusNanos(1);
-                        predicates.add(criteriaBuilder.between(root.get("dateCreation"), startOfDayC, endOfDate));
-                        break;
-                    case "dateModification":
-                        String processed1 = value.substring(4, value.indexOf("GMT")).trim();
-                        DateTimeFormatter df1 = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm:ss", Locale.ENGLISH);
-                        LocalDateTime date1 = LocalDateTime.parse(processed1, df1);
-                        LocalDateTime startOfDay1 = date1.toLocalDate().atStartOfDay();
-                        LocalDateTime endOfDate1 = date1.plusDays(1).minusNanos(1);
-                        predicates.add(criteriaBuilder.between(root.get("dateModification"), startOfDay1, endOfDate1));
-                        break;
-
-                    case DATE_LANCEMENT:
-                        String processedL = value.substring(4, value.indexOf("GMT")).trim();
-                        DateTimeFormatter dfL = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm:ss", Locale.ENGLISH);
-                        LocalDate dateL = LocalDate.parse(processedL, dfL);
-                        LocalDate startOfDayL = dateL;
-                        LocalDate endOfDateL = dateL.plusDays(1);
-                        predicates.add(criteriaBuilder.between(root.get(DATE_LANCEMENT), startOfDayL, endOfDateL));
-                        break;
-
-                    case DATE_KICKOFF:
-                        String processed1K = value.substring(4, value.indexOf("GMT")).trim();
-                        DateTimeFormatter df1K = DateTimeFormatter.ofPattern("MMM dd yyyy HH:mm:ss", Locale.ENGLISH);
-                        LocalDateTime date1K = LocalDateTime.parse(processed1K, df1K);
-                        Date startOfDay1K = java.sql.Timestamp.valueOf(date1K.toLocalDate().atStartOfDay());
-                        Date endOfDate1K = java.sql.Timestamp.valueOf(date1K.toLocalDate().plusDays(1).atStartOfDay());
-
-                        predicates.add(criteriaBuilder.between(root.get(DATE_KICKOFF), startOfDay1K, endOfDate1K));
-                        break;
-
-
-                }
-            });
-
-            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
-        };
-
-        Sort sort = Sort.by(
-                sortDirection != null && sortDirection.equalsIgnoreCase("ASC") ? Sort.Direction.ASC : Sort.Direction.DESC,
-                sortValue != null ? sortValue : "dateCreation"
-        );
-
-        PageRequest pageRequest = PageRequest.of(page, size, sort);
-
-        Page<DemandeQualification> pageOfDemande = demandeQualificationRepository.findAll(spec, pageRequest);
-
-        ObjectPagination<DemandeRequestDTO> pagination = new ObjectPagination<>();
-        pagination.setContent(pageOfDemande.getContent().stream().map(DemandeRequestMapper::mapToDTO).collect(Collectors.toList()));
-        pagination.setLast(pageOfDemande.isLast());
-        pagination.setFirst(pageOfDemande.isFirst());
-        pagination.setTotalElements((int) pageOfDemande.getTotalElements());
-        pagination.setTotalPages(pageOfDemande.getTotalPages());
-        pagination.setSize(pageOfDemande.getSize());
-        pagination.setNumber(pageOfDemande.getNumber());
-
-        return pagination;
+    // 2. Execute any extra logic before transition (assigning user, etc.)
+    if (preTransitionLogic != null) {
+        preTransitionLogic.accept(demande);
     }
-hey chat i have this probleme is role i have it many so user can have more than one role the role validateur see everithing of demande all of them if status == nouvelle produit 
-sponsor see just his demande if status == nouveau demande ou == nouvelle produit and if user have role sponsor and role validateur it connot see everthing if status  == nouvelle produit 
+
+    // 3. Build params & submit
+    Map<String, String> submitParam = createSubmitParam(decision);
+    ActivateProcessResult submit = submit(demande, submitParam);
+
+    // 4. Update status
+    updateDemandeStatus(demande, newStatus, submit);
+    DemandeQualification updated = demandeQualificationRepository.save(demande);
+
+    // 5. History
+    demandeHistoryService.bpmnDemandeHistory(
+            updated,
+            submit,
+            action,
+            WfStatus.valueOf(demande.getStatus()), // old status
+            newStatus
+    );
+
+    // 6. Return DTO (or entity)
+    return new DemandeQualificationResponseMapper().mapToDTO(updated);
+}
+```
+
+---
+
+### 2\ufe0f\u20e3 Simplify `createSubmitParam`
+
+```java
+public Map<String, String> createSubmitParam(String decision) {
+    Map<String, String> params = new HashMap<>();
+    params.put("decision", decision);
+    return params;
+}
+```
+
+---
+
+### 3\ufe0f\u20e3 Use it in your existing methods
+
+#### `moveToNextTask`
+
+```java
+public DemandeQualification moveToNextTask(Long id) throws PermissionException {
+    return handleTransition(
+            id,
+            WfStatus.A_PLANIFIER_KICKOFF,
+            "A planifier",
+            UserAction.SOUMETTRE_CORDINATOR,
+            null // no pre-transition custom logic
+    ).getDemande();
+}
+```
+
+If you want to keep returning `DemandeQualification` instead of `DemandeQualificationResponse` you can have a second generic method returning the entity instead of the DTO.
+
+---
+
+#### `claimRequest`
+
+```java
+public DemandeQualificationResponse claimRequest(ClaimRequest request) throws PermissionException {
+    User user = userService.getAuthenticatedUser();
+    DemandeQualification demande = demandeQualificationRepository.findById(request.getRequestId())
+            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + request.getRequestId()));
+
+    WfStatus currentStatus = WfStatus.valueOf(demande.getStatus());
+    WfStatus newStatus;
+    String decision = "Prendre en charge";
+
+    Consumer<DemandeQualification> preLogic = d -> {};
+
+    switch (currentStatus) {
+        case A_PLANIFIER_KICKOFF:
+            newStatus = WfStatus.KICK_OFF;
+            preLogic = d -> {
+                if (d.getAssigne() == null || !Objects.equals(d.getAssigne().getEmail(), user.getEmail())) {
+                    d.setAssigne(user);
+                    d.setCoordinateurCNP(user);
+                    createAssignDemande(false, user.getId(), d,
+                            AssignType.COORDINATOR, user.getNom() + " " + user.getPrenom(), user.getEmail());
+                }
+            };
+            break;
+
+        case A_VALIDER_RESULTAT:
+            newStatus = WfStatus.VALIDATION_RESULTAT;
+            break;
+
+        default:
+            throw new IllegalStateException("Statut non supporté pour la prise en charge : " + demande.getStatus());
+    }
+
+    return handleTransition(
+            request.getRequestId(),
+            newStatus,
+            decision,
+            UserAction.TAKE_IN_CHARGE,
+            preLogic
+    );
+}
+```
+
+---
+
+### 4\ufe0f\u20e3 Benefits
+
+* **Single place** for submit + status + history logic
+* Flexible with `Consumer<DemandeQualification>` for custom per-transition logic
+* Only pass what\u2019s different: `newStatus`, `decision`, `UserAction`, optional pre-logic
+* Easier to test
+
+---
+
+Would you like me to show the **variant that returns `DemandeQualification`** instead of a DTO as well? (so you can have one for internal service use and one for controllers)
