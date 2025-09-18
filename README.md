@@ -1,148 +1,188 @@
-Got it \U0001f44d \u2014 your two flows (`moveToNextTask` and `claimRequest`) share a big part of the same skeleton:
-
-* find `DemandeQualification`
-* compute the new status
-* build a decision param map
-* call `submit`
-* update the status
-* save & write history
-
-Only the **status logic**, **decision string**, and maybe the **history action** differ.
-
-Here\u2019s how you can refactor this to be more **dynamic** and **DRY**:
+Got it \U0001f44d \u2014 let\u2019s break your `create()` method down step by step in plain language.
 
 ---
 
-### 1\ufe0f\u20e3 Create a generic transition method
+### **Method signature**
 
 ```java
+@Override
 @Transactional
-public DemandeQualificationResponse handleTransition(
-        Long demandeId,
-        WfStatus newStatus,
-        String decision,
-        UserAction action,
-        Consumer<DemandeQualification> preTransitionLogic) throws PermissionException {
-
-    // 1. Load demande
-    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
-            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
-
-    // 2. Execute any extra logic before transition (assigning user, etc.)
-    if (preTransitionLogic != null) {
-        preTransitionLogic.accept(demande);
-    }
-
-    // 3. Build params & submit
-    Map<String, String> submitParam = createSubmitParam(decision);
-    ActivateProcessResult submit = submit(demande, submitParam);
-
-    // 4. Update status
-    updateDemandeStatus(demande, newStatus, submit);
-    DemandeQualification updated = demandeQualificationRepository.save(demande);
-
-    // 5. History
-    demandeHistoryService.bpmnDemandeHistory(
-            updated,
-            submit,
-            action,
-            WfStatus.valueOf(demande.getStatus()), // old status
-            newStatus
-    );
-
-    // 6. Return DTO (or entity)
-    return new DemandeQualificationResponseMapper().mapToDTO(updated);
-}
+public MassTransferResponse<TransferFile> create(MassTransferRequest<TransferFile> request) throws Exception
 ```
+
+* It overrides an interface method (probably from a service).
+* It\u2019s transactional (all DB operations are in one transaction).
+* Input: a `MassTransferRequest<TransferFile>` object that wraps your `TransferFile` payload.
+* Output: a `MassTransferResponse<TransferFile>` containing the created object\u2019s info.
 
 ---
 
-### 2\ufe0f\u20e3 Simplify `createSubmitParam`
+### **1\ufe0f\u20e3 Logging start**
 
 ```java
-public Map<String, String> createSubmitParam(String decision) {
-    Map<String, String> params = new HashMap<>();
-    params.put("decision", decision);
-    return params;
-}
+ITFLogger.traceStart(this, "create TransferFile ", request);
 ```
+
+Logs the start of the method with the incoming request.
 
 ---
 
-### 3\ufe0f\u20e3 Use it in your existing methods
-
-#### `moveToNextTask`
+### **2\ufe0f\u20e3 Extract payload and validate**
 
 ```java
-public DemandeQualification moveToNextTask(Long id) throws PermissionException {
-    return handleTransition(
-            id,
-            WfStatus.A_PLANIFIER_KICKOFF,
-            "A planifier",
-            UserAction.SOUMETTRE_CORDINATOR,
-            null // no pre-transition custom logic
-    ).getDemande();
+TransferFile body = request.getPayload();
+if (body == null) {
+    throw new ValidationException("ERR10.1", "Body is Empty", "TransferFile");
 }
 ```
 
-If you want to keep returning `DemandeQualification` instead of `DemandeQualificationResponse` you can have a second generic method returning the entity instead of the DTO.
+* Pulls the actual `TransferFile` (your DTO) from the request.
+* If there\u2019s no payload, throws a validation error.
 
 ---
 
-#### `claimRequest`
+### **3\ufe0f\u20e3 Validate `dummy`, `fileId` and `checksum`**
 
 ```java
-public DemandeQualificationResponse claimRequest(ClaimRequest request) throws PermissionException {
-    User user = userService.getAuthenticatedUser();
-    DemandeQualification demande = demandeQualificationRepository.findById(request.getRequestId())
-            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + request.getRequestId()));
+boolean dummy = ITFHelp.toBoolean(body.getDummy());
+String fileId = body.getFileId();
+if (!dummy && ITFHelp.isEmpty(fileId)) {
+    throw new ValidationException("ERR10.2", "TransferFile fileId is Empty", "FileId");
+}
+String checkSum = body.getFileChecksum();
+if (!dummy && ITFHelp.isEmpty(checkSum)) {
+    throw new ValidationException("ERR10.3", "TransferFile checksum is Empty", "FileChecksum");
+}
+boolean redundant = dummy || fileTransferRepo.findFirstByFileChecksum(checkSum).isPresent();
+```
 
-    WfStatus currentStatus = WfStatus.valueOf(demande.getStatus());
-    WfStatus newStatus;
-    String decision = "Prendre en charge";
+* If it\u2019s **not a dummy file**:
 
-    Consumer<DemandeQualification> preLogic = d -> {};
+  * `fileId` and `checksum` must be present.
+* It also checks **redundancy**: if the checksum already exists in DB, or if the file is dummy, `redundant = true`.
 
-    switch (currentStatus) {
-        case A_PLANIFIER_KICKOFF:
-            newStatus = WfStatus.KICK_OFF;
-            preLogic = d -> {
-                if (d.getAssigne() == null || !Objects.equals(d.getAssigne().getEmail(), user.getEmail())) {
-                    d.setAssigne(user);
-                    d.setCoordinateurCNP(user);
-                    createAssignDemande(false, user.getId(), d,
-                            AssignType.COORDINATOR, user.getNom() + " " + user.getPrenom(), user.getEmail());
-                }
-            };
-            break;
+---
 
-        case A_VALIDER_RESULTAT:
-            newStatus = WfStatus.VALIDATION_RESULTAT;
-            break;
+### **4\ufe0f\u20e3 Validate Origin Info & Email**
 
-        default:
-            throw new IllegalStateException("Statut non supporté pour la prise en charge : " + demande.getStatus());
-    }
-
-    return handleTransition(
-            request.getRequestId(),
-            newStatus,
-            decision,
-            UserAction.TAKE_IN_CHARGE,
-            preLogic
-    );
+```java
+if (body.getOriginInfo() == null || body.getOriginInfo().getOriginType() == null) {
+    throw new ValidationException("ERR10.4", "TransferFile OriginInfo is Empty", "OriginInfo");
+}
+boolean emailAccepted = true;
+if (body.getOriginInfo().getOriginType() == FileTransferOriginType.Email) {
+    ...
 }
 ```
 
+* If no `originInfo` or missing `originType` \u2192 validation error.
+* If origin is Email:
+
+  * Ensure email address is present.
+  * Check if this email is in the accepted emails list (`emailAddressRepository.findAllByEmail(email)`).
+  * If found with `isAccepted=true`, good.
+  * If not found or not accepted:
+
+    * Create or update a `MstAcceptedEmail` entry flagged as waiting/needs review, and persist it.
+    * Set `emailAccepted=false`.
+
 ---
 
-### 4\ufe0f\u20e3 Benefits
+### **5\ufe0f\u20e3 Set default statuses**
 
-* **Single place** for submit + status + history logic
-* Flexible with `Consumer<DemandeQualification>` for custom per-transition logic
-* Only pass what\u2019s different: `newStatus`, `decision`, `UserAction`, optional pre-logic
-* Easier to test
+```java
+if (body.getGlobalStatus().getProcessingStatus() == null) {
+    body.getGlobalStatus().setProcessingStatus(ProcessingStatus.DRAFT);
+}
+```
+
+If no processing status yet, default it to DRAFT.
 
 ---
 
-Would you like me to show the **variant that returns `DemandeQualification`** instead of a DTO as well? (so you can have one for internal service use and one for controllers)
+### **6\ufe0f\u20e3 Map DTO to entity**
+
+```java
+MstTransferFile entity = new MstTransferFile();
+entity = MassTransferMapper.writeTransferFile(entity, body);
+entity.getGlobalStatus().setPublicStatus(FileTransferStatus.onGoing.name());
+entity.setRedundant(redundant);
+if (redundant) {
+    entity.getGlobalStatus().setPublicStatus(FileTransferStatus.redundancyError.name());
+}
+entity.setEmailAccepted(emailAccepted);
+if (emailAccepted) {
+    entity.setAcceptedAt(new Date());
+} else {
+    entity.getGlobalStatus().setPublicStatus(FileTransferStatus.nonEligibleMail.name());
+}
+entity.setEnabled(true);
+```
+
+* Creates a new `MstTransferFile` entity and fills it with values from the DTO.
+* Sets `publicStatus` depending on redundancy and email acceptance.
+* Marks as enabled.
+
+---
+
+### **7\ufe0f\u20e3 Save the entity and its tasks**
+
+```java
+entity = fileTransferRepo.save(entity);
+
+MstTransferFile finalEntity = entity;
+entity.getTasks().forEach(task -> {
+    task.setTransferFile(finalEntity);
+    entityManager.persist(task);
+});
+entityManager.flush();
+```
+
+* Saves the main entity first.
+* For each task inside the entity, set the back-reference to this `TransferFile` and persist them individually.
+* Flush changes to DB.
+
+---
+
+### **8\ufe0f\u20e3 Generate reference number and update**
+
+```java
+entity.setReference("VM-TF-" + padding(entity.getId(), 1000000) + getRefDateStamp("-"));
+entity = fileTransferRepo.save(entity);
+MassTransferMapper.readTransferFile(entity, body);
+```
+
+* Builds a reference like `VM-TF-0000123-20250918` using the entity ID and date.
+* Saves the entity again with the reference.
+* Reads the entity back into the DTO (`body`) so the response reflects DB values.
+
+---
+
+### **9\ufe0f\u20e3 Build response and log end**
+
+```java
+MassTransferResponse<TransferFile> response = new MassTransferResponse<>();
+response.setBody(body);
+ITFLogger.traceEnd(this, "create TransferFile", response);
+return response;
+```
+
+* Wraps the updated DTO into a response object.
+* Logs end.
+* Returns it.
+
+---
+
+### **In short**
+
+This method:
+
+1. Validates the incoming `TransferFile` request.
+2. Checks redundancy and accepted email list.
+3. Fills a new `MstTransferFile` entity with statuses and flags.
+4. Saves it (with tasks and reference).
+5. Returns a response with the updated DTO.
+
+---
+
+Would you like me to draw a **flow diagram** of this method (input \u2192 validation \u2192 mapping \u2192 saving \u2192 output)? (It\u2019s usually helpful for complex service methods.)
