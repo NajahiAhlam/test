@@ -1,110 +1,21 @@
-Excellent \u2014 yes \U0001f44f you\u2019re totally right.
-All these methods share **exactly the same logic**, only differing in:
+Perfect \U0001f44d \u2014 let\u2019s go step by step and make a **production-ready, fully optimized** implementation using `processAction`.
 
-* the **new status** (`WfStatus`) you want to set,
-* the **action key** you pass to `createSubmitParam2`,
-* the **user action** (`UserAction` enum), and
-* the **previous status** (for history logging).
-
-We can easily refactor this into a **generic reusable method**, and your service becomes *much cleaner* and *less error-prone*.
+This version will replace all those duplicated methods with **one clean, dynamic method** \u2014 easy to maintain, extend, and test.
 
 ---
 
-### \u2705 Step 1. Create a helper method
+## \U0001f9f1 Step 1 \u2014 Create your enum `DemandeTransition`
 
-Add a **private utility method** that performs the shared logic:
-
-```java
-private DemandeQualificationResponse processDemandeStatusChange(
-        Long demandeId,
-        WfStatus newStatus,
-        String actionKey,
-        UserAction userAction,
-        WfStatus previousStatus
-) throws PermissionException {
-    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
-            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
-
-    Map<String, String> submitParam = createSubmitParam2(demande, newStatus, actionKey);
-    ActivateProcessResult submit = submit(demande, submitParam);
-
-    updateDemandeStatus(demande, newStatus, submit);
-
-    DemandeQualification saved = demandeQualificationRepository.save(demande);
-
-    demandeHistoryService.bpmnDemandeHistory(saved, submit, userAction, previousStatus, newStatus);
-
-    return new DemandeQualificationResponseMapper().mapToDTO(saved);
-}
-```
-
----
-
-### \u2705 Step 2. Simplify all your methods
-
-Now each of your public methods becomes *a one-liner*:
+Put it in your domain or service package (e.g. `com.yourapp.workflow`):
 
 ```java
-public DemandeQualificationResponse suspenduRequest(Long id) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            WfStatus.SUSPENDU,
-            "suspendu",
-            UserAction.SUSPENDRE,
-            WfStatus.CLOTURE_POSTE_CONDITION
-    );
-}
+package com.yourapp.workflow;
 
-public DemandeQualificationResponse reouvertRequest(Long id) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            WfStatus.CLOTURE_POSTE_CONDITION,
-            "reouvrir",
-            UserAction.REOUVERT,
-            WfStatus.SUSPENDU
-    );
-}
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-public DemandeQualificationResponse annulerRequest(Long id) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            WfStatus.ANNULER,
-            "annuler",
-            UserAction.ANNULER,
-            WfStatus.CNP_A_PLANIFIER
-    );
-}
-
-public DemandeQualificationResponse expireRequest(Long id) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            WfStatus.EXPIRE,
-            "expire",
-            UserAction.EXPIRE,
-            WfStatus.valueOf(demandeQualificationRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + id))
-                    .getStatus())
-    );
-}
-
-public DemandeQualificationResponse movePreCnp(Long id) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            WfStatus.PRE_CNP_A_PLANIFIER,
-            "precnp",
-            UserAction.PRE_CNP_A_PLANIFIER,
-            WfStatus.ANALYSE_RISQUE
-    );
-}
-```
-
----
-
-### \u2705 Step 3. Optional \u2014 use an Enum to make it even cleaner
-
-If these transitions are all known and fixed, you can define an enum that encapsulates the parameters:
-
-```java
+@Getter
+@AllArgsConstructor
 public enum DemandeTransition {
     SUSPENDRE(WfStatus.SUSPENDU, "suspendu", UserAction.SUSPENDRE, WfStatus.CLOTURE_POSTE_CONDITION),
     REOUVERT(WfStatus.CLOTURE_POSTE_CONDITION, "reouvrir", UserAction.REOUVERT, WfStatus.SUSPENDU),
@@ -112,51 +23,140 @@ public enum DemandeTransition {
     EXPIRE(WfStatus.EXPIRE, "expire", UserAction.EXPIRE, null),
     PRE_CNP(WfStatus.PRE_CNP_A_PLANIFIER, "precnp", UserAction.PRE_CNP_A_PLANIFIER, WfStatus.ANALYSE_RISQUE);
 
-    public final WfStatus newStatus;
-    public final String actionKey;
-    public final UserAction userAction;
-    public final WfStatus previousStatus;
-
-    DemandeTransition(WfStatus newStatus, String actionKey, UserAction userAction, WfStatus previousStatus) {
-        this.newStatus = newStatus;
-        this.actionKey = actionKey;
-        this.userAction = userAction;
-        this.previousStatus = previousStatus;
-    }
+    private final WfStatus newStatus;
+    private final String actionKey;
+    private final UserAction userAction;
+    private final WfStatus previousStatus;
 }
 ```
 
-Then your method could look like this:
+\u2705 **Why**
+This enum centralizes all transition metadata in one place \u2014 no more hardcoded strings or status scattered across methods.
+
+---
+
+## \u2699\ufe0f Step 2 \u2014 Add the `processAction` method in your service
+
+Inside your service (e.g. `DemandeQualificationService`), replace all the old methods with this single one:
 
 ```java
-public DemandeQualificationResponse handleTransition(Long id, DemandeTransition transition) throws PermissionException {
-    return processDemandeStatusChange(
-            id,
-            transition.newStatus,
-            transition.actionKey,
-            transition.userAction,
-            transition.previousStatus
+public DemandeQualificationResponse processAction(Long id, String actionName) throws PermissionException {
+    // Step 1: Match the actionName to an enum entry
+    DemandeTransition transition = Arrays.stream(DemandeTransition.values())
+            .filter(t -> t.getActionKey().equalsIgnoreCase(actionName))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Action inconnue : " + actionName));
+
+    // Step 2: Load the demande
+    DemandeQualification demande = demandeQualificationRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + id));
+
+    // Step 3: Prepare parameters for the workflow
+    Map<String, String> params = createSubmitParam2(demande, transition.getNewStatus(), transition.getActionKey());
+    ActivateProcessResult submit = submit(demande, params);
+
+    // Step 4: Update demande status
+    updateDemandeStatus(demande, transition.getNewStatus(), submit);
+    demandeQualificationRepository.save(demande);
+
+    // Step 5: Determine previous status (auto if null)
+    WfStatus previousStatus = transition.getPreviousStatus() != null
+            ? transition.getPreviousStatus()
+            : WfStatus.valueOf(demande.getStatus());
+
+    // Step 6: Log history
+    demandeHistoryService.bpmnDemandeHistory(
+            demande,
+            submit,
+            transition.getUserAction(),
+            previousStatus,
+            transition.getNewStatus()
     );
+
+    // Step 7: Return DTO response
+    return new DemandeQualificationResponseMapper().mapToDTO(demande);
 }
 ```
 
-So your calls become simple and clean:
+\u2705 **Why**
+This single method:
+
+* Finds which transition to use based on the action name
+* Applies the workflow logic
+* Saves and logs the change
+* Returns the same DTO you already use
+
+---
+
+## \U0001fa84 Step 3 \u2014 Replace all old methods
+
+Remove `suspenduRequest`, `reouvertRequest`, `annulerRequest`, `expireRequest`, and `movePreCnp`.
+
+They are now replaced by *one universal method*.
+
+If you still want backward-compatible wrappers for controllers, you can keep:
 
 ```java
 public DemandeQualificationResponse suspenduRequest(Long id) throws PermissionException {
-    return handleTransition(id, DemandeTransition.SUSPENDRE);
+    return processAction(id, "suspendu");
 }
+```
+
+\u2026but that\u2019s optional.
+
+---
+
+## \U0001f3af Step 4 \u2014 Use it in your controller or service calls
+
+In your controller, you can now expose one API:
+
+```java
+@PostMapping("/{id}/action/{actionName}")
+public ResponseEntity<DemandeQualificationResponse> processAction(
+        @PathVariable Long id,
+        @PathVariable String actionName
+) throws PermissionException {
+    DemandeQualificationResponse response = demandeQualificationService.processAction(id, actionName);
+    return ResponseEntity.ok(response);
+}
+```
+
+Example calls:
+
+```
+POST /demande/123/action/suspendu
+POST /demande/123/action/reouvrir
+POST /demande/123/action/annuler
+POST /demande/123/action/precnp
+POST /demande/123/action/expire
 ```
 
 ---
 
-### \u2705 Summary of Benefits
+## \U0001f9e9 Step 5 \u2014 Add a safeguard (optional but recommended)
 
-* **Single point of logic** \u2192 easier maintenance
-* **No code repetition** \u2192 fewer mistakes
-* **Clearer mapping between status transitions and actions**
-* Easy to **extend** by adding new transitions to the enum
+To make it robust, ensure only allowed actions are passed:
+
+```java
+if (!EnumUtils.isValidEnumIgnoreCase(DemandeTransition.class, actionName)) {
+    throw new IllegalArgumentException("Action non supportée: " + actionName);
+}
+```
+
+Or just rely on the enum filter above (already safe).
 
 ---
 
-Would you like me to make the enum-based version fully dynamic (auto-detecting previous status from the entity instead of passing it)? That would make it even cleaner.
+## \u2705 Final Summary
+
+| Component                      | Description                                         |
+| ------------------------------ | --------------------------------------------------- |
+| **Enum `DemandeTransition`**   | Defines all workflow transitions in one place       |
+| **`processAction()` method**   | Dynamically executes the right transition           |
+| **Single Controller endpoint** | `/demande/{id}/action/{actionName}` for all actions |
+| **Zero duplicate code**        | No more repeated repository logic                   |
+| **Easily extendable**          | Add a new transition \u2192 just add one enum constant   |
+
+---
+
+Would you like me to show how to inject and reuse the `DemandeQualificationResponseMapper` via Spring (so you don\u2019t `new` it each time)? That\u2019s a micro-optimization for cleaner DI.
