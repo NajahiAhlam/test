@@ -1,188 +1,162 @@
-Got it \U0001f44d \u2014 let\u2019s break your `create()` method down step by step in plain language.
+Excellent \u2014 yes \U0001f44f you\u2019re totally right.
+All these methods share **exactly the same logic**, only differing in:
+
+* the **new status** (`WfStatus`) you want to set,
+* the **action key** you pass to `createSubmitParam2`,
+* the **user action** (`UserAction` enum), and
+* the **previous status** (for history logging).
+
+We can easily refactor this into a **generic reusable method**, and your service becomes *much cleaner* and *less error-prone*.
 
 ---
 
-### **Method signature**
+### \u2705 Step 1. Create a helper method
+
+Add a **private utility method** that performs the shared logic:
 
 ```java
-@Override
-@Transactional
-public MassTransferResponse<TransferFile> create(MassTransferRequest<TransferFile> request) throws Exception
-```
+private DemandeQualificationResponse processDemandeStatusChange(
+        Long demandeId,
+        WfStatus newStatus,
+        String actionKey,
+        UserAction userAction,
+        WfStatus previousStatus
+) throws PermissionException {
+    DemandeQualification demande = demandeQualificationRepository.findById(demandeId)
+            .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + demandeId));
 
-* It overrides an interface method (probably from a service).
-* It\u2019s transactional (all DB operations are in one transaction).
-* Input: a `MassTransferRequest<TransferFile>` object that wraps your `TransferFile` payload.
-* Output: a `MassTransferResponse<TransferFile>` containing the created object\u2019s info.
+    Map<String, String> submitParam = createSubmitParam2(demande, newStatus, actionKey);
+    ActivateProcessResult submit = submit(demande, submitParam);
 
----
+    updateDemandeStatus(demande, newStatus, submit);
 
-### **1\ufe0f\u20e3 Logging start**
+    DemandeQualification saved = demandeQualificationRepository.save(demande);
 
-```java
-ITFLogger.traceStart(this, "create TransferFile ", request);
-```
+    demandeHistoryService.bpmnDemandeHistory(saved, submit, userAction, previousStatus, newStatus);
 
-Logs the start of the method with the incoming request.
-
----
-
-### **2\ufe0f\u20e3 Extract payload and validate**
-
-```java
-TransferFile body = request.getPayload();
-if (body == null) {
-    throw new ValidationException("ERR10.1", "Body is Empty", "TransferFile");
+    return new DemandeQualificationResponseMapper().mapToDTO(saved);
 }
 ```
 
-* Pulls the actual `TransferFile` (your DTO) from the request.
-* If there\u2019s no payload, throws a validation error.
-
 ---
 
-### **3\ufe0f\u20e3 Validate `dummy`, `fileId` and `checksum`**
+### \u2705 Step 2. Simplify all your methods
+
+Now each of your public methods becomes *a one-liner*:
 
 ```java
-boolean dummy = ITFHelp.toBoolean(body.getDummy());
-String fileId = body.getFileId();
-if (!dummy && ITFHelp.isEmpty(fileId)) {
-    throw new ValidationException("ERR10.2", "TransferFile fileId is Empty", "FileId");
+public DemandeQualificationResponse suspenduRequest(Long id) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            WfStatus.SUSPENDU,
+            "suspendu",
+            UserAction.SUSPENDRE,
+            WfStatus.CLOTURE_POSTE_CONDITION
+    );
 }
-String checkSum = body.getFileChecksum();
-if (!dummy && ITFHelp.isEmpty(checkSum)) {
-    throw new ValidationException("ERR10.3", "TransferFile checksum is Empty", "FileChecksum");
+
+public DemandeQualificationResponse reouvertRequest(Long id) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            WfStatus.CLOTURE_POSTE_CONDITION,
+            "reouvrir",
+            UserAction.REOUVERT,
+            WfStatus.SUSPENDU
+    );
 }
-boolean redundant = dummy || fileTransferRepo.findFirstByFileChecksum(checkSum).isPresent();
+
+public DemandeQualificationResponse annulerRequest(Long id) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            WfStatus.ANNULER,
+            "annuler",
+            UserAction.ANNULER,
+            WfStatus.CNP_A_PLANIFIER
+    );
+}
+
+public DemandeQualificationResponse expireRequest(Long id) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            WfStatus.EXPIRE,
+            "expire",
+            UserAction.EXPIRE,
+            WfStatus.valueOf(demandeQualificationRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Aucune demande avec id = " + id))
+                    .getStatus())
+    );
+}
+
+public DemandeQualificationResponse movePreCnp(Long id) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            WfStatus.PRE_CNP_A_PLANIFIER,
+            "precnp",
+            UserAction.PRE_CNP_A_PLANIFIER,
+            WfStatus.ANALYSE_RISQUE
+    );
+}
 ```
-
-* If it\u2019s **not a dummy file**:
-
-  * `fileId` and `checksum` must be present.
-* It also checks **redundancy**: if the checksum already exists in DB, or if the file is dummy, `redundant = true`.
 
 ---
 
-### **4\ufe0f\u20e3 Validate Origin Info & Email**
+### \u2705 Step 3. Optional \u2014 use an Enum to make it even cleaner
+
+If these transitions are all known and fixed, you can define an enum that encapsulates the parameters:
 
 ```java
-if (body.getOriginInfo() == null || body.getOriginInfo().getOriginType() == null) {
-    throw new ValidationException("ERR10.4", "TransferFile OriginInfo is Empty", "OriginInfo");
-}
-boolean emailAccepted = true;
-if (body.getOriginInfo().getOriginType() == FileTransferOriginType.Email) {
-    ...
-}
-```
+public enum DemandeTransition {
+    SUSPENDRE(WfStatus.SUSPENDU, "suspendu", UserAction.SUSPENDRE, WfStatus.CLOTURE_POSTE_CONDITION),
+    REOUVERT(WfStatus.CLOTURE_POSTE_CONDITION, "reouvrir", UserAction.REOUVERT, WfStatus.SUSPENDU),
+    ANNULER(WfStatus.ANNULER, "annuler", UserAction.ANNULER, WfStatus.CNP_A_PLANIFIER),
+    EXPIRE(WfStatus.EXPIRE, "expire", UserAction.EXPIRE, null),
+    PRE_CNP(WfStatus.PRE_CNP_A_PLANIFIER, "precnp", UserAction.PRE_CNP_A_PLANIFIER, WfStatus.ANALYSE_RISQUE);
 
-* If no `originInfo` or missing `originType` \u2192 validation error.
-* If origin is Email:
+    public final WfStatus newStatus;
+    public final String actionKey;
+    public final UserAction userAction;
+    public final WfStatus previousStatus;
 
-  * Ensure email address is present.
-  * Check if this email is in the accepted emails list (`emailAddressRepository.findAllByEmail(email)`).
-  * If found with `isAccepted=true`, good.
-  * If not found or not accepted:
-
-    * Create or update a `MstAcceptedEmail` entry flagged as waiting/needs review, and persist it.
-    * Set `emailAccepted=false`.
-
----
-
-### **5\ufe0f\u20e3 Set default statuses**
-
-```java
-if (body.getGlobalStatus().getProcessingStatus() == null) {
-    body.getGlobalStatus().setProcessingStatus(ProcessingStatus.DRAFT);
+    DemandeTransition(WfStatus newStatus, String actionKey, UserAction userAction, WfStatus previousStatus) {
+        this.newStatus = newStatus;
+        this.actionKey = actionKey;
+        this.userAction = userAction;
+        this.previousStatus = previousStatus;
+    }
 }
 ```
 
-If no processing status yet, default it to DRAFT.
-
----
-
-### **6\ufe0f\u20e3 Map DTO to entity**
+Then your method could look like this:
 
 ```java
-MstTransferFile entity = new MstTransferFile();
-entity = MassTransferMapper.writeTransferFile(entity, body);
-entity.getGlobalStatus().setPublicStatus(FileTransferStatus.onGoing.name());
-entity.setRedundant(redundant);
-if (redundant) {
-    entity.getGlobalStatus().setPublicStatus(FileTransferStatus.redundancyError.name());
+public DemandeQualificationResponse handleTransition(Long id, DemandeTransition transition) throws PermissionException {
+    return processDemandeStatusChange(
+            id,
+            transition.newStatus,
+            transition.actionKey,
+            transition.userAction,
+            transition.previousStatus
+    );
 }
-entity.setEmailAccepted(emailAccepted);
-if (emailAccepted) {
-    entity.setAcceptedAt(new Date());
-} else {
-    entity.getGlobalStatus().setPublicStatus(FileTransferStatus.nonEligibleMail.name());
+```
+
+So your calls become simple and clean:
+
+```java
+public DemandeQualificationResponse suspenduRequest(Long id) throws PermissionException {
+    return handleTransition(id, DemandeTransition.SUSPENDRE);
 }
-entity.setEnabled(true);
 ```
 
-* Creates a new `MstTransferFile` entity and fills it with values from the DTO.
-* Sets `publicStatus` depending on redundancy and email acceptance.
-* Marks as enabled.
+---
+
+### \u2705 Summary of Benefits
+
+* **Single point of logic** \u2192 easier maintenance
+* **No code repetition** \u2192 fewer mistakes
+* **Clearer mapping between status transitions and actions**
+* Easy to **extend** by adding new transitions to the enum
 
 ---
 
-### **7\ufe0f\u20e3 Save the entity and its tasks**
-
-```java
-entity = fileTransferRepo.save(entity);
-
-MstTransferFile finalEntity = entity;
-entity.getTasks().forEach(task -> {
-    task.setTransferFile(finalEntity);
-    entityManager.persist(task);
-});
-entityManager.flush();
-```
-
-* Saves the main entity first.
-* For each task inside the entity, set the back-reference to this `TransferFile` and persist them individually.
-* Flush changes to DB.
-
----
-
-### **8\ufe0f\u20e3 Generate reference number and update**
-
-```java
-entity.setReference("VM-TF-" + padding(entity.getId(), 1000000) + getRefDateStamp("-"));
-entity = fileTransferRepo.save(entity);
-MassTransferMapper.readTransferFile(entity, body);
-```
-
-* Builds a reference like `VM-TF-0000123-20250918` using the entity ID and date.
-* Saves the entity again with the reference.
-* Reads the entity back into the DTO (`body`) so the response reflects DB values.
-
----
-
-### **9\ufe0f\u20e3 Build response and log end**
-
-```java
-MassTransferResponse<TransferFile> response = new MassTransferResponse<>();
-response.setBody(body);
-ITFLogger.traceEnd(this, "create TransferFile", response);
-return response;
-```
-
-* Wraps the updated DTO into a response object.
-* Logs end.
-* Returns it.
-
----
-
-### **In short**
-
-This method:
-
-1. Validates the incoming `TransferFile` request.
-2. Checks redundancy and accepted email list.
-3. Fills a new `MstTransferFile` entity with statuses and flags.
-4. Saves it (with tasks and reference).
-5. Returns a response with the updated DTO.
-
----
-
-Would you like me to draw a **flow diagram** of this method (input \u2192 validation \u2192 mapping \u2192 saving \u2192 output)? (It\u2019s usually helpful for complex service methods.)
+Would you like me to make the enum-based version fully dynamic (auto-detecting previous status from the entity instead of passing it)? That would make it even cleaner.
