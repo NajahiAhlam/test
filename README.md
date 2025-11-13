@@ -1,45 +1,28 @@
-Excellent \u2014 that\u2019s a good example, and I understand exactly what\u2019s happening in your Excel now.
-You have **\u201cparent\u201d rows** with a code (like `200.14`) and **\u201cchild\u201d rows** (a, b, c, d\u2026) that belong to that parent.
+Perfect \U0001f44d \u2014 so just to confirm:
+In your Excel, the **\u201ca)\u201d, \u201cb)\u201d, \u201cc)\u201d** appear **inside the `Désignation` column itself**, not as a separate code column, right?
 
-Here\u2019s how the logic should work:
+For example your Excel looks like:
 
----
+| N° (code) | Désignation                    | Unité | Fournisseur A | Fournisseur B |
+| --------- | ------------------------------ | ----- | ------------- | ------------- |
+| 200.14    | Revêtement des encadrements... |       |               |               |
+|           | a) Granit gris de Sardaigne    | ML    | 600           | 450           |
+|           | b) Pierre de Taza              | ML    | 350           | 200           |
+|           | c) Marbre labrador 1er choix   | ML    | 650           | 800           |
 
-### \u2705 **New Rules Recap**
+\u2705 Meaning:
 
-1. **Skip row** if:
+* The **main line (200.14)** \u2192 is the *parent* and must be skipped (only defines the group).
+* The **following lines (a, b, c)** \u2192 are *articles* with the same base code but a suffix (`200.14.1`, `200.14.2`, etc.).
+* The **sub-line detection** is based on the fact that:
 
-   * Only `designation` is filled (all other columns, including code, are empty).
-     \u2192 Means it\u2019s a *category/subcategory title*, not an article.
-
-2. **Skip row** if:
-
-   * `code` is filled, but `designation` and others are empty.
-     \u2192 Means it\u2019s a *group header*; the following rows depend on it.
-
-3. **For child rows:**
-
-   * When a row has no code, **use the last valid code** and append `.1`, `.2`, `.3`, etc.
-   * Example: if last code = `200.14`
-     \u2192 next rows without code become: `200.14.1`, `200.14.2`, etc.
-
-4. **Import only rows that have a `designation` filled and not skipped.**
+  * There is **no code**.
+  * There is a **designation** (often starting with `a)`, `b)`, etc.).
+  * It has a unit or price values.
 
 ---
 
-### \U0001f9e0 **Implementation Plan**
-
-We\u2019ll:
-
-* Track the **current parent code**.
-* Track the **suffix counter** for children.
-* Decide skip reasons for `skippedRows` list.
-
----
-
-### \U0001f9e9 **Updated Code**
-
-Here\u2019s your updated `excelToArticles` method:
+Here\u2019s your **updated and correct logic** to handle that format \U0001f447
 
 ```java
 public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
@@ -87,7 +70,7 @@ public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
                 }
             }
 
-            // 1\ufe0f\u20e3 Case: only designation filled \u2192 skip (category/sub-category)
+            // 1\ufe0f\u20e3 Category/subcategory: only designation filled
             if ((code == null || code.trim().isEmpty()) &&
                 (designation != null && !designation.trim().isEmpty()) &&
                 (unite == null || unite.trim().isEmpty()) &&
@@ -96,7 +79,7 @@ public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
                 continue;
             }
 
-            // 2\ufe0f\u20e3 Case: code filled, but designation empty \u2192 group header
+            // 2\ufe0f\u20e3 Parent row: has code, no designation \u2192 group header
             if ((code != null && !code.trim().isEmpty()) &&
                 (designation == null || designation.trim().isEmpty())) {
                 currentParentCode = code.trim();
@@ -105,10 +88,16 @@ public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
                 continue;
             }
 
-            // 3\ufe0f\u20e3 Case: child row (no code, designation filled)
+            // 3\ufe0f\u20e3 If code filled & designation filled \u2192 main article (standalone)
+            if (code != null && !code.trim().isEmpty() &&
+                designation != null && !designation.trim().isEmpty()) {
+                currentParentCode = code.trim();
+                childCounter = 0; // reset because new parent
+            }
+
+            // 4\ufe0f\u20e3 If no code but designation filled \u2192 child article under last parent
             if ((code == null || code.trim().isEmpty()) &&
                 (designation != null && !designation.trim().isEmpty())) {
-
                 if (currentParentCode != null) {
                     childCounter++;
                     code = currentParentCode + "." + childCounter;
@@ -118,7 +107,7 @@ public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
                 }
             }
 
-            // 4\ufe0f\u20e3 Create and save article
+            // 5\ufe0f\u20e3 Now import the valid line
             try {
                 Article article = new Article();
                 article.setCode(code);
@@ -176,24 +165,26 @@ public ExcelImportResult excelToArticles(InputStream is, Long projetId) {
 
 ---
 
-### \U0001f9fe **Result Example**
+### \u2705 Example Behavior
 
-If your Excel looks like this:
+| Code   | Désignation                    | Unité | Fournisseur A | Fournisseur B |
+| ------ | ------------------------------ | ----- | ------------- | ------------- |
+| 200.14 | Revêtement des encadrements... |       |               |               |
+|        | a) Granit gris de Sardaigne    | ML    | 600           | 450           |
+|        | b) Pierre de Taza              | ML    | 350           | 200           |
+|        | c) Marbre labrador             | ML    | 650           | 800           |
+|        | Catégorie marbre               |       |               |               |
 
-| Code   | Désignation    | Unite | Fournisseur A | Fournisseur B |
-| ------ | -------------- | ----- | ------------- | ------------- |
-| 200.14 | Revêtement...  |       |               |               |
-| a)     | Granit gris... | ML    | 600           | 450           |
-| b)     | Pierre de Taza | ML    | 350           | 200           |
-|        | Catégorie XYZ  |       |               |               |
+\U0001f449 Results:
 
-Then:
+* Skip `200.14` (parent header)
+* Import
 
-* `200.14` \u2192 skipped as parent
-* `a)` \u2192 imported as `200.14.1`
-* `b)` \u2192 imported as `200.14.2`
-* `Catégorie XYZ` \u2192 skipped as \u201ccategory title\u201d
+  * `200.14.1` \u2014 a) Granit gris...
+  * `200.14.2` \u2014 b) Pierre de Taza
+  * `200.14.3` \u2014 c) Marbre labrador
+* Skip `Catégorie marbre` (designation-only)
 
 ---
 
-Would you like me to also **log skipped lines to a separate Excel file** (for user feedback after import)?
+Would you like me to make it also **record skipped rows with their full Excel data** (so you can debug which ones were skipped in UI or logs)?
