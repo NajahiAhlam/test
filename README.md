@@ -1,116 +1,181 @@
-Perfect \u2014 I understand the situation clearly now \u2705
+To implement this functionality, you will need to adapt the data model, Excel file reading logic, and save the updated `quantite` values in the database while keeping the existing article prices intact.
 
-Your code runs without any errors, **but** after import, the table only shows headers \u2014 the rows appear *only when you manually refresh the page*.
-
-That means the problem is **not timing or errors**, but **Angular\u2019s change detection not re-rendering your dynamic table** after you update `this.columns` and `this.data$`.
-
-Let\u2019s fix it cleanly \U0001f447
+Let me break it down into the following steps:
 
 ---
 
-## \U0001f50d Why it happens
+### 1. **Data Model**
 
-You are using a **dynamic columns array** and updating both:
+Since the `quantite` for each `Article` changes per project, you will need to store the `quantite` for each article in the context of the specific project. This means we need to create a new entity `ArticleProjet` to link `Article` and `Projet` with a `quantite`.
 
-```ts
-this.columns = [...]
-this.data$ = data
-```
+**New Entity: ArticleProjet**
 
-inside the same `subscribe`.
-But your `<app-dynamic-table-back-management>` component likely uses `OnPush` change detection or `@Input()` bindings that only update when the reference *truly changes* **and** the parent view re-renders.
+```java
+@Entity
+public class ArticleProjet {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-After the dialog closes, Angular doesn\u2019t trigger a change detection cycle automatically.
+    @ManyToOne
+    @JoinColumn(name = "article_id", nullable = false)
+    private Article article;
 
----
+    @ManyToOne
+    @JoinColumn(name = "projet_id", nullable = false)
+    private Projet projet;
 
-## \u2705 Solution 1 \u2014 Force refresh via `ChangeDetectorRef`
+    private Double quantite = 0.0;  // default to 0 if null
 
-Inject `ChangeDetectorRef` and trigger an update after updating data and columns.
+    @ManyToOne
+    @JoinColumn(name = "fournisseur_id", nullable = true)
+    private Fournisseur fournisseur;
 
-### \U0001f527 Modify your component:
-
-```ts
-import { ChangeDetectorRef } from '@angular/core';
-```
-
-Add it in your constructor:
-
-```ts
-constructor(
-  private articleService: GestionArticleService,
-  private _utilService: UtilsService,
-  private windowService: NbDialogService,
-  private router: Router,
-  private csvService: ExportCSVService,
-  private cdr: ChangeDetectorRef
-) {}
-```
-
-Then inside your `getAllArticles()`\u2019s `next:` block, at the very end (after setting `this.data$` and `this.columns`):
-
-```ts
-this.data$ = data;
-this.loading = false;
-this.cdr.detectChanges(); // \U0001f448 Force refresh
-```
-
-This ensures the table fully re-renders with new data and columns.
-
----
-
-## \u2705 Solution 2 \u2014 Recreate columns & data after close
-
-Sometimes `DynamicTableBackManagementComponent` caches columns.
-In that case, clear them before reload:
-
-```ts
-.onClose.subscribe((data) => {
-  if (data === 'SUCCESS') {
-    this.columns = []; // reset table columns
-    this.data$ = undefined;
-    setTimeout(() => this.getAllArticles(), 100); // small async delay
-  }
-})
-```
-
----
-
-## \u2705 Solution 3 \u2014 Verify `ArticleInjectionFormComponent` emits `SUCCESS`
-
-In your import form component, make sure you close the dialog like this **only when the backend finishes saving:**
-
-```ts
-constructor(private dialogRef: NbDialogRef<ArticleInjectionFormComponent>) {}
-
-onImportFinishedSuccessfully() {
-  this.dialogRef.close('SUCCESS');
+    // Getters and Setters
 }
 ```
 
-Otherwise the refresh won\u2019t trigger.
+* This `ArticleProjet` entity represents a relation between the `Article` and `Projet` entities, along with a `quantite` and optional `fournisseur` information.
 
 ---
 
-## \U0001f9e9 Recommended final setup
+### 2. **Excel Reader Logic**
 
-```ts
-import() {
-  this.windowService
-    .open(ArticleInjectionFormComponent, {})
-    .onClose.subscribe((data) => {
-      if (data === 'SUCCESS') {
-        this.columns = [];
-        this.data$ = undefined;
-        setTimeout(() => {
-          this.getAllArticles();
-          this.cdr.detectChanges();
-        }, 300);
-      }
-    });
+You will now read the Excel file, identify the `Article` based on the `code` and `designation`, and update the `quantite` for the corresponding `Projet`. If the `quantite` value is missing, we will save it as `0.0`.
+
+Let\u2019s assume the Excel structure is like this:
+
+| Code | Designation | Unite | Quantite | Fournisseur 1 | Fournisseur 2 | Fournisseur 3 | Fournisseur 4 |
+| ---- | ----------- | ----- | -------- | ------------- | ------------- | ------------- | ------------- |
+| A123 | Article 1   | m2    | 100      | 500           | 600           | 550           | 650           |
+| B456 | Article 2   | pcs   | 200      | 300           | 350           | 325           | 375           |
+
+We will map this Excel data to the `ArticleProjet` entity.
+
+### 3. **Code for Excel Reader**
+
+```java
+public class ExcelImportService {
+
+    @Autowired
+    private ArticleRepository articleRepository;
+
+    @Autowired
+    private ProjetRepository projetRepository;
+
+    @Autowired
+    private FournisseurRepository fournisseurRepository;
+
+    @Autowired
+    private ArticleProjetRepository articleProjetRepository;
+
+    public void importQuantiteExcel(InputStream is, Long projetId) {
+        try (Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Projet projet = projetRepository.findById(projetId)
+                    .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String code = getCellValue(row.getCell(0));
+                String designation = getCellValue(row.getCell(1));
+                String unite = getCellValue(row.getCell(2));
+                String quantiteStr = getCellValue(row.getCell(3));
+                Double quantite = quantiteStr != null && !quantiteStr.isEmpty() ? Double.parseDouble(quantiteStr) : 0.0;
+
+                Article article = articleRepository.findByCodeAndDesignation(code, designation)
+                        .orElseThrow(() -> new RuntimeException("Article introuvable: " + code));
+
+                // If the article exists, update its quantite in the given projet context
+                ArticleProjet articleProjet = new ArticleProjet();
+                articleProjet.setArticle(article);
+                articleProjet.setProjet(projet);
+                articleProjet.setQuantite(quantite);
+
+                // Check if there are fournisseur columns, optional
+                for (int j = 4; j < row.getLastCellNum(); j++) {
+                    String prixStr = getCellValue(row.getCell(j));
+                    if (prixStr != null && !prixStr.isEmpty()) {
+                        Double prix = Double.parseDouble(prixStr);
+                        Fournisseur fournisseur = fournisseurRepository.findById((long) (j - 3)) // Assuming fournisseur IDs are sequential.
+                                .orElseThrow(() -> new RuntimeException("Fournisseur introuvable"));
+                        articleProjet.setFournisseur(fournisseur);
+                    }
+                }
+
+                articleProjetRepository.save(articleProjet);
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Erreur lors de la lecture du fichier Excel", e);
+        }
+    }
+
+    private String getCellValue(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
+                return String.valueOf(cell.getNumericCellValue());
+            default:
+                return null;
+        }
+    }
+
+    private boolean isRowEmpty(Row row) {
+        for (int i = 0; i < row.getLastCellNum(); i++) {
+            if (row.getCell(i) != null && row.getCell(i).toString().trim().length() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
 ```
 
 ---
 
-Would you like me to show you what your `ArticleInjectionFormComponent` should look like so that it correctly sends `'SUCCESS'` when import is done?
+### 4. **Explanation of the Logic**
+
+* **Excel Parsing**: We read the Excel file and check each row for the article\u2019s code, designation, and quantity. We also look for optional fournisseur prices.
+
+* **Quantite Parsing**: If the quantity (`quantite`) column is empty or null, we default it to `0.0`.
+
+* **Mapping to ArticleProjet**: For each valid row, we fetch the corresponding `Article` based on the code and designation. We then create or update an `ArticleProjet` for the given project (`projetId`), storing the updated `quantite`.
+
+* **Fournisseur Handling**: For each fournisseur price, we link it with the `ArticleProjet` entity. The column indices assume a sequential numbering of fournisseurs. Adjust this based on your actual Excel layout.
+
+---
+
+### 5. **Update in `Article` and `PriceArticle`**
+
+If you need to update or create new prices for `Article` related to a particular `Fournisseur`, ensure that `PriceArticle` is also properly updated. You can check the logic for handling prices, similar to how you handle quantities, if required.
+
+---
+
+### 6. **Calling the Import Method**
+
+Once your backend logic is ready, you can invoke the `importQuantiteExcel` method when you upload the new Excel file from the frontend:
+
+```java
+importQuantiteExcel(fileInputStream, projetId);
+```
+
+---
+
+## Summary of Updates:
+
+* **New Entity**: `ArticleProjet` links `Article` to `Projet` and contains the `quantite`.
+* **Excel Reading**: The Excel file is parsed, and `quantite` is saved in the `ArticleProjet` table. If `quantite` is missing, it is defaulted to `0.0`.
+* **Handling Fournisseurs**: Prices for each fournisseur can be added as optional data.
+
+This should allow you to update `quantite` values while preserving the article data and handling dynamic supplier prices.
+
+Would you like further clarification on any part of the solution?
