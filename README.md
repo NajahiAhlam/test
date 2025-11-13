@@ -179,3 +179,161 @@ importQuantiteExcel(fileInputStream, projetId);
 This should allow you to update `quantite` values while preserving the article data and handling dynamic supplier prices.
 
 Would you like further clarification on any part of the solution?
+******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************
+
+
+Thanks for the clarification! Since the second Excel file only contains the `quantite` values for the articles (with no fournisseur prices), we will focus on updating only the `quantite` for each article in the context of the project.
+
+### Revised Plan:
+
+1. **Excel Structure**: The second file will only have the `code`, `designation`, `unite`, and `quantite` columns. Each row will correspond to an article, and you will update its `quantite` value for the specified `projetId`. The `fournisseur` and `price` data will remain unaffected.
+
+2. **Data Model**: The existing `Article` entity stays the same, and we will still use the `ArticleProjet` entity to link `Article` and `Projet` with the updated `quantite`.
+
+3. **Excel Reader**: You will read the second Excel file, which will contain only `code`, `designation`, `unite`, and `quantite`, and update the `quantite` for the appropriate `Article` and `Projet`.
+
+---
+
+### 1. **Entity Update:**
+
+No changes to the entities are necessary. The `Article` and `ArticleProjet` entities remain as they are, with the `ArticleProjet` being the table that holds the `quantite` for each `Article` in the context of a `Projet`.
+
+---
+
+### 2. **Updated Excel File Structure (Second File)**:
+
+This is the structure for the second Excel file:
+
+| Code | Designation | Unite | Quantite |
+| ---- | ----------- | ----- | -------- |
+| A123 | Article 1   | m2    | 100      |
+| B456 | Article 2   | pcs   | 200      |
+
+In this case, you will **update only the `quantite`** for each `Article` in the `ArticleProjet` entity for the given `projetId`. If the `quantite` is missing, it should default to `0`.
+
+---
+
+### 3. **Excel Reader Code:**
+
+Here\u2019s the code to read the second Excel file and update the `quantite`:
+
+```java
+public class ExcelImportService {
+
+    @Autowired
+    private ArticleRepository articleRepository;
+
+    @Autowired
+    private ProjetRepository projetRepository;
+
+    @Autowired
+    private ArticleProjetRepository articleProjetRepository;
+
+    public void importQuantiteExcel(InputStream is, Long projetId) {
+        try (Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Projet projet = projetRepository.findById(projetId)
+                    .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row)) {
+                    continue;
+                }
+
+                String code = getCellValue(row.getCell(0));
+                String designation = getCellValue(row.getCell(1));
+                String unite = getCellValue(row.getCell(2));
+                String quantiteStr = getCellValue(row.getCell(3));
+                Double quantite = quantiteStr != null && !quantiteStr.isEmpty() ? Double.parseDouble(quantiteStr) : 0.0;
+
+                // Find the article based on code and designation
+                Article article = articleRepository.findByCodeAndDesignation(code, designation)
+                        .orElseThrow(() -> new RuntimeException("Article introuvable: " + code));
+
+                // Find the ArticleProjet based on article and projet, or create a new one
+                ArticleProjet articleProjet = articleProjetRepository.findByArticleAndProjet(article, projet)
+                        .orElse(new ArticleProjet());  // If not found, create a new one
+
+                articleProjet.setArticle(article);
+                articleProjet.setProjet(projet);
+                articleProjet.setQuantite(quantite);
+
+                // Save or update the ArticleProjet entity with the new quantite
+                articleProjetRepository.save(articleProjet);
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException("Erreur lors de la lecture du fichier Excel", e);
+        }
+    }
+
+    private String getCellValue(Cell cell) {
+        if (cell == null) {
+            return null;
+        }
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
+                return String.valueOf(cell.getNumericCellValue());
+            default:
+                return null;
+        }
+    }
+
+    private boolean isRowEmpty(Row row) {
+        for (int i = 0; i < row.getLastCellNum(); i++) {
+            if (row.getCell(i) != null && row.getCell(i).toString().trim().length() > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+```
+
+---
+
+### 4. **Explanation of the Code**:
+
+1. **Read the Excel**: We use Apache POI to read the Excel file. The `code`, `designation`, `unite`, and `quantite` are extracted from each row.
+
+2. **Find the Article**: We use the `code` and `designation` to find the corresponding `Article`. If no `Article` is found, an error is thrown.
+
+3. **Update or Create `ArticleProjet`**: The `ArticleProjet` entity links the `Article` and `Projet`, and we update its `quantite` value. If the `ArticleProjet` entity doesn\u2019t exist for the given `Article` and `Projet`, we create a new one.
+
+4. **Default `quantite`**: If the `quantite` value is missing or null in the Excel file, we default it to `0.0`.
+
+5. **Save to Database**: The `ArticleProjet` entity is saved using the `articleProjetRepository.save()` method, which either updates or creates the record depending on whether it already exists.
+
+---
+
+### 5. **How to Use This Service:**
+
+Once your backend logic is in place, you can call the `importQuantiteExcel` method to process the second Excel file.
+
+For example, if you have a file `inputStream` from the frontend, call the service as follows:
+
+```java
+importQuantiteExcel(inputStream, projetId);
+```
+
+This will read the Excel file, update the quantities, and save the changes to the database.
+
+---
+
+### 6. **What this Solves:**
+
+* The second file updates only the `quantite` for the articles linked to the specified project (`projetId`).
+* The `fournisseur` and `price` information remain untouched.
+* If the `quantite` is not specified in the Excel file, it defaults to `0.0`.
+
+---
+
+### 7. **Next Steps**:
+
+If you have any more requirements, like validation for specific columns or handling errors in a more user-friendly way, feel free to let me know! Otherwise, this should solve the problem you're facing with updating quantities in your project context.
+
+Does this work for your use case, or would you like to adjust anything further?
+
