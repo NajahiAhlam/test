@@ -1,96 +1,116 @@
-Perfect \U0001f44c you\u2019re **very close** \u2014 the issue now is purely **timing and data refresh**:
+Perfect \u2014 I understand the situation clearly now \u2705
 
-When you close your import window, your subscription in
+Your code runs without any errors, **but** after import, the table only shows headers \u2014 the rows appear *only when you manually refresh the page*.
 
-```ts
-.onClose.subscribe((data) => { this.getAllArticles() })
-```
+That means the problem is **not timing or errors**, but **Angular\u2019s change detection not re-rendering your dynamic table** after you update `this.columns` and `this.data$`.
 
-is being triggered *before* the backend has actually finished saving the imported data.
-So the new list is fetched too early \u2192 you only see headers until you manually refresh the page.
-
-Let\u2019s fix that cleanly \U0001f447
+Let\u2019s fix it cleanly \U0001f447
 
 ---
 
-### \u2705 Option 1 \u2014 Delay refresh a bit (simple & safe)
+## \U0001f50d Why it happens
 
-Add a small delay before calling `getAllArticles()` to give the backend time to save:
+You are using a **dynamic columns array** and updating both:
 
 ```ts
-import() {
-  const buttonsConfig: NbWindowControlButtonsConfig = {
-    minimize: true,
-    maximize: false,
-    fullScreen: false,
-    close: true,
-  };
-
-  this.windowService
-    .open(ArticleInjectionFormComponent, {
-      closeOnBackdropClick: false,
-      buttons: buttonsConfig,
-    })
-    .onClose.subscribe(() => {
-      setTimeout(() => {
-        this.getAllArticles();
-      }, 1000); // wait 1 second before refreshing
-    });
-}
+this.columns = [...]
+this.data$ = data
 ```
 
-\U0001f7e2 Works instantly and avoids extra complexity.
+inside the same `subscribe`.
+But your `<app-dynamic-table-back-management>` component likely uses `OnPush` change detection or `@Input()` bindings that only update when the reference *truly changes* **and** the parent view re-renders.
+
+After the dialog closes, Angular doesn\u2019t trigger a change detection cycle automatically.
 
 ---
 
-### \u2705 Option 2 \u2014 Refresh only when backend confirms success (best practice)
+## \u2705 Solution 1 \u2014 Force refresh via `ChangeDetectorRef`
 
-If your `ArticleInjectionFormComponent` emits a success event when import finishes (e.g. via `NbDialogRef`\u2019s `close('success')`), you can check it explicitly:
+Inject `ChangeDetectorRef` and trigger an update after updating data and columns.
+
+### \U0001f527 Modify your component:
 
 ```ts
-this.windowService
-  .open(ArticleInjectionFormComponent, {
-    closeOnBackdropClick: false,
-  })
-  .onClose.subscribe((result) => {
-    if (result === 'success') {
-      this.getAllArticles();
-    }
-  });
+import { ChangeDetectorRef } from '@angular/core';
 ```
 
-And inside your import component:
+Add it in your constructor:
+
+```ts
+constructor(
+  private articleService: GestionArticleService,
+  private _utilService: UtilsService,
+  private windowService: NbDialogService,
+  private router: Router,
+  private csvService: ExportCSVService,
+  private cdr: ChangeDetectorRef
+) {}
+```
+
+Then inside your `getAllArticles()`\u2019s `next:` block, at the very end (after setting `this.data$` and `this.columns`):
+
+```ts
+this.data$ = data;
+this.loading = false;
+this.cdr.detectChanges(); // \U0001f448 Force refresh
+```
+
+This ensures the table fully re-renders with new data and columns.
+
+---
+
+## \u2705 Solution 2 \u2014 Recreate columns & data after close
+
+Sometimes `DynamicTableBackManagementComponent` caches columns.
+In that case, clear them before reload:
+
+```ts
+.onClose.subscribe((data) => {
+  if (data === 'SUCCESS') {
+    this.columns = []; // reset table columns
+    this.data$ = undefined;
+    setTimeout(() => this.getAllArticles(), 100); // small async delay
+  }
+})
+```
+
+---
+
+## \u2705 Solution 3 \u2014 Verify `ArticleInjectionFormComponent` emits `SUCCESS`
+
+In your import form component, make sure you close the dialog like this **only when the backend finishes saving:**
 
 ```ts
 constructor(private dialogRef: NbDialogRef<ArticleInjectionFormComponent>) {}
 
-onImportSuccess() {
-  this.dialogRef.close('success');
+onImportFinishedSuccessfully() {
+  this.dialogRef.close('SUCCESS');
 }
 ```
 
-\u2705 That ensures the refresh happens **only when import has truly succeeded**, not just when the window closes.
+Otherwise the refresh won\u2019t trigger.
 
 ---
 
-### \u2705 Option 3 \u2014 Visual loading refresh (optional improvement)
-
-Add a temporary loader for better UX:
+## \U0001f9e9 Recommended final setup
 
 ```ts
-this.loading = true;
-setTimeout(() => {
-  this.getAllArticles();
-  this.loading = false;
-}, 1000);
+import() {
+  this.windowService
+    .open(ArticleInjectionFormComponent, {})
+    .onClose.subscribe((data) => {
+      if (data === 'SUCCESS') {
+        this.columns = [];
+        this.data$ = undefined;
+        setTimeout(() => {
+          this.getAllArticles();
+          this.cdr.detectChanges();
+        }, 300);
+      }
+    });
+}
 ```
 
 ---
 
-\u27a1\ufe0f **Recommendation:**
-Use **Option 2** (emit `'success'` when import done).
-If you can\u2019t modify the import component easily, use **Option 1** with a small delay (1\u20132 seconds).
-
----
-
-Would you like me to show how to add that `close('success')` emission inside your `ArticleInjectionFormComponent` (so it works in a clean way)?
+Would you like me to show you what your `ArticleInjectionFormComponent` should look like so that it correctly sends `'SUCCESS'` when import is done?
