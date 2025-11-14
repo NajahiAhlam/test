@@ -274,3 +274,302 @@ If you want, I can also generate:
 \u2705 Better error handling
 \u2705 Vue/React/Angular uploader
 Just tell me!
+*******************************************second reponse************************************************************************
+Got it.
+Now I **100% understand your 3-step workflow** \u2014 this time correctly.
+
+Let me rewrite your full business logic to ensure perfect clarity before continuing.
+
+---
+
+# \u2705 **Your REAL 3-step process**
+
+## **STEP 1 \u2014 Inject CATALOGUE (Global Article List)**
+
+Excel contains:
+
+| code | designation | unite | typeArticle | Fournisseur A | Fournisseur B | \u2026 |
+
+\u27a1 Save in database:
+
+* `Article`
+* `Fournisseur`
+* `PriceArticle` (global reference price **sometimes NULL**)
+
+**This is NOT linked to any project. Only the global catalogue.**
+
+---
+
+## **STEP 2 \u2014 Inject PROJECT QUANTITIES**
+
+Excel contains:
+
+| code | designation | unite | typeArticle | quantité |
+
+\u27a1 Save in database:
+
+* `ArticleProjet` (quantity of article per project)
+
+**This is linked to project.**
+No supplier information here.
+
+---
+
+## **STEP 3 \u2014 Inject PROJECT PRICES (Updated Prices Per Project)**
+
+Excel structure is **same as step 1**:
+
+| code | designation | unite | typeArticle | Fournisseur A | Fournisseur B | \u2026 |
+
+\u27a1 These prices are **project-specific updated prices**
+\u27a1 Even for lines where prices were \u201c\u2013\u201d in Step 1
+\u27a1 NOW the prices are filled and must be saved ONLY for this project.
+
+This means:
+
+\u274c Do NOT update `PriceArticle` (global)
+\u274c Do NOT create Article or Fournisseur
+\u2714 MUST save a **project-specific copy of prices**
+
+---
+
+# \U0001f3af **RIGHT APPROACH**
+
+## You need **one new entity only**:
+
+# \u2705 **`ProjetPriceArticle`**
+
+Because:
+
+* Step 1: global catalog prices
+* Step 3: project-specific prices (override)
+
+---
+
+# \U0001f7e2 **Final Entities Recap**
+
+### **Article**
+
+Global catalogue item.
+
+### **PriceArticle**
+
+Global reference supplier prices (NULL allowed).
+
+### **ArticleProjet**
+
+Quantity assigned to project.
+
+### **ProjetPriceArticle**
+
+Supplier price for a specific project (the prices in step 3).
+
+---
+
+# \U0001f7e6 ENTITY DEFINITIONS (Correct Final Version)
+
+---
+
+## **1\ufe0f\u20e3 ArticleProjet (Step 2 storage)**
+
+```java
+@Entity
+public class ArticleProjet {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "article_id", nullable = false)
+    private Article article;
+
+    @ManyToOne
+    @JoinColumn(name = "projet_id", nullable = false)
+    private Projet projet;
+
+    private Double quantite = 0.0;
+}
+```
+
+---
+
+## **2\ufe0f\u20e3 ProjetPriceArticle (Step 3 storage)**
+
+This stores **supplier price for this project**.
+
+```java
+@Entity
+public class ProjetPriceArticle {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "article_projet_id", nullable = false)
+    private ArticleProjet articleProjet;
+
+    @ManyToOne
+    @JoinColumn(name = "fournisseur_id", nullable = false)
+    private Fournisseur fournisseur;
+
+    private Double price;
+}
+```
+
+---
+
+# \U0001f7e3 NOW THE IMPORTANT PART:
+
+# **STEP 3 EXCEL READER**
+
+(Reads project-specific supplier prices)
+
+---
+
+# \U0001f525 FULL STEP 3 EXCEL READER \u2014 CORRECT VERSION
+
+It imports:
+
+* code
+* designation
+* unite
+* typeArticle
+* supplier columns (dynamic)
+
+and saves:
+
+* updated supplier prices into **ProjetPriceArticle**
+* only for this project
+* prices in \u201c\u2013\u201d are ignored
+
+---
+
+## **\u27a1 COMPLETE IMPLEMENTATION**
+
+```java
+public ExcelImportResult excelToProjetPrices(InputStream is, Long projetId) {
+
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+
+    List<ProjetPriceArticle> imported = new ArrayList<>();
+    List<SkippedRow> skipped = new ArrayList<>();
+
+    try (Workbook workbook = new XSSFWorkbook(is)) {
+
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+        Row headerRow = sheet.getRow(0);
+
+        // Supplier headers start at column 4
+        int fournisseurStartIndex = 4;
+
+        List<String> fournisseursHeaders = new ArrayList<>();
+        for (int i = fournisseurStartIndex; i < headerRow.getLastCellNum(); i++) {
+            String name = safeTrim(getCellValue(headerRow.getCell(i)));
+            if (!name.equals("-") && !name.isEmpty()) {
+                fournisseursHeaders.add(name);
+            }
+        }
+
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+
+            Row row = sheet.getRow(i);
+            if (row == null || isRowEmpty(row)) continue;
+
+            String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
+            if (code.isEmpty()) {
+                skipped.add(new SkippedRow(i + 1, "Code article manquant"));
+                continue;
+            }
+
+            // find article
+            Article article = articleRepository.findByCode(code).orElse(null);
+            if (article == null) {
+                skipped.add(new SkippedRow(i + 1, "Article introuvable: " + code));
+                continue;
+            }
+
+            // find matching ArticleProjet
+            ArticleProjet ap = articleProjetRepository
+                    .findByArticleAndProjet(article, projet)
+                    .orElse(null);
+
+            if (ap == null) {
+                skipped.add(new SkippedRow(i + 1, "Article non injecté dans les quantités du projet"));
+                continue;
+            }
+
+            // for each supplier
+            for (int j = 0; j < fournisseursHeaders.size(); j++) {
+
+                String fournisseurName = fournisseursHeaders.get(j);
+                int colIndex = fournisseurStartIndex + j;
+
+                String priceStr = safeTrim(getCellValue(row.getCell(colIndex)));
+
+                if (priceStr.isEmpty() || priceStr.equals("-")) continue;
+
+                double prix;
+                try {
+                    prix = Double.parseDouble(priceStr.replace(",", ".").replace(" ", ""));
+                } catch (Exception e) {
+                    skipped.add(new SkippedRow(i + 1, "Prix invalide '" + priceStr + "'"));
+                    continue;
+                }
+
+                // find supplier
+                Fournisseur fournisseur = fournisseurRepository
+                        .findByRaisonSocialeIgnoreCase(fournisseurName)
+                        .orElse(null);
+
+                if (fournisseur == null) continue;
+
+                // save project-specific price
+                ProjetPriceArticle ppa = projetPriceArticleRepository
+                        .findByArticleProjetAndFournisseur(ap, fournisseur)
+                        .orElseGet(() -> {
+                            ProjetPriceArticle x = new ProjetPriceArticle();
+                            x.setArticleProjet(ap);
+                            x.setFournisseur(fournisseur);
+                            return x;
+                        });
+
+                ppa.setPrice(prix);
+                projetPriceArticleRepository.save(ppa);
+
+                imported.add(ppa);
+            }
+        }
+
+    } catch (Exception e) {
+        throw new RuntimeException("Erreur lecture Excel: " + e.getMessage());
+    }
+
+    return new ExcelImportResult(imported, skipped);
+}
+```
+
+---
+
+# \U0001f7e9 SUMMARY OF YOUR 3-STEP SYSTEM (FINAL VERSION)
+
+| Step | Excel Content                            | Entity Saved                       | Linked to Projet? |
+| ---- | ---------------------------------------- | ---------------------------------- | ----------------- |
+| 1    | Article + Suppliers + Prices (some null) | Article, Fournisseur, PriceArticle | \u274c No              |
+| 2    | Article + Quantity                       | ArticleProjet                      | \u2714 Yes             |
+| 3    | Article + Supplier Prices (updated)      | ProjetPriceArticle                 | \u2714 Yes             |
+
+---
+
+# \U0001f389 You now have a perfectly clean, scalable 3-stage import system.
+
+---
+
+If you want next:
+\u2705 DTOs
+\u2705 Services + Controllers
+\u2705 Excel template examples
+\u2705 How to merge global + project prices on frontend
+Just tell me!
