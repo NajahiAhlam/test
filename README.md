@@ -1,575 +1,187 @@
-Great \u2014 now I fully understand your workflow.
-You have **TWO injections**:
+For the new step where you have "articles hors bordereau", you need to create a structure that allows for reading this specific file format and storing the relevant details for each article along with its quantity, unit price, and calculated amount. Based on the information you've provided, here's how you can structure your classes and read the Excel file.
 
----
+### 1. **Class Structure**
 
-# \u2705 **FIRST INJECTION (Already Done & Working)**
-
-Input: Excel with
-\u2714 code
-\u2714 designation
-\u2714 unite
-\u2714 typeArticle
-\u2714 Fournisseurs (dynamic columns) \u2192 prix (initially NULL)
-
-You save:
-
-### \u2714 `Article`
-
-### \u2714 `Fournisseur`
-
-### \u2714 `PriceArticle`
-
-This works.
-
----
-
-# \u2705 **SECOND INJECTION (Need New Structure + New Excel Reader)**
-
-Input Excel contains:
-
-\u2714 code
-\u2714 designation
-\u2714 unite
-\u2714 typeArticle
-\u2714 **quantity for each fournisseur** (updated prices inside projet)
-
-But **this second injection must NOT create new articles**, because they already exist.
-
-Instead you must update:
-
-### 1. `ProjectArticle` (quantité of article per projet)
-
-### 2. `PriceArticle` (for this projet only)
-
-So we need **new entity** \u2192 `ProjetPriceArticle`.
-
-Because **price changes per project**, not globally.
-
----
-
-# \u2705 **FINAL MODEL: CORRECT STRUCTURE**
-
----
-
-## **1\ufe0f\u20e3 Keep your existing `Article`, `Projet`, `Fournisseur`, `PriceArticle`**
-
-No change.
-
----
-
-## **2\ufe0f\u20e3 Add `ArticleProjet` (quantity per project)**
+First, we will define an entity that represents these "articles hors bordereau". It will hold the article's code, designation, unit, quantity, unit price, and the calculated total amount for that line.
 
 ```java
 @Entity
-public class ArticleProjet {
+public class ArticleHorsBordereau {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "article_id", nullable = false)
-    private Article article;
+    private String code;              // N° code of the article
+    private String designation;       // Description of the article
+    private String unite;             // Unit of the article
+    private Double quantite = 0.0;    // Quantity in the project
+    private Double prixUnitaire = 0.0; // Unit price
+    private Double montant = 0.0;     // Total amount (quantite * prixUnitaire)
 
     @ManyToOne
     @JoinColumn(name = "projet_id", nullable = false)
-    private Projet projet;
+    private Projet projet;            // The project this article is related to
 
-    private Double quantite = 0.0;
+    // Getters and Setters
 }
 ```
 
----
+Next, you will need a service method to read and process the Excel file, similar to how you handled the previous injection steps.
 
-## **3\ufe0f\u20e3 Add NEW ENTITY `ProjetPriceArticle` (supplier price for a project)**
+### 2. **Excel File Reader Logic**
 
-\u27a1 This is REQUIRED because supplier price changes PER PROJECT.
-
-```java
-@Entity
-public class ProjetPriceArticle {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "article_projet_id", nullable = false)
-    private ArticleProjet articleProjet;
-
-    @ManyToOne
-    @JoinColumn(name = "fournisseur_id", nullable = false)
-    private Fournisseur fournisseur;
-
-    private Double price;
-}
-```
-
----
-
-# \U0001f7e6 WHY THIS ENTITY IS NECESSARY?
-
-Because the price in first injection = **reference price**
-But price in second injection = **project-specific price**
-
-So you cannot modify `PriceArticle`, or you lose the reference catalogue.
-
----
-
-# \u26a1 NOW THE EXCEL READER FOR SECOND INJECTION
-
-You will read:
-
-| code | designation | unite | typeArticle | f1_qty | f2_qty | f3_qty | ... |
-
-**Headers from column 4 onward are fournisseur names again.**
-
----
-
-# \U0001f535 FULL SECOND EXCEL READER (Complete Implementation)
+You can create a method in a service class to read the "articles hors bordereau" file and populate the `ArticleHorsBordereau` list with the appropriate details. Here's a sample method for reading the Excel file:
 
 ```java
-public ExcelImportResult excelToProjetArticles(InputStream is, Long projetId) {
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-    Projet projet = projetRepository.findById(projetId)
-            .orElseThrow(() -> new RuntimeException("Projet introuvable !"));
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
-    List<ArticleProjet> articlesProjet = new ArrayList<>();
-    List<SkippedRow> skipped = new ArrayList<>();
+@Service
+public class ArticleHorsBordereauService {
 
-    try (Workbook workbook = new XSSFWorkbook(is)) {
+    private final ArticleHorsBordereauRepository articleHorsBordereauRepository;
 
-        Sheet sheet = workbook.getSheet(SHEET_NAME);
-        Row headerRow = sheet.getRow(0);
-
-        int fournisseurStartIndex = 4;
-
-        // read supplier headers
-        List<String> fournisseursHeaders = new ArrayList<>();
-        for (int i = fournisseurStartIndex; i < headerRow.getLastCellNum(); i++) {
-            String f = safeTrim(getCellValue(headerRow.getCell(i)));
-            if (!f.isEmpty()) fournisseursHeaders.add(f);
-        }
-
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-
-            Row row = sheet.getRow(i);
-            if (row == null || isRowEmpty(row)) continue;
-
-            String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
-            if (code.isEmpty()) {
-                skipped.add(new SkippedRow(i + 1, "Code article vide"));
-                continue;
-            }
-
-            Article article = articleRepository.findByCode(code)
-                    .orElse(null);
-
-            if (article == null) {
-                skipped.add(new SkippedRow(i + 1, "Article non trouvé : " + code));
-                continue;
-            }
-
-            // Create or update ArticleProjet
-            ArticleProjet ap = articleProjetRepository
-                    .findByArticleAndProjet(article, projet)
-                    .orElseGet(() -> {
-                        ArticleProjet np = new ArticleProjet();
-                        np.setArticle(article);
-                        np.setProjet(projet);
-                        return np;
-                    });
-
-            // read quantity (default 0)
-            String qtyStr = safeTrim(getCellValue(row.getCell(4)));
-            double qty = qtyStr.isEmpty() ? 0.0 : Double.parseDouble(qtyStr.replace(",", "."));
-            ap.setQuantite(qty);
-
-            ap = articleProjetRepository.save(ap);
-
-            // read supplier prices
-            for (int j = 0; j < fournisseursHeaders.size(); j++) {
-
-                String fournisseurName = fournisseursHeaders.get(j);
-                int cellIndex = fournisseurStartIndex + j;
-
-                String priceStr = safeTrim(getCellValue(row.getCell(cellIndex)));
-                if (priceStr.isEmpty()) continue;
-
-                double prix = Double.parseDouble(priceStr.replace(",", "."));
-
-                Fournisseur fournisseur = fournisseurRepository
-                        .findByRaisonSocialeIgnoreCase(fournisseurName)
-                        .orElse(null);
-
-                if (fournisseur == null) continue;
-
-                ProjetPriceArticle ppa = projetPriceArticleRepository
-                        .findByArticleProjetAndFournisseur(ap, fournisseur)
-                        .orElseGet(() -> {
-                            ProjetPriceArticle x = new ProjetPriceArticle();
-                            x.setArticleProjet(ap);
-                            x.setFournisseur(fournisseur);
-                            return x;
-                        });
-
-                ppa.setPrice(prix);
-
-                projetPriceArticleRepository.save(ppa);
-            }
-
-            articlesProjet.add(ap);
-        }
-
-    } catch (Exception e) {
-        throw new RuntimeException("Erreur import : " + e.getMessage());
+    @Autowired
+    public ArticleHorsBordereauService(ArticleHorsBordereauRepository articleHorsBordereauRepository) {
+        this.articleHorsBordereauRepository = articleHorsBordereauRepository;
     }
 
-    return new ExcelImportResult(articlesProjet, skipped);
-}
-```
-
----
-
-# \U0001f3af **WHAT THIS CODE DOES**
-
-### \u2714 Reads second Excel
-
-### \u2714 Matches article by `code`
-
-### \u2714 Saves quantity in `ArticleProjet`
-
-### \u2714 Reads suppliers (dynamic headers)
-
-### \u2714 Saves project-specific prices in `ProjetPriceArticle`
-
-### \u2714 If cell empty \u2192 price ignored
-
-### \u2714 If quantity empty \u2192 `0.0` saved
-
----
-
-# \U0001f7e2 Your system is now COMPLETE
-
-### You now have:
-
-### 1\ufe0f\u20e3 Catalogue:
-
-* `Article`
-* `Fournisseur`
-* `PriceArticle` (reference)
-
-### 2\ufe0f\u20e3 Project-specific data:
-
-* `ArticleProjet` (quantité per project)
-* `ProjetPriceArticle` (supplier prices per project)
-
----
-
-If you want, I can also generate:
-
-\u2705 DTOs
-\u2705 Service + Controller
-\u2705 Better error handling
-\u2705 Vue/React/Angular uploader
-Just tell me!
-*******************************************second reponse************************************************************************
-Got it.
-Now I **100% understand your 3-step workflow** \u2014 this time correctly.
-
-Let me rewrite your full business logic to ensure perfect clarity before continuing.
-
----
-
-# \u2705 **Your REAL 3-step process**
-
-## **STEP 1 \u2014 Inject CATALOGUE (Global Article List)**
-
-Excel contains:
-
-| code | designation | unite | typeArticle | Fournisseur A | Fournisseur B | \u2026 |
-
-\u27a1 Save in database:
-
-* `Article`
-* `Fournisseur`
-* `PriceArticle` (global reference price **sometimes NULL**)
-
-**This is NOT linked to any project. Only the global catalogue.**
-
----
-
-## **STEP 2 \u2014 Inject PROJECT QUANTITIES**
-
-Excel contains:
-
-| code | designation | unite | typeArticle | quantité |
-
-\u27a1 Save in database:
-
-* `ArticleProjet` (quantity of article per project)
-
-**This is linked to project.**
-No supplier information here.
-
----
-
-## **STEP 3 \u2014 Inject PROJECT PRICES (Updated Prices Per Project)**
-
-Excel structure is **same as step 1**:
-
-| code | designation | unite | typeArticle | Fournisseur A | Fournisseur B | \u2026 |
-
-\u27a1 These prices are **project-specific updated prices**
-\u27a1 Even for lines where prices were \u201c\u2013\u201d in Step 1
-\u27a1 NOW the prices are filled and must be saved ONLY for this project.
-
-This means:
-
-\u274c Do NOT update `PriceArticle` (global)
-\u274c Do NOT create Article or Fournisseur
-\u2714 MUST save a **project-specific copy of prices**
-
----
-
-# \U0001f3af **RIGHT APPROACH**
-
-## You need **one new entity only**:
-
-# \u2705 **`ProjetPriceArticle`**
-
-Because:
-
-* Step 1: global catalog prices
-* Step 3: project-specific prices (override)
-
----
-
-# \U0001f7e2 **Final Entities Recap**
-
-### **Article**
-
-Global catalogue item.
-
-### **PriceArticle**
-
-Global reference supplier prices (NULL allowed).
-
-### **ArticleProjet**
-
-Quantity assigned to project.
-
-### **ProjetPriceArticle**
-
-Supplier price for a specific project (the prices in step 3).
-
----
-
-# \U0001f7e6 ENTITY DEFINITIONS (Correct Final Version)
-
----
-
-## **1\ufe0f\u20e3 ArticleProjet (Step 2 storage)**
-
-```java
-@Entity
-public class ArticleProjet {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "article_id", nullable = false)
-    private Article article;
-
-    @ManyToOne
-    @JoinColumn(name = "projet_id", nullable = false)
-    private Projet projet;
-
-    private Double quantite = 0.0;
-}
-```
-
----
-
-## **2\ufe0f\u20e3 ProjetPriceArticle (Step 3 storage)**
-
-This stores **supplier price for this project**.
-
-```java
-@Entity
-public class ProjetPriceArticle {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "article_projet_id", nullable = false)
-    private ArticleProjet articleProjet;
-
-    @ManyToOne
-    @JoinColumn(name = "fournisseur_id", nullable = false)
-    private Fournisseur fournisseur;
-
-    private Double price;
-}
-```
-
----
-
-# \U0001f7e3 NOW THE IMPORTANT PART:
-
-# **STEP 3 EXCEL READER**
-
-(Reads project-specific supplier prices)
-
----
-
-# \U0001f525 FULL STEP 3 EXCEL READER \u2014 CORRECT VERSION
-
-It imports:
-
-* code
-* designation
-* unite
-* typeArticle
-* supplier columns (dynamic)
-
-and saves:
-
-* updated supplier prices into **ProjetPriceArticle**
-* only for this project
-* prices in \u201c\u2013\u201d are ignored
-
----
-
-## **\u27a1 COMPLETE IMPLEMENTATION**
-
-```java
-public ExcelImportResult excelToProjetPrices(InputStream is, Long projetId) {
-
-    Projet projet = projetRepository.findById(projetId)
-            .orElseThrow(() -> new RuntimeException("Projet introuvable"));
-
-    List<ProjetPriceArticle> imported = new ArrayList<>();
-    List<SkippedRow> skipped = new ArrayList<>();
-
-    try (Workbook workbook = new XSSFWorkbook(is)) {
-
-        Sheet sheet = workbook.getSheet(SHEET_NAME);
-        Row headerRow = sheet.getRow(0);
-
-        // Supplier headers start at column 4
-        int fournisseurStartIndex = 4;
-
-        List<String> fournisseursHeaders = new ArrayList<>();
-        for (int i = fournisseurStartIndex; i < headerRow.getLastCellNum(); i++) {
-            String name = safeTrim(getCellValue(headerRow.getCell(i)));
-            if (!name.equals("-") && !name.isEmpty()) {
-                fournisseursHeaders.add(name);
-            }
-        }
-
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-
-            Row row = sheet.getRow(i);
-            if (row == null || isRowEmpty(row)) continue;
-
-            String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
-            if (code.isEmpty()) {
-                skipped.add(new SkippedRow(i + 1, "Code article manquant"));
-                continue;
-            }
-
-            // find article
-            Article article = articleRepository.findByCode(code).orElse(null);
-            if (article == null) {
-                skipped.add(new SkippedRow(i + 1, "Article introuvable: " + code));
-                continue;
-            }
-
-            // find matching ArticleProjet
-            ArticleProjet ap = articleProjetRepository
-                    .findByArticleAndProjet(article, projet)
-                    .orElse(null);
-
-            if (ap == null) {
-                skipped.add(new SkippedRow(i + 1, "Article non injecté dans les quantités du projet"));
-                continue;
-            }
-
-            // for each supplier
-            for (int j = 0; j < fournisseursHeaders.size(); j++) {
-
-                String fournisseurName = fournisseursHeaders.get(j);
-                int colIndex = fournisseurStartIndex + j;
-
-                String priceStr = safeTrim(getCellValue(row.getCell(colIndex)));
-
-                if (priceStr.isEmpty() || priceStr.equals("-")) continue;
-
-                double prix;
-                try {
-                    prix = Double.parseDouble(priceStr.replace(",", ".").replace(" ", ""));
-                } catch (Exception e) {
-                    skipped.add(new SkippedRow(i + 1, "Prix invalide '" + priceStr + "'"));
+    public ExcelImportResult excelToArticleHorsBordereau(InputStream is, Long projetId) {
+        List<ArticleHorsBordereau> articleHorsBordereauList = new ArrayList<>();
+        List<SkippedRow> skippedRows = new ArrayList<>();
+
+        try (Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) throw new RuntimeException("Feuille introuvable");
+
+            Row headerRow = sheet.getRow(0);
+            if (headerRow == null) throw new RuntimeException("En-tête manquant");
+
+            // Start reading the rows after the header
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isRowEmpty(row)) {
+                    skippedRows.add(new SkippedRow(i + 1, "Ligne vide"));
                     continue;
                 }
 
-                // find supplier
-                Fournisseur fournisseur = fournisseurRepository
-                        .findByRaisonSocialeIgnoreCase(fournisseurName)
-                        .orElse(null);
+                String code = safeTrim(getCellValue(row.getCell(0))); // N°
+                String designation = safeTrim(getCellValue(row.getCell(1))); // Designation
+                String unite = safeTrim(getCellValue(row.getCell(2))); // Unite
+                Double quantite = parseDouble(getCellValue(row.getCell(3))); // Quantité
+                Double prixUnitaire = parseDouble(getCellValue(row.getCell(4))); // P.U
+                Double montant = quantite * prixUnitaire; // Montant (quantite * prixUnitaire)
 
-                if (fournisseur == null) continue;
+                // Validate and add to the list
+                if (code.isEmpty() || designation.isEmpty() || quantite == 0 || prixUnitaire == 0) {
+                    skippedRows.add(new SkippedRow(i + 1, "Données manquantes"));
+                    continue;
+                }
 
-                // save project-specific price
-                ProjetPriceArticle ppa = projetPriceArticleRepository
-                        .findByArticleProjetAndFournisseur(ap, fournisseur)
-                        .orElseGet(() -> {
-                            ProjetPriceArticle x = new ProjetPriceArticle();
-                            x.setArticleProjet(ap);
-                            x.setFournisseur(fournisseur);
-                            return x;
-                        });
+                ArticleHorsBordereau articleHorsBordereau = new ArticleHorsBordereau();
+                articleHorsBordereau.setCode(code);
+                articleHorsBordereau.setDesignation(designation);
+                articleHorsBordereau.setUnite(unite);
+                articleHorsBordereau.setQuantite(quantite);
+                articleHorsBordereau.setPrixUnitaire(prixUnitaire);
+                articleHorsBordereau.setMontant(montant);
 
-                ppa.setPrice(prix);
-                projetPriceArticleRepository.save(ppa);
+                // Set the projet
+                Projet projet = new Projet();  // You can retrieve the Projet from the database
+                projet.setId(projetId); // Assuming the Projet ID is passed in
+                articleHorsBordereau.setProjet(projet);
 
-                imported.add(ppa);
+                articleHorsBordereauList.add(articleHorsBordereau);
             }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur de lecture du fichier: " + e.getMessage(), e);
         }
 
-    } catch (Exception e) {
-        throw new RuntimeException("Erreur lecture Excel: " + e.getMessage());
+        // Save to the database
+        articleHorsBordereauRepository.saveAll(articleHorsBordereauList);
+
+        return new ExcelImportResult(articleHorsBordereauList, skippedRows);
     }
 
-    return new ExcelImportResult(imported, skipped);
+    // Helper methods for reading cells and parsing
+    private String getCellValue(Cell cell) {
+        return cell == null ? "" : cell.toString().trim();
+    }
+
+    private Double parseDouble(String value) {
+        try {
+            return value.isEmpty() ? 0.0 : Double.parseDouble(value.replace(",", "."));
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+
+    private boolean isRowEmpty(Row row) {
+        return row == null || row.getPhysicalNumberOfCells() == 0;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
+    }
 }
 ```
 
----
+### 3. **Repository for Saving Data**
 
-# \U0001f7e9 SUMMARY OF YOUR 3-STEP SYSTEM (FINAL VERSION)
+Make sure you have a repository for `ArticleHorsBordereau` to handle the persistence:
 
-| Step | Excel Content                            | Entity Saved                       | Linked to Projet? |
-| ---- | ---------------------------------------- | ---------------------------------- | ----------------- |
-| 1    | Article + Suppliers + Prices (some null) | Article, Fournisseur, PriceArticle | \u274c No              |
-| 2    | Article + Quantity                       | ArticleProjet                      | \u2714 Yes             |
-| 3    | Article + Supplier Prices (updated)      | ProjetPriceArticle                 | \u2714 Yes             |
+```java
+import org.springframework.data.jpa.repository.JpaRepository;
 
----
+public interface ArticleHorsBordereauRepository extends JpaRepository<ArticleHorsBordereau, Long> {
+}
+```
 
-# \U0001f389 You now have a perfectly clean, scalable 3-stage import system.
+### 4. **Excel Import Result**
 
----
+You'll want to return some kind of result object (like `ExcelImportResult`) to indicate success/failure, as shown in your previous methods. Here\u2019s a simple version:
 
-If you want next:
-\u2705 DTOs
-\u2705 Services + Controllers
-\u2705 Excel template examples
-\u2705 How to merge global + project prices on frontend
-Just tell me!
+```java
+public class ExcelImportResult {
+    private List<ArticleHorsBordereau> importedArticles;
+    private List<SkippedRow> skippedRows;
+
+    // Constructor, getters and setters
+}
+```
+
+### 5. **Skipped Row Class**
+
+This class helps you keep track of rows that were skipped due to errors.
+
+```java
+public class SkippedRow {
+    private int rowNum;
+    private String reason;
+
+    // Constructor, getters and setters
+}
+```
+
+### 6. **Usage Example**
+
+In your controller or service where you handle the file upload, you can call this method to read and save the "articles hors bordereau" from the Excel file:
+
+```java
+@Autowired
+private ArticleHorsBordereauService articleHorsBordereauService;
+
+public void handleFileUpload(InputStream fileInputStream, Long projetId) {
+    ExcelImportResult result = articleHorsBordereauService.excelToArticleHorsBordereau(fileInputStream, projetId);
+    // Handle result (e.g., show skipped rows, etc.)
+}
+```
+
+### Conclusion
+
+This approach will allow you to handle the "articles hors bordereau" file, read it, and store the details in your database. The file will include the article code, designation, unit, quantity, unit price, and the total amount, which will be calculated during the file processing.
