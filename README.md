@@ -1,8 +1,8 @@
-For the new step where you have "articles hors bordereau", you need to create a structure that allows for reading this specific file format and storing the relevant details for each article along with its quantity, unit price, and calculated amount. Based on the information you've provided, here's how you can structure your classes and read the Excel file.
+To implement a similar method for your `ArticleHorsBordereau` entity, which reads from an Excel file and processes the quantity and unit price, here's how you can structure it.
 
-### 1. **Class Structure**
+### 1. **ArticleHorsBordereau Entity**:
 
-First, we will define an entity that represents these "articles hors bordereau". It will hold the article's code, designation, unit, quantity, unit price, and the calculated total amount for that line.
+The `ArticleHorsBordereau` class is already provided. You can use the following class definition, where the `totalMontant` will be calculated as `quantite * prixUnitaire` for each row.
 
 ```java
 @Entity
@@ -12,176 +12,173 @@ public class ArticleHorsBordereau {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String code;              // N° code of the article
-    private String designation;       // Description of the article
-    private String unite;             // Unit of the article
-    private Double quantite = 0.0;    // Quantity in the project
-    private Double prixUnitaire = 0.0; // Unit price
-    private Double montant = 0.0;     // Total amount (quantite * prixUnitaire)
-
+    private String code;
+    private String designation;
+    private String unite;
+    private Double prixUnitaire = 0.0;
+    private Double montant = 0.0;     // Quantity * Unit Price
+    private Double totalMontant = 0.0;  // Will be calculated for each line
     @ManyToOne
     @JoinColumn(name = "projet_id", nullable = false)
-    private Projet projet;            // The project this article is related to
+    private Projet projet;
 
     // Getters and Setters
 }
 ```
 
-Next, you will need a service method to read and process the Excel file, similar to how you handled the previous injection steps.
+### 2. **Import Method for ArticleHorsBordereau**:
 
-### 2. **Excel File Reader Logic**
-
-You can create a method in a service class to read the "articles hors bordereau" file and populate the `ArticleHorsBordereau` list with the appropriate details. Here's a sample method for reading the Excel file:
+Here\u2019s how you could implement the method to import the "articles hors bordereau" file into the database.
 
 ```java
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+public ImportResult importArticleHorsBordereauExcel(InputStream is, Long projetId) {
+    List<ArticleHorsBordereau> imported = new ArrayList<>();
+    List<SkippedRow> skipped = new ArrayList<>();
 
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
+    try (Workbook workbook = new XSSFWorkbook(is)) {
+        Sheet sheet = workbook.getSheetAt(0);
+        if (sheet == null) throw new RuntimeException("Aucune feuille trouvée dans le fichier Excel");
 
-@Service
-public class ArticleHorsBordereauService {
+        // Retrieve the Project based on the projetId
+        Projet projet = projetRepository.findById(projetId)
+                .orElseThrow(() -> new RuntimeException("Projet introuvable avec ID: " + projetId));
 
-    private final ArticleHorsBordereauRepository articleHorsBordereauRepository;
+        // Iterate through each row starting from the second row (row 1)
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null || isRowEmpty(row)) {
+                skipped.add(new SkippedRow(i + 1, "Ligne vide"));
+                continue;
+            }
 
-    @Autowired
-    public ArticleHorsBordereauService(ArticleHorsBordereauRepository articleHorsBordereauRepository) {
-        this.articleHorsBordereauRepository = articleHorsBordereauRepository;
-    }
+            try {
+                // Read each cell in the row
+                String code = getCellValue(row.getCell(0)); // N°
+                String designation = getCellValue(row.getCell(1)); // Designation
+                String unite = getCellValue(row.getCell(2)); // Unite
+                String quantiteStr = getCellValue(row.getCell(3)); // Quantité
+                String prixUnitaireStr = getCellValue(row.getCell(4)); // Prix Unitaire
 
-    public ExcelImportResult excelToArticleHorsBordereau(InputStream is, Long projetId) {
-        List<ArticleHorsBordereau> articleHorsBordereauList = new ArrayList<>();
-        List<SkippedRow> skippedRows = new ArrayList<>();
-
-        try (Workbook workbook = new XSSFWorkbook(is)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            if (sheet == null) throw new RuntimeException("Feuille introuvable");
-
-            Row headerRow = sheet.getRow(0);
-            if (headerRow == null) throw new RuntimeException("En-tête manquant");
-
-            // Start reading the rows after the header
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null || isRowEmpty(row)) {
-                    skippedRows.add(new SkippedRow(i + 1, "Ligne vide"));
+                // Validate input data
+                if ((code == null || code.isEmpty()) || (designation == null || designation.isEmpty())) {
+                    skipped.add(new SkippedRow(i + 1, "Code et désignation manquants"));
                     continue;
                 }
 
-                String code = safeTrim(getCellValue(row.getCell(0))); // N°
-                String designation = safeTrim(getCellValue(row.getCell(1))); // Designation
-                String unite = safeTrim(getCellValue(row.getCell(2))); // Unite
-                Double quantite = parseDouble(getCellValue(row.getCell(3))); // Quantité
-                Double prixUnitaire = parseDouble(getCellValue(row.getCell(4))); // P.U
-                Double montant = quantite * prixUnitaire; // Montant (quantite * prixUnitaire)
+                // Parse Quantité
+                Double quantite = 0.0;
+                if (quantiteStr != null && !quantiteStr.trim().isEmpty()) {
+                    try {
+                        quantite = Double.parseDouble(quantiteStr.replace(",", "."));
+                    } catch (NumberFormatException e) {
+                        skipped.add(new SkippedRow(i + 1, "Quantité invalide: '" + quantiteStr + "'"));
+                        continue;
+                    }
+                }
 
-                // Validate and add to the list
-                if (code.isEmpty() || designation.isEmpty() || quantite == 0 || prixUnitaire == 0) {
-                    skippedRows.add(new SkippedRow(i + 1, "Données manquantes"));
+                // Parse Prix Unitaire
+                Double prixUnitaire = 0.0;
+                if (prixUnitaireStr != null && !prixUnitaireStr.trim().isEmpty()) {
+                    try {
+                        prixUnitaire = Double.parseDouble(prixUnitaireStr.replace(",", "."));
+                    } catch (NumberFormatException e) {
+                        skipped.add(new SkippedRow(i + 1, "Prix unitaire invalide: '" + prixUnitaireStr + "'"));
+                        continue;
+                    }
+                }
+
+                // Calculate Montant (Total)
+                Double montant = quantite * prixUnitaire;
+
+                // Look for an existing Article based on code or designation (or handle as needed)
+                Optional<Article> optionalArticle = articleRepository.findByCode(code);
+                if (!optionalArticle.isPresent()) {
+                    skipped.add(new SkippedRow(i + 1, "Article introuvable pour le code: " + code));
                     continue;
                 }
 
+                Article article = optionalArticle.get();
+
+                // Create and save ArticleHorsBordereau
                 ArticleHorsBordereau articleHorsBordereau = new ArticleHorsBordereau();
                 articleHorsBordereau.setCode(code);
                 articleHorsBordereau.setDesignation(designation);
                 articleHorsBordereau.setUnite(unite);
-                articleHorsBordereau.setQuantite(quantite);
                 articleHorsBordereau.setPrixUnitaire(prixUnitaire);
                 articleHorsBordereau.setMontant(montant);
-
-                // Set the projet
-                Projet projet = new Projet();  // You can retrieve the Projet from the database
-                projet.setId(projetId); // Assuming the Projet ID is passed in
                 articleHorsBordereau.setProjet(projet);
+                articleHorsBordereau.setTotalMontant(montant); // Set the total amount (same as montant in this case)
 
-                articleHorsBordereauList.add(articleHorsBordereau);
+                // Save to the repository
+                ArticleHorsBordereau saved = articleHorsBordereauRepository.save(articleHorsBordereau);
+                imported.add(saved);
+
+            } catch (Exception e) {
+                skipped.add(new SkippedRow(i + 1, "Erreur inattendue: " + e.getMessage()));
             }
-        } catch (Exception e) {
-            throw new RuntimeException("Erreur de lecture du fichier: " + e.getMessage(), e);
         }
 
-        // Save to the database
-        articleHorsBordereauRepository.saveAll(articleHorsBordereauList);
-
-        return new ExcelImportResult(articleHorsBordereauList, skippedRows);
+    } catch (IOException e) {
+        throw new RuntimeException("Erreur lors de la lecture du fichier Excel", e);
     }
 
-    // Helper methods for reading cells and parsing
-    private String getCellValue(Cell cell) {
-        return cell == null ? "" : cell.toString().trim();
-    }
-
-    private Double parseDouble(String value) {
-        try {
-            return value.isEmpty() ? 0.0 : Double.parseDouble(value.replace(",", "."));
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
-    }
-
-    private boolean isRowEmpty(Row row) {
-        return row == null || row.getPhysicalNumberOfCells() == 0;
-    }
-
-    private String safeTrim(String value) {
-        return value == null ? "" : value.trim();
-    }
+    // Return the import result with imported and skipped rows
+    return new ImportResult(imported, skipped);
 }
 ```
 
-### 3. **Repository for Saving Data**
+### 3. **Explanation of the Code**:
 
-Make sure you have a repository for `ArticleHorsBordereau` to handle the persistence:
+* **Parsing the Excel Rows**: The method reads the rows from the Excel file (starting from the second row to skip the header) and extracts the values for each article (code, designation, unit, quantity, unit price).
+
+* **Data Validation**: For each row, the code checks if `code` and `designation` are present. If not, the row is skipped. It also checks that the quantity and unit price are valid numbers.
+
+* **Look Up Article**: The code looks up the article in the `Article` table based on the article code (you can modify this to use the `designation` if you prefer, or even both).
+
+* **Montant Calculation**: The `montant` for each row is calculated as `quantite * prixUnitaire`, and the total amount is stored in `totalMontant`.
+
+* **Save the Data**: After processing the row, it creates an instance of `ArticleHorsBordereau` and saves it to the database.
+
+### 4. **Helper Methods**:
+
+You may have already defined these methods in your code to safely retrieve cell values and check row emptiness.
 
 ```java
-import org.springframework.data.jpa.repository.JpaRepository;
+private String getCellValue(Cell cell) {
+    return cell == null ? "" : cell.toString().trim();
+}
 
-public interface ArticleHorsBordereauRepository extends JpaRepository<ArticleHorsBordereau, Long> {
+private boolean isRowEmpty(Row row) {
+    return row == null || row.getPhysicalNumberOfCells() == 0;
 }
 ```
 
-### 4. **Excel Import Result**
+### 5. **ImportResult Class**:
 
-You'll want to return some kind of result object (like `ExcelImportResult`) to indicate success/failure, as shown in your previous methods. Here\u2019s a simple version:
+This class is used to return the results of the import, indicating which rows were successfully imported and which were skipped.
 
 ```java
-public class ExcelImportResult {
-    private List<ArticleHorsBordereau> importedArticles;
-    private List<SkippedRow> skippedRows;
+public class ImportResult {
+    private List<ArticleHorsBordereau> imported;
+    private List<SkippedRow> skipped;
 
-    // Constructor, getters and setters
+    // Constructor, getters, and setters
 }
 ```
 
-### 5. **Skipped Row Class**
+### 6. **SkippedRow Class**:
 
-This class helps you keep track of rows that were skipped due to errors.
+This is a utility class to keep track of rows that were skipped due to errors.
 
 ```java
 public class SkippedRow {
     private int rowNum;
     private String reason;
 
-    // Constructor, getters and setters
+    // Constructor, getters, and setters
 }
 ```
 
-### 6. **Usage Example**
+### Conclusion:
 
-In your controller or service where you handle the file upload, you can call this method to read and save the "articles hors bordereau" from the Excel file:
-
-```java
-@Autowired
-private ArticleHorsBordereauService articleHorsBordereauService;
-
-public void handleFileUpload(InputStream fileInputStream, Long projetId) {
-    ExcelImportResult result = articleHorsBordereauService.excelToArticleHorsBordereau(fileInputStream, projetId);
-    // Handle result (e.g., show skipped rows, etc.)
-}
-```
-
-### Conclusion
-
-This approach will allow you to handle the "articles hors bordereau" file, read it, and store the details in your database. The file will include the article code, designation, unit, quantity, unit price, and the total amount, which will be calculated during the file processing.
+This method processes the Excel file for "articles hors bordereau", extracts the necessary data (article code, designation, unit, quantity, unit price), calculates the total amount, and stores it in the `ArticleHorsBordereau` entity linked to a project. It handles errors, skips invalid rows, and returns the results for review.
