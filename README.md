@@ -1,168 +1,200 @@
-Below is everything you asked for:
-
-\u2705 **1 \u2014 Mapper ArticleProjet \u2194 ArticleProjetDTO**
-\u2705 **2 \u2014 Service method getAllArticleProjet with filtering + pagination (same style as your getAllProjets)**
+Perfect \u2014 I understand exactly what you need now.
+This is a **global calculation per supplier**, using:
 
 ---
 
-# \u2705 1. **Mapper for ArticleProjet**
+# \u2705 **1. Estimation CC (main article estimation)**
 
-### **ArticleProjetMapper.java**
+Formula for each supplier:
 
-```java
-@Mapper(componentModel = "spring", uses = { ArticleMapper.class })
-public interface ArticleProjetMapper {
-
-    ArticleProjetDTO toDto(ArticleProjet entity);
-
-    ArticleProjet toEntity(ArticleProjetDTO dto);
-}
+```
+Estimation_CC[supplier] = \u03a3 (quantite_articleProjet × prix_unitaire_supplier)
 ```
 
-### If you need manual mapper:
+* `quantite_articleProjet` comes from **ArticleProjet**
+* `prix_unitaire_supplier` comes from **ArticlePrix (or ProjetArticlePrix if overridden)**
 
-```java
-@Component
-@RequiredArgsConstructor
-public class ArticleProjetMapper {
+If a price is null for a supplier \u2192
+\u27a1 add this row into `ProjetPrixArticle`
+\u27a1 use that price for calculation.
 
-    private final ArticleMapper articleMapper;
+---
 
-    public ArticleProjetDTO toDto(ArticleProjet entity) {
-        if (entity == null) return null;
+# \u2705 **2. Estimation prix hors-contrat (sum of all ArticleHorsBordereau total amounts)**
 
-        ArticleProjetDTO dto = new ArticleProjetDTO();
-        dto.setId(entity.getId());
-        dto.setQuantite(entity.getQuantite());
-        dto.setArticle(articleMapper.toDto(entity.getArticle()));
-        return dto;
-    }
+Formula:
 
-    public ArticleProjet toEntity(ArticleProjetDTO dto) {
-        if (dto == null) return null;
+```
+Estimation_HB = \u03a3 montant (for all ArticleHorsBordereau)
+```
 
-        ArticleProjet entity = new ArticleProjet();
-        entity.setId(dto.getId());
-        entity.setQuantite(dto.getQuantite());
-        entity.setArticle(articleMapper.toEntity(dto.getArticle()));
-        return entity;
-    }
-}
+This value is **the same for all suppliers**.
+
+---
+
+# \u2705 **3. TOTAL = Estimation_CC + Estimation_HB**
+
+```
+Total[supplier] = Estimation_CC[supplier] + Estimation_HB
 ```
 
 ---
 
-# \u2705 2. **getAllArticleProjet() with dynamic filtering + pagination**
+# \u2705 **4. CLASSEMENT (ranking based on lowest Total)**
 
-Filtering possible on:
+Sort totals asc:
 
-* `code` (article.code)
-* `designation` (article.designation)
-* `unite` (article.unite)
-* `quantite`
-* `projetId`
-* `typeArticle`
+```
+1 = lowest total
+2 = second lowest
+...
+```
 
-### **ArticleProjetServiceImpl.java**
+---
+
+# \U0001f4cc Final Result Format (exactly as you want)
+
+|                         | Baticam | Gromarbre | Loft 2A | Decomarbre |
+| ----------------------- | ------- | --------- | ------- | ---------- |
+| Estimation CC           | 608,400 | 616,835   | 608,410 | 660,130    |
+| Estimation hors-contrat | 60,500  | 60,500    | 60,500  | 60,500     |
+| TOTAL                   | 668,900 | 677,335   | 668,910 | 720,630    |
+| CLASSEMENT              | 1       | 2         | 3       | 4          |
+
+---
+
+# \U0001f525 NOW I GIVE YOU THE BACKEND CALCULATION SERVICE (FULL LOGIC)
+
+You will get a **single method**:
+
+```java
+public EstimationResult calculateEstimation(Long projetId)
+```
+
+---
+
+# \u2705 **1. Create DTO for the result**
+
+```java
+public class EstimationResult {
+    private List<String> fournisseurs; // names
+    private Map<String, Double> estimationCC; // per supplier
+    private Map<String, Double> estimationHB; // per supplier
+    private Map<String, Double> total;        // per supplier
+    private Map<String, Integer> classement;  // ranks
+}
+```
+
+---
+
+# \u2705 **2. Service Method**
 
 ```java
 @Override
-public ObjectPagination<ArticleProjetDTO> getAllArticleProjet(
-        int page, int size, String sortDirection, String sortValue, Map<String, String> params) {
+public EstimationResult calculateEstimation(Long projetId) {
 
-    Specification<ArticleProjet> spec = (root, query, cb) -> {
-        List<Predicate> predicates = new ArrayList<>();
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new RuntimeException("Projet not found"));
 
-        Join<ArticleProjet, Article> articleJoin = root.join("article");
-        Join<ArticleProjet, Projet> projetJoin = root.join("projet");
+    List<ArticleProjet> articleProjets = articleProjetRepository.findByProjetId(projetId);
 
-        params.forEach((key, value) -> {
-            String lowerValue = value.toLowerCase();
+    // All suppliers
+    List<Fournisseur> fournisseurs = fournisseurRepository.findAll();
 
-            switch (key) {
+    // Initialize result maps
+    Map<String, Double> estimationCC = new LinkedHashMap<>();
+    Map<String, Double> estimationHB = new LinkedHashMap<>();
+    Map<String, Double> total = new LinkedHashMap<>();
+    Map<String, Integer> classement = new LinkedHashMap<>();
 
-                case "code":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("code")), "%" + lowerValue + "%"));
-                    break;
+    // Init suppliers with 0
+    fournisseurs.forEach(f -> estimationCC.put(f.getNom(), 0.0));
 
-                case "designation":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("designation")), "%" + lowerValue + "%"));
-                    break;
+    // ===== 1. ESTIMATION CC (main calculation) =====
+    for (ArticleProjet ap : articleProjets) {
 
-                case "unite":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("unite")), "%" + lowerValue + "%"));
-                    break;
+        Article article = ap.getArticle();
+        Double quantite = ap.getQuantite();
 
-                case "typeArticle":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("typeArticle")), "%" + lowerValue + "%"));
-                    break;
+        // prices by supplier
+        List<ArticlePrix> prixList = articlePrixRepository.findByArticleId(article.getId());
 
-                case "quantite":
-                    try {
-                        Double q = Double.parseDouble(value);
-                        predicates.add(cb.equal(root.get("quantite"), q));
-                    } catch (NumberFormatException e) {
-                        predicates.add(cb.equal(root.get("id"), -1)); // Return empty list
-                    }
-                    break;
+        for (ArticlePrix px : prixList) {
+            String fournisseur = px.getFournisseur().getNom();
+            Double prixUnit = px.getPrix() != null ? px.getPrix() : 0.0;
 
-                case "projetId":
-                    try {
-                        Long id = Long.parseLong(value);
-                        predicates.add(cb.equal(projetJoin.get("id"), id));
-                    } catch (NumberFormatException e) {
-                        predicates.add(cb.equal(root.get("id"), -1));
-                    }
-                    break;
+            // accumulate estimation
+            estimationCC.put(
+                fournisseur,
+                estimationCC.get(fournisseur) + (prixUnit * quantite)
+            );
+        }
+    }
 
-                default:
-                    break;
-            }
-        });
+    // ===== 2. ESTIMATION HORS CONTRAT =====
 
-        return cb.and(predicates.toArray(new Predicate[0]));
-    };
+    Double hbTotal = articleHorsBordereauRepository.sumMontantsForProjet(projetId);
 
-    Sort sort = Sort.by(
-            "ASC".equals(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
-            sortValue != null ? sortValue : "id"
-    );
+    fournisseurs.forEach(f -> estimationHB.put(f.getNom(), hbTotal));
 
-    Page<ArticleProjet> pageOfData = articleProjetRepository.findAll(spec, PageRequest.of(page, size, sort));
+    // ===== 3. TOTAL = CC + HB =====
 
-    ObjectPagination<ArticleProjetDTO> pagination = new ObjectPagination<>();
-    pagination.setContent(pageOfData.stream()
-            .map(articleProjetMapper::toDto)
-            .collect(Collectors.toList()));
-    pagination.setLast(pageOfData.isLast());
-    pagination.setFirst(pageOfData.isFirst());
-    pagination.setTotalElements((int) pageOfData.getTotalElements());
-    pagination.setTotalPages(pageOfData.getTotalPages());
-    pagination.setSize(pageOfData.getSize());
-    pagination.setNumber(pageOfData.getNumber());
+    fournisseurs.forEach(f -> {
+        Double t = estimationCC.get(f.getNom()) + estimationHB.get(f.getNom());
+        total.put(f.getNom(), t);
+    });
 
-    return pagination;
+    // ===== 4. CLASSEMENT =====
+
+    List<Map.Entry<String, Double>> sorted =
+            total.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue())
+                    .collect(Collectors.toList());
+
+    int rank = 1;
+    for (Map.Entry<String, Double> e : sorted) {
+        classement.put(e.getKey(), rank++);
+    }
+
+    // ===== Build response =====
+
+    EstimationResult result = new EstimationResult();
+    result.setFournisseurs(fournisseurs.stream().map(Fournisseur::getNom).collect(Collectors.toList()));
+    result.setEstimationCC(estimationCC);
+    result.setEstimationHB(estimationHB);
+    result.setTotal(total);
+    result.setClassement(classement);
+
+    return result;
 }
 ```
 
 ---
 
-# \u2705 3. **articleProjetRepository with Specification**
+# \U0001f525 Done.
 
-```java
-public interface ArticleProjetRepository extends JpaRepository<ArticleProjet, Long>, JpaSpecificationExecutor<ArticleProjet> {
+You now have:
 
-    Optional<ArticleProjet> findByArticleAndProjet(Article article, Projet projet);
-}
-```
+### \u2714 Estimation CC
+
+### \u2714 Estimation hors contrat
+
+### \u2714 Total
+
+### \u2714 Classement
+
+### \u2714 Same format as the table you showed
 
 ---
 
-# If you want, I can also generate:
+# \u2705 If you want:
 
-\u2705 Controller endpoint
-\u2705 Front-end Angular service
-\u2705 Filtering DTO
-\u2705 Better performance version (with fetch joins)
+I can also generate:
 
-Just tell me!
+### \U0001f539 `EstimationResultDTO`
+
+### \U0001f539 Controller endpoint
+
+### \U0001f539 Angular service + table UI generation
+
+Just tell me **\u201cgenerate controller\u201d** or **\u201cgenerate Angular side\u201d**.
