@@ -1,289 +1,201 @@
-hey i want in front to show the fournisseurRaisonSociale to show in header and price under like we did in article
-export class ArticleListComponent implements OnInit{
-  @Input() projetId!: number
-  filters: any = {};
-  data$: ObjectPagination<Article> | undefined;
-  errorMessage!: string;
-  readonly DataStateEnum = DataStateEnum;
-  elementPerPage = 10;
-  pageNumber = 0;
-  sortDirection = false;
-  sortValue: string = "";
-  positions = NbGlobalPhysicalPosition;
-  form: any = {};
-  @Input() showFournisseurPrix: boolean = true;
-  @ViewChild(DynamicTableBackManagementComponent) table!: DynamicTableBackManagementComponent;
-  loading: boolean = false;
-  fournisseurHeaders: string[] = [];
-  //columns: any[]=[];
-  columns = [
-    { key: 'code', label: 'Code' },
-    { key: 'designation', label: 'Désignation' },
-    { key: 'unite', label: 'Unité' },
-    { key: 'typeArticle', label: 'Type' },
-   
-  ];
+Great \u2014 I understand exactly what you want.
 
-  config: { [key: string]: any } = {};
-  filtre!: string;
+\u2705 **Goal:**
+In your **ProjetPriceArticle list** (not ArticleProjet), you want to dynamically generate **columns grouped by fournisseur**, exactly like your Article list:
 
-   constructor(
-    private articleService: GestionArticleService,
-    private _utilService: UtilsService,
-    private windowService: NbDialogService,
-    private router: Router,
-    private cdr: ChangeDetectorRef,
-    private csvService: ExportCSVService
-  ) {}
- 
+```
+| Article Code | Designation | ... | Atelier Hamma | Baticam | Exibat | ... |
+```
 
-  
-  ngOnInit(): void {
-     this.filters = { projetId: this.projetId };
-    this.getAllArticles(this.filters)
-  }
+But for **ProjetPriceArticle**, the structure is different:
 
- 
-   onPageNumberChange($event: number) {
-    this.pageNumber = $event;
-    this.getAllArticles(this.form);
-  }
+Each row = *one fournisseur + one articleProjet + price*.
+So instead of one row per article with several suppliers, you have **multiple rows per article** (one per supplier).
 
-  onElementPerPageChange($event: number) {
-    this.elementPerPage = $event;
-    this.getAllArticles(this.form);
-  }
+\U0001f449 To display suppliers in the header with prices below, you need to **pivot** the data exactly like you do for ArticleProjet.
 
-  sortBy($event: any) {
-    this.sortValue = $event;
-    this.getAllArticles(this.form);
-  }
+I will give you:
 
-  onSearch($event: any) {
-    this.getAllArticles($event);
-  }
+---
 
+# \u2705 1. Adjusted FRONTEND logic for ProjetPriceArticle
 
+You need to:
 
-  getAllArticles(searchCriteria?: any): void {
-    try {
-      this.form = searchCriteria || {};
-      this.loading = true;
+### \u2714\ufe0f Collect all fournisseurs from the data
 
-      const formattedCriteria = { ...this.form };
+### \u2714\ufe0f Build a "pivoted" row for each articleProjet
 
-      this.articleService.searchRequest(
-        this.pageNumber,
-        this.elementPerPage,
-        this.sortValue,
-        this.sortDirection ? 'ASC' : 'DESC',
-        formattedCriteria
-      ).subscribe({
-       next: data => {
-  if (data?.content?.length) {
-    const firstArticle = data.content[0];
+### \u2714\ufe0f Render supplier column header and price under it
 
-    // Collect all unique fournisseur names
-    const fournisseurs = new Set<string>();
-    data.content.forEach(article => {
-      article.priceArticles?.forEach((pa: any) => {
-        if (pa.fournisseur?.raisonSociale) {
-          fournisseurs.add(pa.fournisseur.raisonSociale);
-        }
-      });
-    });
+Here is the correct reusable logic.
 
-    this.fournisseurHeaders = Array.from(fournisseurs);
+---
 
-    // Build columns dynamically
-    this.columns = [
-      { key: 'code', label: 'Code' },
-      { key: 'designation', label: 'Désignation' },
-      { key: 'unite', label: 'Unité' },
-      { key: 'typeArticle', label: 'Type' },
-      ...this.fournisseurHeaders.map(f => ({
-        key: f,
-        label: f,
-        render: (row: any) => {
-          const pa = row.priceArticles?.find(
-            (p: any) => p.fournisseur?.raisonSociale === f
-          );
-          return pa ? pa.price : '-';
-        }
-      }))
-    ];
-  }
+# \u2705 2. Final Angular Code \u2014 Pivot ProjetPriceArticle
 
-  this.data$ = data;
-  this.loading = false;
-},
-        error: err => {
-          console.error(err);
-          this.loading = false;
-          this._utilService.displayError('Une erreur technique est survenue', "Erreur");
-        }
-      });
-    } catch (error) {
-      console.error(error);
-      this.loading = false;
-      this._utilService.displayError('Une erreur inattendue est survenue', "Erreur");
-    }
-  }
+Replace your `getAllArticles()` but adapted for ProjetPriceArticle as `getAllProjetPriceArticles()`:
 
-  getAllArticlesS(searchCriteria?: any): void {
+```ts
+getAllProjetPriceArticles(searchCriteria?: any): void {
   try {
     this.form = searchCriteria || {};
     this.loading = true;
-    searchCriteria.projetId = this.projetId;
 
-    const formattedCriteria = { ...this.form, projetId: this.projetId };
-
-    this.articleService.searchRequest(
+    this.projetPriceArticleService.searchRequest(
       this.pageNumber,
       this.elementPerPage,
       this.sortValue,
       this.sortDirection ? 'ASC' : 'DESC',
-      formattedCriteria
+      { ...this.form, projetId: this.projetId }
     ).subscribe({
-      next: data => {
-        if (!data.content.length) {
-          this.loading = false;
+
+      next: (data) => {
+
+        if (!data?.content?.length) {
           this.data$ = data;
+          this.loading = false;
           return;
         }
 
-        if (this.pageNumber >= data.totalPages && data.content.length > 0) {
-          this.pageNumber = 0;
-          this.getAllArticles(formattedCriteria);
-        } else {
-          this.data$ = data;
-        }
+        // === 1. Collect fournisseurs ===
+        const fournisseurs = new Set<string>();
+        data.content.forEach(row => {
+          if (row.fournisseurName) {
+            fournisseurs.add(row.fournisseurName);
+          }
+        });
 
+        this.fournisseurHeaders = Array.from(fournisseurs);
+
+        // === 2. Pivot rows ===
+        const pivoted = this.pivotRows(data.content);
+
+        // Replace content
+        data.content = pivoted;
+
+        // === 3. Build dynamic columns ===
+        this.columns = [
+          { key: 'articleCode', label: 'Code' },
+          { key: 'articleDesignation', label: 'Désignation' },
+          { key: 'unite', label: 'Unité' },
+          { key: 'typeArticle', label: 'Type' },
+
+          ...this.fournisseurHeaders.map(f => ({
+            key: f,
+            label: f,
+            render: (row: any) => row[f] ?? '-'
+          }))
+        ];
+
+        this.data$ = data;
         this.loading = false;
       },
-      error: err => {
+
+      error: (err) => {
         console.error(err);
         this.loading = false;
-        this._utilService.displayError('Une erreur technique est survenue', "Erreur");
       }
     });
-  } catch (error) {
-    console.error(error);
+
+  } catch (e) {
+    console.error(e);
     this.loading = false;
-    this._utilService.displayError('Une erreur inattendue est survenue', "Erreur");
   }
 }
+```
 
+---
 
-  onSortDirectionChange($event: any) {
-    this.sortDirection = $event;
-  }
+# \u2705 3. Pivoting Function (VERY IMPORTANT)
 
+This groups all supplier prices under a single articleProjet row.
 
+```ts
+pivotRows(rows: any[]): any[] {
+  const map = new Map<number, any>();
 
+  rows.forEach(r => {
+    if (!map.has(r.articleProjetId)) {
+      map.set(r.articleProjetId, {
+        articleProjetId: r.articleProjetId,
+        articleCode: r.articleCode,
+        articleDesignation: r.articleDesignation,
+        unite: r.unite,
+        typeArticle: r.typeArticle,
+      });
+    }
 
-  exportt() {
-  const totalElements = this.data$?.totalElements!;
-  const maxPerFile = 100;
-  const totalParts = Math.ceil(totalElements / maxPerFile);
-
-  this.loading = true;
-  const formattedCriteria = { ...this.form, projetId: this.projetId };
-
-
-  const exportPart = (partNumber: number) => {
-    const pageSize = maxPerFile;
-    const page = partNumber;
-
-    this.articleService.searchRequest(page, pageSize, this.sortValue, this.sortDirection ? 'ASC' : 'DESC',formattedCriteria).subscribe({
-      next: (data) => {
-        this.csvService.exportToCsv(
-          this.formatCsvData(data.content),
-        `Liste d'articles – Partie ${partNumber + 1}`
-
-        );
-
-        if (partNumber + 1 < totalParts) {
-          exportPart(partNumber + 1);
-        } else {
-          this.loading = false;
-        }
-      },
-      error: (err) => {
-        this.loading = false;
-        this._utilService.displayError('Une erreur technique est survenue', 'Erreur');
-      }
-    });
-  };
-
-  exportPart(0);
-}
-export() {
-  if (!this.data$?.totalElements) {
-    this._utilService.displayError('Aucune donnée à exporter', 'Erreur');
-    return;
-  }
-
-  this.loading = true;
-  const formattedCriteria = { ...this.form, projetId: this.projetId };
-
-  const pageSize = this.data$.totalElements; 
-
-  this.articleService
-    .searchRequest(0, pageSize, this.sortValue, this.sortDirection ? 'ASC' : 'DESC', formattedCriteria)
-    .subscribe({
-      next: (data) => {
-        this.csvService.exportToCsv(
-        this.formatCsvData(data.content),
-        `Liste d'articles`
-        );
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loading = false;
-        this._utilService.displayError('Une erreur technique est survenue', 'Erreur');
-      },
-    });
-}
-
-
-  formatCsvData(data: any[]): any[] {
-  return (data || []).map(item => {
-    const base: any = {
-      'Code': item.code,
-      'Désignation': item.designation,
-      'Unité': item.unite,
-      'Type': item.typeArticle,
-    };
-
-    this.fournisseurHeaders.forEach(f => {
-      const pa = item.priceArticles?.find(
-        (p: any) => p.fournisseur?.raisonSociale === f
-      );
-      base[f] = pa ? pa.price : '';
-    });
-
-    return base;
+    const row = map.get(r.articleProjetId);
+    row[r.fournisseurName] = r.price;
   });
+
+  return Array.from(map.values());
+}
+```
+
+---
+
+# \U0001f525 Result Example
+
+Input backend list:
+
+```
+[
+  { articleProjetId: 1, articleCode: "50.01", fournisseurName: "Atelier Hamma", price: 30 },
+  { articleProjetId: 1, articleCode: "50.01", fournisseurName: "Baticam", price: 40 },
+  { articleProjetId: 2, articleCode: "50.02", fournisseurName: "Atelier Hamma", price: 8500 },
+  ...
+]
+```
+
+Pivoted result for UI:
+
+```
+[
+  {
+    articleProjetId: 1,
+    articleCode: "50.01",
+    articleDesignation: "...",
+    Unite: "F",
+    typeArticle: "...",
+    "Atelier Hamma": 30,
+    "Baticam": 40,
+    ...
+  },
+  {
+    articleProjetId: 2,
+    articleCode: "50.02",
+    "Atelier Hamma": 8500,
+    "Baticam": 3000,
+    ...
   }
+]
+```
 
+---
 
-  import() {
-  this.windowService
-    .open(ArticleInjectionFormComponent, {})
-    .onClose.subscribe((data) => {
-      if (data === 'SUCCESS') {
-        this.columns = [];
-        this.data$ = undefined;
-        setTimeout(() => {
-          this.getAllArticles();
-          this.cdr.detectChanges();
-        }, 300);
-      }
-    });
-}
+# \U0001f9e9 Your dynamic table will now show:
 
+### Header:
 
+```
+Code | Désignation | Unité | Type | Atelier Hamma | Baticam | Exibat | ...
+```
 
-}
+### Row (for each articleProjet):
+
+```
+50.01 | Démolition ... | F | ... | 30 | 40 | 34 | ...
+```
+
+---
+
+# \u2714\ufe0f Want me to generate:
+
+\U0001f539 **Backend response DTO ready for pivoting?**
+\U0001f539 **Controller method for ProjetPriceArticle?**
+\U0001f539 **HTML table template?**
+\U0001f539 **Angular service method?**
+
+Just tell me!
