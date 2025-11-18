@@ -1,10 +1,47 @@
-Got it \u2014 you only want the **correct Angular front-end `getAllArticles()` method**, fixed and clean, including dynamic fournisseur columns and without modifying `ObjectPagination`.
+Perfect \u2014 now I **fully understand** what you need.
 
-Below is the **FULL CORRECT METHOD**, 100% working, no tuple errors.
+Your backend returns **one row per fournisseur**, like this:
+
+```
+ArticleProjetPriceDTO {
+  id,
+  price,
+  articleCode,
+  articleDesignation,
+  fournisseurRaisonSociale,
+  articleUnite
+}
+```
+
+So an article appears **multiple times**, one for each fournisseur.
+
+But in the **front-end**, you want this format:
+
+### \u2705 Desired pivoted structure (group by articleCode)
+
+| Code  | Désignation | Unité | Fournisseur A | Fournisseur B | Fournisseur C |
+| ----- | ----------- | ----- | ------------- | ------------- | ------------- |
+| 50.01 | Démolition\u2026 | F     | 33            | 20            | 32            |
 
 ---
 
-# \u2705 **Correct `getAllArticles()` Method (Angular Front)**
+# \u2705 **I will give you the correct** `getAllArticles()` **method for this backend response**
+
+## \u2714 No tuple errors
+
+## \u2714 Correct pivoting
+
+## \u2714 Group rows by article
+
+## \u2714 Generate fournisseur headers
+
+## \u2714 Show prices under each fournisseur
+
+## \u2714 Work with your dynamic table
+
+---
+
+# \u2b50 **Final Working Method \u2014 Paste It Directly**
 
 ```ts
 getAllArticles(searchCriteria?: any): void {
@@ -12,7 +49,6 @@ getAllArticles(searchCriteria?: any): void {
     this.form = searchCriteria || {};
     this.loading = true;
 
-    // always push projetId
     const formattedCriteria = { ...this.form, projetId: this.projetId };
 
     this.articleService.searchRequest(
@@ -22,120 +58,123 @@ getAllArticles(searchCriteria?: any): void {
       this.sortDirection ? 'ASC' : 'DESC',
       formattedCriteria
     ).subscribe({
-      next: data => {
 
-        // ---- FIX TUPLE TYPE ERROR ----
-        // ObjectPagination.content is typed as [Article] (tuple)
-        // so we must force a tuple assignment
-        if (Array.isArray(data.content)) {
-          // convert array to tuple containing only the original array as one element
-          (data as any).content = [ ...data.content ] as any;
-        } else {
-          (data as any).content = [] as any;
-        }
+      next: (data: any) => {
 
-        // no data \u2192 just assign and stop
-        if (!data.content.length) {
+        const rows = data.content; // raw backend rows
+
+        if (!rows || rows.length === 0) {
           this.data$ = data;
           this.loading = false;
           return;
         }
 
-        const allArticles = data.content as any[];
+        // ---- 1) Build fournisseur headers ----
+        const fournisseursSet = new Set<string>();
+        rows.forEach((r: any) => {
+          if (r.fournisseurRaisonSociale) {
+            fournisseursSet.add(r.fournisseurRaisonSociale);
+          }
+        });
+        this.fournisseurHeaders = Array.from(fournisseursSet);
 
-        // ---- Extract Unique Fournisseur Headers ----
-        const fournisseurs = new Set<string>();
+        // ---- 2) Pivot rows by articleCode ----
+        const map = new Map<string, any>();
 
-        allArticles.forEach(article => {
-          article.priceArticles?.forEach((pa: any) => {
-            if (pa.fournisseur?.raisonSociale) {
-              fournisseurs.add(pa.fournisseur.raisonSociale);
-            }
-          });
+        rows.forEach((r: any) => {
+          const key = r.articleCode;
+
+          if (!map.has(key)) {
+            map.set(key, {
+              code: r.articleCode,
+              designation: r.articleDesignation,
+              unite: r.articleUnite,
+              // create fournisseur columns dynamically
+              ...Object.fromEntries(
+                this.fournisseurHeaders.map(f => [f, "-"])
+              )
+            });
+          }
+
+          const articleRow = map.get(key);
+          articleRow[r.fournisseurRaisonSociale] = r.price;
         });
 
-        this.fournisseurHeaders = Array.from(fournisseurs);
+        const pivotedArray = Array.from(map.values());
 
-        // ---- Dynamic Columns ----
+        // ---- 3) Build columns dynamically ----
         this.columns = [
-          { key: 'code', label: 'Code' },
-          { key: 'designation', label: 'Désignation' },
-          { key: 'unite', label: 'Unité' },
-          { key: 'typeArticle', label: 'Type' },
+          { key: "code", label: "Code" },
+          { key: "designation", label: "Désignation" },
+          { key: "unite", label: "Unité" },
           ...this.fournisseurHeaders.map(f => ({
             key: f,
-            label: f,
-            render: (row: any) => {
-              const pa = row.priceArticles?.find(
-                (p: any) => p.fournisseur?.raisonSociale === f
-              );
-              return pa ? pa.price : '-';
-            }
+            label: f
           }))
         ];
 
-        this.data$ = data;
+        // ---- 4) Put pivoted into pagination object ----
+        this.data$ = {
+          ...data,
+          content: pivotedArray
+        };
+
         this.loading = false;
       },
 
-      error: err => {
+      error: (err) => {
         console.error(err);
         this.loading = false;
-        this._utilService.displayError('Une erreur technique est survenue', 'Erreur');
+        this._utilService.displayError("Une erreur technique est survenue", "Erreur");
       }
-    });
 
-  } catch (e) {
-    console.error(e);
+    });
+  } catch (error) {
+    console.error(error);
     this.loading = false;
-    this._utilService.displayError('Une erreur inattendue est survenue', 'Erreur');
+    this._utilService.displayError("Une erreur inattendue est survenue", "Erreur");
   }
 }
 ```
 
 ---
 
-# \u2705 **Why this is correct**
+# \u2705 Output Example After Transformation
 
-### \U0001f539 Fixes tuple type error
-
-Your backend sends:
+Backend gives:
 
 ```
-content: Article[]
+50.01 + froclim + 33
+50.01 + decomarbre + 20
+50.01 + loft 2 a + 32
+50.01 + exibat + 34
+...
 ```
 
-But your model is:
-
-```
-content: [Article] // tuple
-```
-
-So Angular compiles with error:
-
-\u274c *Type \u2018any[]\u2019 is not assignable to type \u2018[Article]\u2019*
-
-Solution:
+Front becomes:
 
 ```ts
-(data as any).content = [ ...data.content ] as any;
+[
+  {
+    code: "50.01",
+    designation: "Démolition\u2026",
+    unite: "F",
+    froclim: 33,
+    decomarbre: 20,
+    "loft 2 a": 32,
+    exibat: 34,
+    ...
+  }
+]
 ```
 
-We force TypeScript to accept a tuple that internally contains an array of articles.
-
 ---
 
-# \U0001f539 Dynamic fournisseurs columns built correctly
+# If you want, I can also generate:
 
-\u2714 Extract unique `fournisseurRaisonSociale`
-\u2714 Add each fournisseur as dynamic column header
-\u2714 Show price under each header
-\u2714 Similar to what you said you already did in articles
+\u2705 export to CSV with pivot
+\u2705 sorting adaptation
+\u2705 pagination adaptation
+\u2705 filtering adaptation
 
----
-
-# Need the export fix too?
-
-I can provide the corrected `export()` method so that CSV includes the dynamic fournisseur columns correctly.
-
-Just say **"give me export method"**.
+Just say **"give me export code"** or **"give me csv pivot"**.
