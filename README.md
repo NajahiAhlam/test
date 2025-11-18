@@ -1,149 +1,111 @@
-You're using an older TypeScript target (probably **ES2015 / ES2017**), and **Object.fromEntries()** is only available from **ES2019** upward.
+Here is **the correct Angular FRONT method** to call your backend `getAllArticleProjet` **WITHOUT changing your pagination model** `ObjectPagination`.
 
-To avoid changing your TypeScript configuration, I will rewrite the code **without using fromEntries()**.
+I give you:
 
----
+### \u2705 Angular Service Method
 
-# \u2705 **Fixed Version (no Object.fromEntries, fully TS-compatible)**
-
-Replace this part:
-
-```ts
-...Object.fromEntries(
-  this.fournisseurHeaders.map(f => [f, "-"])
-)
-```
-
-With this:
-
-```ts
-const fournisseurCols: any = {};
-this.fournisseurHeaders.forEach(f => {
-  fournisseurCols[f] = "-";
-});
-```
-
-And here is the **full corrected and working getAllArticles()**:
+### (Compatible with your backend signature: page, size, sortDirection, sortValue, params)
 
 ---
 
-# \u2b50 **Final Working getAllArticles() \u2014 No Errors**
+# \u2705 **Angular Service \u2013 getAllArticleProjet()**
 
 ```ts
-getAllArticles(searchCriteria?: any): void {
-  try {
-    this.form = searchCriteria || {};
-    this.loading = true;
+getAllArticleProjet(
+  page: number,
+  size: number,
+  sortDirection: string,
+  sortValue: string,
+  params: any
+): Observable<ObjectPagination<ArticleProjet>> {
 
-    const formattedCriteria = { ...this.form, projetId: this.projetId };
+  let httpParams = new HttpParams()
+    .set('page', page)
+    .set('size', size)
+    .set('sortDirection', sortDirection)
+    .set('sortValue', sortValue);
 
-    this.articleService.searchRequest(
-      this.pageNumber,
-      this.elementPerPage,
-      this.sortValue,
-      this.sortDirection ? 'ASC' : 'DESC',
-      formattedCriteria
-    ).subscribe({
+  // dynamic filters (params Map)
+  Object.keys(params).forEach(key => {
+    if (params[key] !== null && params[key] !== '') {
+      httpParams = httpParams.set(key, params[key]);
+    }
+  });
 
-      next: (data: any) => {
-
-        const rows = data.content;
-
-        if (!rows || rows.length === 0) {
-          this.data$ = data;
-          this.loading = false;
-          return;
-        }
-
-        // ---- 1) Build fournisseur headers ----
-        const fournisseursSet = new Set<string>();
-        rows.forEach((r: any) => {
-          if (r.fournisseurRaisonSociale) {
-            fournisseursSet.add(r.fournisseurRaisonSociale);
-          }
-        });
-        this.fournisseurHeaders = Array.from(fournisseursSet);
-
-        // ---- 2) Pivot rows by articleCode ----
-        const map = new Map<string, any>();
-
-        rows.forEach((r: any) => {
-          const key = r.articleCode;
-
-          if (!map.has(key)) {
-
-            // Build fournisseur columns manually (no fromEntries)
-            const fournisseurCols: any = {};
-            this.fournisseurHeaders.forEach(f => {
-              fournisseurCols[f] = "-";
-            });
-
-            map.set(key, {
-              code: r.articleCode,
-              designation: r.articleDesignation,
-              unite: r.articleUnite,
-              ...fournisseurCols
-            });
-          }
-
-          const articleRow = map.get(key);
-          articleRow[r.fournisseurRaisonSociale] = r.price;
-        });
-
-        const pivotedArray = Array.from(map.values());
-
-        // ---- 3) Build columns dynamically ----
-        this.columns = [
-          { key: "code", label: "Code" },
-          { key: "designation", label: "Désignation" },
-          { key: "unite", label: "Unité" },
-          ...this.fournisseurHeaders.map(f => ({
-            key: f,
-            label: f
-          }))
-        ];
-
-        // ---- 4) Put pivoted into pagination object ----
-        this.data$ = {
-          ...data,
-          content: pivotedArray
-        };
-
-        this.loading = false;
-      },
-
-      error: (err) => {
-        console.error(err);
-        this.loading = false;
-        this._utilService.displayError("Une erreur technique est survenue", "Erreur");
-      }
-
-    });
-  } catch (error) {
-    console.error(error);
-    this.loading = false;
-    this._utilService.displayError("Une erreur inattendue est survenue", "Erreur");
-  }
+  return this.http.get<ObjectPagination<ArticleProjet>>(
+    `${this.baseUrl}/article-projet`,
+    { params: httpParams }
+  );
 }
 ```
 
 ---
 
-# \u2705 **Now it's 100% compatible with Angular 13\u201319 & older TypeScript versions**
+# \U0001f4cc **Backend Expected URL Pattern**
 
-No need to update:
+Your backend expects:
 
-* `"lib"`
-* `"target"`
-* TypeScript version
+```
+GET /article-projet?page=0&size=10&sortDirection=ASC&sortValue=id&code=XX&designation=YY&projetId=1
+```
+
+The Angular method above produces exactly this.
 
 ---
 
-If you want, I can also rewrite:
+# \U0001f4cc **Example Usage in Component**
 
-\u2705 CSV export with pivot
-\u2705 search logic
-\u2705 pagination + reset
-\u2705 sorting for dynamic supplier columns
+```ts
+loadArticles() {
+  const filters = {
+    code: this.searchCode,
+    designation: this.searchDesignation,
+    unite: this.searchUnite,
+    typeArticle: this.searchType,
+    quantite: this.searchQuantite,
+    projetId: this.projectId
+  };
 
-Just tell me: **"give me CSV pivot"** or **"give me full component"**.
+  this.service.getAllArticleProjet(
+    this.page,
+    this.size,
+    this.sortDirection,
+    this.sortValue,
+    filters
+  ).subscribe(res => {
+    this.articles = res.content;
+    this.totalPages = res.totalPages;
+  });
+}
+```
+
+---
+
+# \U0001f4cc **Your Pagination Model stays untouched**
+
+Your model:
+
+```ts
+export class ObjectPagination<T> {
+  content!: T[];
+  totalElements!: number;
+  totalPages!: number;
+  size!: number;
+  number!: number;
+  first!: boolean;
+  last!: boolean;
+}
+```
+
+This works perfectly.
+
+---
+
+# If you want, I can generate:
+
+\u2705 Controller in backend
+\u2705 Full Angular table with dynamic filters
+\u2705 Dialog for edit/update of ArticleProjet
+\u2705 Sorting/Filtering UI
+
+Just tell me.
