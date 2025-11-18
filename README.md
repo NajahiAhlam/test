@@ -1,193 +1,289 @@
-Perfect \u2014 I will generate for you **the full equivalent of your getAllArticleProjet()**, but adapted for **ProjetPriceArticle**, including:
+hey i want in front to show the fournisseurRaisonSociale to show in header and price under like we did in article
+export class ArticleListComponent implements OnInit{
+  @Input() projetId!: number
+  filters: any = {};
+  data$: ObjectPagination<Article> | undefined;
+  errorMessage!: string;
+  readonly DataStateEnum = DataStateEnum;
+  elementPerPage = 10;
+  pageNumber = 0;
+  sortDirection = false;
+  sortValue: string = "";
+  positions = NbGlobalPhysicalPosition;
+  form: any = {};
+  @Input() showFournisseurPrix: boolean = true;
+  @ViewChild(DynamicTableBackManagementComponent) table!: DynamicTableBackManagementComponent;
+  loading: boolean = false;
+  fournisseurHeaders: string[] = [];
+  //columns: any[]=[];
+  columns = [
+    { key: 'code', label: 'Code' },
+    { key: 'designation', label: 'Désignation' },
+    { key: 'unite', label: 'Unité' },
+    { key: 'typeArticle', label: 'Type' },
+   
+  ];
 
-\u2705 **Service method getAllProjetPriceArticle(...)**
-\u2705 **Specification filtering logic**
-\u2705 **Mapper: ProjetPriceArticleMapper + DTO**
-\u2705 **Pagination response ObjectPagination<ProjetPriceArticleDTO>**
+  config: { [key: string]: any } = {};
+  filtre!: string;
 
-Everything ready to paste.
+   constructor(
+    private articleService: GestionArticleService,
+    private _utilService: UtilsService,
+    private windowService: NbDialogService,
+    private router: Router,
+    private cdr: ChangeDetectorRef,
+    private csvService: ExportCSVService
+  ) {}
+ 
 
----
+  
+  ngOnInit(): void {
+     this.filters = { projetId: this.projetId };
+    this.getAllArticles(this.filters)
+  }
 
-# \u2705 1. ProjetPriceArticleDTO
+ 
+   onPageNumberChange($event: number) {
+    this.pageNumber = $event;
+    this.getAllArticles(this.form);
+  }
 
-```java
-public class ProjetPriceArticleDTO {
+  onElementPerPageChange($event: number) {
+    this.elementPerPage = $event;
+    this.getAllArticles(this.form);
+  }
 
-    private Long id;
+  sortBy($event: any) {
+    this.sortValue = $event;
+    this.getAllArticles(this.form);
+  }
 
-    private Long articleProjetId;
-    private String articleCode;
-    private String articleDesignation;
+  onSearch($event: any) {
+    this.getAllArticles($event);
+  }
 
-    private Long fournisseurId;
-    private String fournisseurName;
 
-    private Double price;
-}
-```
 
----
+  getAllArticles(searchCriteria?: any): void {
+    try {
+      this.form = searchCriteria || {};
+      this.loading = true;
 
-# \u2705 2. ProjetPriceArticleMapper
+      const formattedCriteria = { ...this.form };
 
-```java
-@Component
-public class ProjetPriceArticleMapper {
+      this.articleService.searchRequest(
+        this.pageNumber,
+        this.elementPerPage,
+        this.sortValue,
+        this.sortDirection ? 'ASC' : 'DESC',
+        formattedCriteria
+      ).subscribe({
+       next: data => {
+  if (data?.content?.length) {
+    const firstArticle = data.content[0];
 
-    public ProjetPriceArticleDTO toDto(ProjetPriceArticle entity) {
-        if (entity == null) return null;
+    // Collect all unique fournisseur names
+    const fournisseurs = new Set<string>();
+    data.content.forEach(article => {
+      article.priceArticles?.forEach((pa: any) => {
+        if (pa.fournisseur?.raisonSociale) {
+          fournisseurs.add(pa.fournisseur.raisonSociale);
+        }
+      });
+    });
 
-        ProjetPriceArticleDTO dto = new ProjetPriceArticleDTO();
-        dto.setId(entity.getId());
+    this.fournisseurHeaders = Array.from(fournisseurs);
 
-        if (entity.getArticleProjet() != null) {
-            dto.setArticleProjetId(entity.getArticleProjet().getId());
-            dto.setArticleCode(entity.getArticleProjet().getArticle().getCode());
-            dto.setArticleDesignation(entity.getArticleProjet().getArticle().getDesignation());
+    // Build columns dynamically
+    this.columns = [
+      { key: 'code', label: 'Code' },
+      { key: 'designation', label: 'Désignation' },
+      { key: 'unite', label: 'Unité' },
+      { key: 'typeArticle', label: 'Type' },
+      ...this.fournisseurHeaders.map(f => ({
+        key: f,
+        label: f,
+        render: (row: any) => {
+          const pa = row.priceArticles?.find(
+            (p: any) => p.fournisseur?.raisonSociale === f
+          );
+          return pa ? pa.price : '-';
+        }
+      }))
+    ];
+  }
+
+  this.data$ = data;
+  this.loading = false;
+},
+        error: err => {
+          console.error(err);
+          this.loading = false;
+          this._utilService.displayError('Une erreur technique est survenue', "Erreur");
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      this.loading = false;
+      this._utilService.displayError('Une erreur inattendue est survenue', "Erreur");
+    }
+  }
+
+  getAllArticlesS(searchCriteria?: any): void {
+  try {
+    this.form = searchCriteria || {};
+    this.loading = true;
+    searchCriteria.projetId = this.projetId;
+
+    const formattedCriteria = { ...this.form, projetId: this.projetId };
+
+    this.articleService.searchRequest(
+      this.pageNumber,
+      this.elementPerPage,
+      this.sortValue,
+      this.sortDirection ? 'ASC' : 'DESC',
+      formattedCriteria
+    ).subscribe({
+      next: data => {
+        if (!data.content.length) {
+          this.loading = false;
+          this.data$ = data;
+          return;
         }
 
-        if (entity.getFournisseur() != null) {
-            dto.setFournisseurId(entity.getFournisseur().getId());
-            dto.setFournisseurName(entity.getFournisseur().getRaisonSociale());
+        if (this.pageNumber >= data.totalPages && data.content.length > 0) {
+          this.pageNumber = 0;
+          this.getAllArticles(formattedCriteria);
+        } else {
+          this.data$ = data;
         }
 
-        dto.setPrice(entity.getPrice());
-
-        return dto;
-    }
-
-    public ProjetPriceArticle toEntity(ProjetPriceArticleDTO dto) {
-        // Only use this if you need create/update
-        ProjetPriceArticle entity = new ProjetPriceArticle();
-        entity.setId(dto.getId());
-
-        // The service will need to fetch ArticleProjet and Fournisseur
-        return entity;
-    }
+        this.loading = false;
+      },
+      error: err => {
+        console.error(err);
+        this.loading = false;
+        this._utilService.displayError('Une erreur technique est survenue', "Erreur");
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    this.loading = false;
+    this._utilService.displayError('Une erreur inattendue est survenue', "Erreur");
+  }
 }
-```
 
----
 
-# \u2705 3. getAllProjetPriceArticle (FULL METHOD LIKE YOUR EXAMPLE)
+  onSortDirectionChange($event: any) {
+    this.sortDirection = $event;
+  }
 
-This mirrors your **getAllArticleProjet** but adapted to **ProjetPriceArticle**
-and joins the required references:
 
-* articleProjet
-* article
-* fournisseur
-* projet (through articleProjet)
 
-\U0001f449 Supports filters on:
 
-* projectId
-* fournisseurId
-* article code
-* article designation
-* price
+  exportt() {
+  const totalElements = this.data$?.totalElements!;
+  const maxPerFile = 100;
+  const totalParts = Math.ceil(totalElements / maxPerFile);
 
-Here is the full method:
+  this.loading = true;
+  const formattedCriteria = { ...this.form, projetId: this.projetId };
 
-```java
-@Override
-public ObjectPagination<ProjetPriceArticleDTO> getAllProjetPriceArticle(
-        int page, int size, String sortDirection, String sortValue, Map<String, String> params) {
 
-    Specification<ProjetPriceArticle> spec = (root, query, cb) -> {
-        List<Predicate> predicates = new ArrayList<>();
+  const exportPart = (partNumber: number) => {
+    const pageSize = maxPerFile;
+    const page = partNumber;
 
-        Join<ProjetPriceArticle, ArticleProjet> apJoin = root.join("articleProjet");
-        Join<ArticleProjet, Article> articleJoin = apJoin.join("article");
-        Join<ArticleProjet, Projet> projetJoin = apJoin.join("projet");
-        Join<ProjetPriceArticle, Fournisseur> fournisseurJoin = root.join("fournisseur");
+    this.articleService.searchRequest(page, pageSize, this.sortValue, this.sortDirection ? 'ASC' : 'DESC',formattedCriteria).subscribe({
+      next: (data) => {
+        this.csvService.exportToCsv(
+          this.formatCsvData(data.content),
+        `Liste d'articles – Partie ${partNumber + 1}`
 
-        params.forEach((key, value) -> {
-            String lowerValue = value == null ? null : value.toLowerCase();
+        );
 
-            switch (key) {
+        if (partNumber + 1 < totalParts) {
+          exportPart(partNumber + 1);
+        } else {
+          this.loading = false;
+        }
+      },
+      error: (err) => {
+        this.loading = false;
+        this._utilService.displayError('Une erreur technique est survenue', 'Erreur');
+      }
+    });
+  };
 
-                case "projectId":
-                    predicates.add(cb.equal(projetJoin.get("id"), Long.parseLong(value)));
-                    break;
+  exportPart(0);
+}
+export() {
+  if (!this.data$?.totalElements) {
+    this._utilService.displayError('Aucune donnée à exporter', 'Erreur');
+    return;
+  }
 
-                case "fournisseurId":
-                    predicates.add(cb.equal(fournisseurJoin.get("id"), Long.parseLong(value)));
-                    break;
+  this.loading = true;
+  const formattedCriteria = { ...this.form, projetId: this.projetId };
 
-                case "code":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("code")), "%" + lowerValue + "%"));
-                    break;
+  const pageSize = this.data$.totalElements; 
 
-                case "designation":
-                    predicates.add(cb.like(cb.lower(articleJoin.get("designation")), "%" + lowerValue + "%"));
-                    break;
+  this.articleService
+    .searchRequest(0, pageSize, this.sortValue, this.sortDirection ? 'ASC' : 'DESC', formattedCriteria)
+    .subscribe({
+      next: (data) => {
+        this.csvService.exportToCsv(
+        this.formatCsvData(data.content),
+        `Liste d'articles`
+        );
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.loading = false;
+        this._utilService.displayError('Une erreur technique est survenue', 'Erreur');
+      },
+    });
+}
 
-                case "price":
-                    predicates.add(cb.equal(root.get("price"), Double.parseDouble(value)));
-                    break;
 
-                default:
-                    break;
-            }
-        });
-
-        return cb.and(predicates.toArray(new Predicate[0]));
+  formatCsvData(data: any[]): any[] {
+  return (data || []).map(item => {
+    const base: any = {
+      'Code': item.code,
+      'Désignation': item.designation,
+      'Unité': item.unite,
+      'Type': item.typeArticle,
     };
 
-    Sort sort = Sort.by(
-            "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
-            (sortValue != null) ? sortValue : "id"
-    );
+    this.fournisseurHeaders.forEach(f => {
+      const pa = item.priceArticles?.find(
+        (p: any) => p.fournisseur?.raisonSociale === f
+      );
+      base[f] = pa ? pa.price : '';
+    });
 
-    Page<ProjetPriceArticle> pageOfData =
-            projetPriceArticleRepository.findAll(spec, PageRequest.of(page, size, sort));
+    return base;
+  });
+  }
 
-    ObjectPagination<ProjetPriceArticleDTO> pagination = new ObjectPagination<>();
-    pagination.setContent(
-            pageOfData.stream()
-                    .map(projetPriceArticleMapper::toDto)
-                    .collect(Collectors.toList())
-    );
-    pagination.setLast(pageOfData.isLast());
-    pagination.setFirst(pageOfData.isFirst());
-    pagination.setTotalElements((int) pageOfData.getTotalElements());
-    pagination.setTotalPages(pageOfData.getTotalPages());
-    pagination.setSize(pageOfData.getSize());
-    pagination.setNumber(pageOfData.getNumber());
 
-    return pagination;
+  import() {
+  this.windowService
+    .open(ArticleInjectionFormComponent, {})
+    .onClose.subscribe((data) => {
+      if (data === 'SUCCESS') {
+        this.columns = [];
+        this.data$ = undefined;
+        setTimeout(() => {
+          this.getAllArticles();
+          this.cdr.detectChanges();
+        }, 300);
+      }
+    });
 }
-```
 
----
 
-# \u2705 4. Repository (if needed)
 
-```java
-public interface ProjetPriceArticleRepository extends JpaRepository<ProjetPriceArticle, Long>, JpaSpecificationExecutor<ProjetPriceArticle> {
 }
-```
-
----
-
-# \U0001f525 Your method supports filters like:
-
-| Parameter     | Meaning                    | Example             |
-| ------------- | -------------------------- | ------------------- |
-| projectId     | filter by project          | `?projectId=12`     |
-| fournisseurId | filter by supplier         | `?fournisseurId=3`  |
-| code          | filter by article code     | `?code=ABC`         |
-| designation   | filter article designation | `?designation=pipe` |
-| price         | filter by exact price      | `?price=120.0`      |
-
----
-
-# Want me to generate:
-
-\u2705 Controller method?
-\u2705 Angular frontend service + table columns?
-\u2705 Postman request examples?
-
-Just tell me!
