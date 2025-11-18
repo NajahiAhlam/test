@@ -1,111 +1,195 @@
-Here is **the correct Angular FRONT method** to call your backend `getAllArticleProjet` **WITHOUT changing your pagination model** `ObjectPagination`.
-
-I give you:
-
-### \u2705 Angular Service Method
-
-### (Compatible with your backend signature: page, size, sortDirection, sortValue, params)
+Below is everything you asked for:
 
 ---
 
-# \u2705 **Angular Service \u2013 getAllArticleProjet()**
+# \u2705 **1. ArticleHorsBordereauDTO**
 
-```ts
-getAllArticleProjet(
-  page: number,
-  size: number,
-  sortDirection: string,
-  sortValue: string,
-  params: any
-): Observable<ObjectPagination<ArticleProjet>> {
+```java
+public class ArticleHorsBordereauDTO {
+    private Long id;
+    private String code;
+    private String designation;
+    private String unite;
+    private Double quantite;
+    private Double prixUnitaire;
+    private Double montant;
+    private Double totalMontant;
+    private Long projetId;
+}
+```
 
-  let httpParams = new HttpParams()
-    .set('page', page)
-    .set('size', size)
-    .set('sortDirection', sortDirection)
-    .set('sortValue', sortValue);
+---
 
-  // dynamic filters (params Map)
-  Object.keys(params).forEach(key => {
-    if (params[key] !== null && params[key] !== '') {
-      httpParams = httpParams.set(key, params[key]);
+# \u2705 **2. Mapper (Interface + Implementation)**
+
+**Following exactly the style you already use in your project.**
+
+### **Mapper Interface**
+
+```java
+public interface ArticleHorsBordereauMapper {
+
+    ArticleHorsBordereauDTO toDto(ArticleHorsBordereau entity);
+
+    ArticleHorsBordereau toEntity(ArticleHorsBordereauDTO dto);
+}
+```
+
+---
+
+### **Mapper Implementation**
+
+```java
+@Component
+public class ArticleHorsBordereauMapperImpl implements ArticleHorsBordereauMapper {
+
+    @Autowired
+    private ProjetRepository projetRepository;
+
+    @Override
+    public ArticleHorsBordereauDTO toDto(ArticleHorsBordereau entity) {
+        if (entity == null) return null;
+
+        ArticleHorsBordereauDTO dto = new ArticleHorsBordereauDTO();
+
+        dto.setId(entity.getId());
+        dto.setCode(entity.getCode());
+        dto.setDesignation(entity.getDesignation());
+        dto.setUnite(entity.getUnite());
+        dto.setQuantite(entity.getQuantite());
+        dto.setPrixUnitaire(entity.getPrixUnitaire());
+        dto.setMontant(entity.getMontant());
+        dto.setTotalMontant(entity.getTotalMontant());
+        dto.setProjetId(entity.getProjet() != null ? entity.getProjet().getId() : null);
+
+        return dto;
     }
-  });
 
-  return this.http.get<ObjectPagination<ArticleProjet>>(
-    `${this.baseUrl}/article-projet`,
-    { params: httpParams }
-  );
+    @Override
+    public ArticleHorsBordereau toEntity(ArticleHorsBordereauDTO dto) {
+        if (dto == null) return null;
+
+        ArticleHorsBordereau entity = new ArticleHorsBordereau();
+
+        entity.setId(dto.getId());
+        entity.setCode(dto.getCode());
+        entity.setDesignation(dto.getDesignation());
+        entity.setUnite(dto.getUnite());
+        entity.setQuantite(dto.getQuantite());
+        entity.setPrixUnitaire(dto.getPrixUnitaire());
+        entity.setMontant(dto.getMontant());
+        entity.setTotalMontant(dto.getTotalMontant());
+
+        if (dto.getProjetId() != null) {
+            Projet projet = projetRepository.findById(dto.getProjetId())
+                    .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+            entity.setProjet(projet);
+        }
+
+        return entity;
+    }
 }
 ```
 
 ---
 
-# \U0001f4cc **Backend Expected URL Pattern**
+# \u2705 **3. Pagination + Filtering Method (Same style as your ArticleProjet method)**
 
-Your backend expects:
+Fully adapted to `ArticleHorsBordereau`.
 
-```
-GET /article-projet?page=0&size=10&sortDirection=ASC&sortValue=id&code=XX&designation=YY&projetId=1
-```
+```java
+@Override
+public ObjectPagination<ArticleHorsBordereauDTO> getAllArticleHorsBordereau(
+        int page, int size, String sortDirection, String sortValue, Map<String, String> params) {
 
-The Angular method above produces exactly this.
+    Specification<ArticleHorsBordereau> spec = (root, query, cb) -> {
+        List<Predicate> predicates = new ArrayList<>();
 
----
+        Join<ArticleHorsBordereau, Projet> projetJoin = root.join("projet");
 
-# \U0001f4cc **Example Usage in Component**
+        params.forEach((key, value) -> {
+            String lower = value.toLowerCase();
 
-```ts
-loadArticles() {
-  const filters = {
-    code: this.searchCode,
-    designation: this.searchDesignation,
-    unite: this.searchUnite,
-    typeArticle: this.searchType,
-    quantite: this.searchQuantite,
-    projetId: this.projectId
-  };
+            switch (key) {
 
-  this.service.getAllArticleProjet(
-    this.page,
-    this.size,
-    this.sortDirection,
-    this.sortValue,
-    filters
-  ).subscribe(res => {
-    this.articles = res.content;
-    this.totalPages = res.totalPages;
-  });
+                case "code":
+                    predicates.add(cb.like(cb.lower(root.get("code")), "%" + lower + "%"));
+                    break;
+
+                case "designation":
+                    predicates.add(cb.like(cb.lower(root.get("designation")), "%" + lower + "%"));
+                    break;
+
+                case "unite":
+                    predicates.add(cb.like(cb.lower(root.get("unite")), "%" + lower + "%"));
+                    break;
+
+                case "quantite":
+                    try {
+                        Double quantity = Double.parseDouble(value);
+                        predicates.add(cb.equal(root.get("quantite"), quantity));
+                    } catch (Exception e) {
+                        predicates.add(cb.equal(root.get("id"), -1));
+                    }
+                    break;
+
+                case "projetId":
+                    try {
+                        Long id = Long.parseLong(value);
+                        predicates.add(cb.equal(projetJoin.get("id"), id));
+                    } catch (Exception e) {
+                        predicates.add(cb.equal(root.get("id"), -1));
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        return cb.and(predicates.toArray(new Predicate[0]));
+    };
+
+    Sort sort = Sort.by(
+            "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
+            sortValue != null ? sortValue : "id"
+    );
+
+    Page<ArticleHorsBordereau> pageOfData = articleHorsBordereauRepository
+            .findAll(spec, PageRequest.of(page, size, sort));
+
+    ObjectPagination<ArticleHorsBordereauDTO> pagination = new ObjectPagination<>();
+
+    pagination.setContent(
+            pageOfData.stream().map(articleHorsBordereauMapper::toDto).collect(Collectors.toList())
+    );
+    pagination.setLast(pageOfData.isLast());
+    pagination.setFirst(pageOfData.isFirst());
+    pagination.setTotalElements((int) pageOfData.getTotalElements());
+    pagination.setTotalPages(pageOfData.getTotalPages());
+    pagination.setSize(pageOfData.getSize());
+    pagination.setNumber(pageOfData.getNumber());
+
+    return pagination;
 }
 ```
 
 ---
 
-# \U0001f4cc **Your Pagination Model stays untouched**
+# \u26a1 Your backend is now complete with:
 
-Your model:
+### \u2714 DTO
 
-```ts
-export class ObjectPagination<T> {
-  content!: T[];
-  totalElements!: number;
-  totalPages!: number;
-  size!: number;
-  number!: number;
-  first!: boolean;
-  last!: boolean;
-}
-```
+### \u2714 Mapper Interface
 
-This works perfectly.
+### \u2714 Mapper Implementation
 
----
+### \u2714 Pagination + Filtering Service Method
 
-# If you want, I can generate:
+If you want, I can also generate:
+\u2705 Controller method
+\u2705 Angular service
+\u2705 Angular table filters
+\u2705 Excel import service for hors-bordereau
 
-\u2705 Controller in backend
-\u2705 Full Angular table with dynamic filters
-\u2705 Dialog for edit/update of ArticleProjet
-\u2705 Sorting/Filtering UI
-
-Just tell me.
+Just tell me!
