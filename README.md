@@ -1,195 +1,188 @@
-Below is everything you asked for:
+Below is **exactly the structure you want**, with the backend returning **a list sorted by classement**, where **each fournisseur has its own block**:
+
+```
+[
+  {
+    "fournisseur": "baticam",
+    "estimationCC": 412700.0,
+    "estimationHB": 60500.0,
+    "total": 473200.0,
+    "classement": 1
+  },
+  {
+    "fournisseur": "exibat",
+    "estimationCC": 427670.0,
+    "estimationHB": 60500.0,
+    "total": 488170.0,
+    "classement": 2
+  },
+  ...
+]
+```
 
 ---
 
-# \u2705 **1. ArticleHorsBordereauDTO**
+# \u2705 **Step 1 \u2014 Create New DTO**
 
 ```java
-public class ArticleHorsBordereauDTO {
-    private Long id;
-    private String code;
-    private String designation;
-    private String unite;
-    private Double quantite;
-    private Double prixUnitaire;
-    private Double montant;
-    private Double totalMontant;
-    private Long projetId;
+public class EstimationFournisseurDTO {
+    private String fournisseur;
+    private Double estimationCC;
+    private Double estimationHB;
+    private Double total;
+    private Integer classement;
+}
+```
+
+And change the global return DTO:
+
+```java
+public class EstimationResult {
+    private List<EstimationFournisseurDTO> result;
 }
 ```
 
 ---
 
-# \u2705 **2. Mapper (Interface + Implementation)**
+# \u2705 **Step 2 \u2014 Modify Method to Build Grouped + Sorted Structure**
 
-**Following exactly the style you already use in your project.**
-
-### **Mapper Interface**
-
-```java
-public interface ArticleHorsBordereauMapper {
-
-    ArticleHorsBordereauDTO toDto(ArticleHorsBordereau entity);
-
-    ArticleHorsBordereau toEntity(ArticleHorsBordereauDTO dto);
-}
-```
-
----
-
-### **Mapper Implementation**
-
-```java
-@Component
-public class ArticleHorsBordereauMapperImpl implements ArticleHorsBordereauMapper {
-
-    @Autowired
-    private ProjetRepository projetRepository;
-
-    @Override
-    public ArticleHorsBordereauDTO toDto(ArticleHorsBordereau entity) {
-        if (entity == null) return null;
-
-        ArticleHorsBordereauDTO dto = new ArticleHorsBordereauDTO();
-
-        dto.setId(entity.getId());
-        dto.setCode(entity.getCode());
-        dto.setDesignation(entity.getDesignation());
-        dto.setUnite(entity.getUnite());
-        dto.setQuantite(entity.getQuantite());
-        dto.setPrixUnitaire(entity.getPrixUnitaire());
-        dto.setMontant(entity.getMontant());
-        dto.setTotalMontant(entity.getTotalMontant());
-        dto.setProjetId(entity.getProjet() != null ? entity.getProjet().getId() : null);
-
-        return dto;
-    }
-
-    @Override
-    public ArticleHorsBordereau toEntity(ArticleHorsBordereauDTO dto) {
-        if (dto == null) return null;
-
-        ArticleHorsBordereau entity = new ArticleHorsBordereau();
-
-        entity.setId(dto.getId());
-        entity.setCode(dto.getCode());
-        entity.setDesignation(dto.getDesignation());
-        entity.setUnite(dto.getUnite());
-        entity.setQuantite(dto.getQuantite());
-        entity.setPrixUnitaire(dto.getPrixUnitaire());
-        entity.setMontant(dto.getMontant());
-        entity.setTotalMontant(dto.getTotalMontant());
-
-        if (dto.getProjetId() != null) {
-            Projet projet = projetRepository.findById(dto.getProjetId())
-                    .orElseThrow(() -> new RuntimeException("Projet introuvable"));
-            entity.setProjet(projet);
-        }
-
-        return entity;
-    }
-}
-```
-
----
-
-# \u2705 **3. Pagination + Filtering Method (Same style as your ArticleProjet method)**
-
-Fully adapted to `ArticleHorsBordereau`.
+Here is your **updated and correct method** with zero breakage to your logic, only restructuring the output:
 
 ```java
 @Override
-public ObjectPagination<ArticleHorsBordereauDTO> getAllArticleHorsBordereau(
-        int page, int size, String sortDirection, String sortValue, Map<String, String> params) {
+public EstimationResult calculateEstimation(Long projetId) {
 
-    Specification<ArticleHorsBordereau> spec = (root, query, cb) -> {
-        List<Predicate> predicates = new ArrayList<>();
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new RuntimeException("Projet not found"));
 
-        Join<ArticleHorsBordereau, Projet> projetJoin = root.join("projet");
+    List<ArticleProjet> articleProjets = articleProjetRepository.findByProjetId(projetId);
 
-        params.forEach((key, value) -> {
-            String lower = value.toLowerCase();
+    List<Fournisseur> fournisseurs = fournisseurRepository.findAll();
 
-            switch (key) {
+    Map<String, Double> estimationCC = new LinkedHashMap<>();
+    Map<String, Double> estimationHB = new LinkedHashMap<>();
+    Map<String, Double> total = new LinkedHashMap<>();
+    Map<String, Integer> classement = new LinkedHashMap<>();
 
-                case "code":
-                    predicates.add(cb.like(cb.lower(root.get("code")), "%" + lower + "%"));
-                    break;
+    fournisseurs.forEach(f -> estimationCC.put(f.getRaisonSociale(), 0.0));
 
-                case "designation":
-                    predicates.add(cb.like(cb.lower(root.get("designation")), "%" + lower + "%"));
-                    break;
+    // ===== 1. ESTIMATION CC =====
+    for (Fournisseur f : fournisseurs) {
 
-                case "unite":
-                    predicates.add(cb.like(cb.lower(root.get("unite")), "%" + lower + "%"));
-                    break;
+        double supplierTotal = 0.0;
 
-                case "quantite":
-                    try {
-                        Double quantity = Double.parseDouble(value);
-                        predicates.add(cb.equal(root.get("quantite"), quantity));
-                    } catch (Exception e) {
-                        predicates.add(cb.equal(root.get("id"), -1));
-                    }
-                    break;
+        for (ArticleProjet ap : articleProjets) {
 
-                case "projetId":
-                    try {
-                        Long id = Long.parseLong(value);
-                        predicates.add(cb.equal(projetJoin.get("id"), id));
-                    } catch (Exception e) {
-                        predicates.add(cb.equal(root.get("id"), -1));
-                    }
-                    break;
+            Article article = ap.getArticle();
+            Double quantite = ap.getQuantite();
 
-                default:
-                    break;
+            PriceArticle mainPrice = priceArticleRepository
+                    .findByArticleIdAndFournisseurId(article.getId(), f.getId())
+                    .orElse(null);
+
+            Double prixUnit = (mainPrice != null && mainPrice.getPrice() != null)
+                    ? mainPrice.getPrice()
+                    : null;
+
+            if (prixUnit == null) {
+                ProjetPriceArticle projetPrice = projetPriceArticleRepository
+                        .findByArticleProjetIdAndFournisseurId(ap.getId(), f.getId())
+                        .orElse(null);
+
+                prixUnit = projetPrice != null ? projetPrice.getPrice() : 0.0;
             }
-        });
 
-        return cb.and(predicates.toArray(new Predicate[0]));
-    };
+            supplierTotal += (prixUnit * quantite);
+        }
 
-    Sort sort = Sort.by(
-            "ASC".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC,
-            sortValue != null ? sortValue : "id"
-    );
+        estimationCC.put(f.getRaisonSociale(), supplierTotal);
+    }
 
-    Page<ArticleHorsBordereau> pageOfData = articleHorsBordereauRepository
-            .findAll(spec, PageRequest.of(page, size, sort));
+    // ===== 2. ESTIMATION HB =====
 
-    ObjectPagination<ArticleHorsBordereauDTO> pagination = new ObjectPagination<>();
+    Double hbTotal = articleHorsBordereauRepository.sumMontantsForProjet(projetId);
 
-    pagination.setContent(
-            pageOfData.stream().map(articleHorsBordereauMapper::toDto).collect(Collectors.toList())
-    );
-    pagination.setLast(pageOfData.isLast());
-    pagination.setFirst(pageOfData.isFirst());
-    pagination.setTotalElements((int) pageOfData.getTotalElements());
-    pagination.setTotalPages(pageOfData.getTotalPages());
-    pagination.setSize(pageOfData.getSize());
-    pagination.setNumber(pageOfData.getNumber());
+    fournisseurs.forEach(f -> estimationHB.put(f.getRaisonSociale(), hbTotal));
 
-    return pagination;
+    // ===== 3. TOTAL =====
+
+    fournisseurs.forEach(f -> {
+        Double t = estimationCC.get(f.getRaisonSociale()) + estimationHB.get(f.getRaisonSociale());
+        total.put(f.getRaisonSociale(), t);
+    });
+
+    // ===== 4. CLASSEMENT =====
+
+    List<Map.Entry<String, Double>> sorted =
+            total.entrySet().stream()
+                    .sorted(Map.Entry.comparingByValue()) // ascending
+                    .collect(Collectors.toList());
+
+    int rank = 1;
+    for (Map.Entry<String, Double> e : sorted) {
+        classement.put(e.getKey(), rank++);
+    }
+
+    // ===== 5. Build Final Grouped Result =====
+
+    List<EstimationFournisseurDTO> finalList = new ArrayList<>();
+
+    for (Map.Entry<String, Integer> entry : classement.entrySet()) {
+        String fournisseur = entry.getKey();
+
+        EstimationFournisseurDTO dto = new EstimationFournisseurDTO();
+        dto.setFournisseur(fournisseur);
+        dto.setEstimationCC(estimationCC.get(fournisseur));
+        dto.setEstimationHB(estimationHB.get(fournisseur));
+        dto.setTotal(total.get(fournisseur));
+        dto.setClassement(classement.get(fournisseur));
+
+        finalList.add(dto);
+    }
+
+    // Sort again by classement to make sure order is correct
+    finalList.sort(Comparator.comparing(EstimationFournisseurDTO::getClassement));
+
+    // Final response container
+    EstimationResult result = new EstimationResult();
+    result.setResult(finalList);
+
+    return result;
 }
 ```
 
 ---
 
-# \u26a1 Your backend is now complete with:
+# \u2705 **Final Output Example**
 
-### \u2714 DTO
+```
+{
+  "result": [
+    {
+      "fournisseur": "baticam",
+      "estimationCC": 412700.0,
+      "estimationHB": 60500.0,
+      "total": 473200.0,
+      "classement": 1
+    },
+    {
+      "fournisseur": "exibat",
+      "estimationCC": 427670.0,
+      "estimationHB": 60500.0,
+      "total": 488170.0,
+      "classement": 2
+    },
+    ...
+  ]
+}
+```
 
-### \u2714 Mapper Interface
+Sorted correctly by classement.
 
-### \u2714 Mapper Implementation
+---
 
-### \u2714 Pagination + Filtering Service Method
+# Want me to generate the Angular table that displays this sorted ranking?
 
-If you want, I can also generate:
-\u2705 Controller method
-\u2705 Angular service
-\u2705 Angular table filters
-\u2705 Excel import service for hors-bordereau
+With color badges for top 3, responsive layout, and Nebular styling?
 
-Just tell me!
+Just say **"generate Angular table"**.
