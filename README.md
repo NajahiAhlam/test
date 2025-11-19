@@ -1,175 +1,105 @@
-Below is the **cleanest and most professional UX** for your case:
+Here is **the cleanest and most professional way** to integrate your \u201cValider le choix\u201d button in the header, exactly matching your design \u2014 **centered, clean, with fournisseur name inside** \u2014 and fully connected to your radio-button selection row.
 
-\u2705 User clicks **Choisir** on any fournisseur
-\u2705 If the fournisseur **is not classement = 1**, you show a **confirmation modal** + **comment textarea**
-\u2705 If classement = 1 \u2192 accept immediately
-\u2705 After confirmation, send the chosen fournisseur + comment to backend
+I only improved the layout and fixed minor structure issues.
+**Your design is preserved 100%**, only enhanced.
 
-I\u2019ll give you:
+# \u2705 Updated Header With Beautiful Button
 
-1\ufe0f\u20e3 How to add the \u201cChoisir\u201d button in your table
-2\ufe0f\u20e3 The confirmation modal (Nebular dialog)
-3\ufe0f\u20e3 Component TS logic (full, correct, copy-paste ready)
+Replace your header with this version:
+
+```html
+<nb-card-header class="d-flex flex-row justify-content-between align-items-center">
+  <h5 class="title-animation title-heading text-uppercase my-auto p-2">
+    COMPARATIF FINANCIER
+  </h5>
+
+  <button nbButton status="success"
+          style="min-width: 230px"
+          *ngIf="selectedFournisseur"
+          (click)="chooseFournisseur()">
+    \u2714 Valider le choix \u2014 <b>{{ selectedFournisseur }}</b>
+  </button>
+</nb-card-header>
+```
+
+### \u2714 The improvements:
+
+* The button is aligned perfectly with the title
+* Uses `status="success"` to indicate a FINAL action
+* Has a consistent size even before text appears
+* Includes a check-mark (\u2714) for professional UX
+* Displays:
+  **"Valider le choix \u2014 [Fournisseur]"**
+* Clean and smooth placement
 
 ---
 
-# \u2705 1. Add \u201cChoisir\u201d Button Under Each Fournisseur
+# \u2714 Keep Your Radio Row Exactly As Is
 
-Add a row **after CLASSEMENT**:
+Your radio row is already good. Here is the final clean version:
 
 ```html
-<!-- ===== CHOIX ===== -->
 <tr>
-  <td class="fw-bold p-3">CHOIX</td>
-  <td *ngFor="let f of fournisseurs; let i = index" class="p-3 text-center">
-    <button nbButton status="primary" size="small"
-            (click)="onChooseFournisseur(f, classementRow[i])">
-      Choisir
-    </button>
+  <td class="fw-bold p-3">CHOISIR</td>
+
+  <td *ngFor="let f of fournisseurs" class="p-3 text-center">
+    <nb-radio
+      name="selectedFournisseur"
+      [value]="f"
+      [(ngModel)]="selectedFournisseur"
+      (valueChange)="onSelectFournisseur(f)">
+    </nb-radio>
   </td>
 </tr>
 ```
 
-\u2714 You already have `classementRow` \u2192 we use the same index to know which fournisseur has which classement.
-
 ---
 
-# \u2705 2. Create the Confirmation Dialog Component
-
-Run:
-
-```
-ng g c choose-fournisseur-dialog
-```
-
-Then inside `choose-fournisseur-dialog.component.html`:
-
-```html
-<nb-card>
-  <nb-card-header class="fw-bold">
-    Confirmation du choix
-  </nb-card-header>
-
-  <nb-card-body>
-    <p class="mb-2">
-      Le fournisseur <b>{{ fournisseur }}</b> n\u2019a pas le classement <b>1</b>.
-    </p>
-
-    <p>Veuillez saisir un commentaire :</p>
-
-    <textarea nbInput fullWidth rows="5"
-              [(ngModel)]="comment"
-              placeholder="Motif du choix...">
-    </textarea>
-  </nb-card-body>
-
-  <nb-card-footer class="d-flex justify-content-end">
-    <button nbButton status="danger" outline (click)="cancel()">
-      Annuler
-    </button>
-    <button nbButton status="primary" class="ms-2" (click)="confirm()"
-            [disabled]="!comment">
-      Confirmer
-    </button>
-  </nb-card-footer>
-</nb-card>
-```
-
-TS:
+# \u2714 Add This to Your TS (clean)
 
 ```ts
-import { Component, Inject } from '@angular/core';
-import { NbDialogRef, NB_DIALOG_CONFIG } from '@nebular/theme';
+selectedFournisseur: string | null = null;
 
-@Component({
-  selector: 'app-choose-fournisseur-dialog',
-  templateUrl: './choose-fournisseur-dialog.component.html'
-})
-export class ChooseFournisseurDialogComponent {
-  fournisseur: string;
-  comment: string = '';
+onSelectFournisseur(f: string) {
+  this.selectedFournisseur = f;
+}
 
-  constructor(
-    protected dialogRef: NbDialogRef<ChooseFournisseurDialogComponent>,
-    @Inject(NB_DIALOG_CONFIG) config: any,
-  ) {
-    this.fournisseur = config.context.fournisseur;
-  }
+chooseFournisseur() {
+  if (!this.selectedFournisseur) return;
 
-  confirm() {
-    this.dialogRef.close(this.comment);
-  }
+  const classement = this.classementRow[
+    this.fournisseurs.indexOf(this.selectedFournisseur)
+  ];
 
-  cancel() {
-    this.dialogRef.close(null);
+  if (classement === 1) {
+    this.saveFournisseurChoice(this.selectedFournisseur, null);
+  } else {
+    this.openJustificationDialog();
   }
 }
 ```
 
 ---
 
-# \u2705 3. Add Logic in Your Main Component
+# \U0001f389 Final Result
 
-```ts
-import { NbDialogService } from '@nebular/theme';
-import { ChooseFournisseurDialogComponent } from './choose-fournisseur-dialog/choose-fournisseur-dialog.component';
+You now have:
 
-export class ArticleProjetPriceListComponent {
+### \u2713 A **beautiful professional header**
 
-  constructor(private dialogService: NbDialogService) {}
+### \u2713 A clean **validation button**
 
-  onChooseFournisseur(fournisseur: string, classement: number) {
-    if (classement === 1) {
-      // Auto accept
-      this.saveFournisseurChoice(fournisseur, null);
-      return;
-    }
+### \u2713 A radio-select that updates the header in real time
 
-    // Show confirmation dialog
-    this.dialogService.open(ChooseFournisseurDialogComponent, {
-      context: { fournisseur }
-    })
-    .onClose.subscribe(comment => {
-      if (comment) {
-        this.saveFournisseurChoice(fournisseur, comment);
-      }
-    });
-  }
-
-  saveFournisseurChoice(fournisseur: string, comment: string | null) {
-    // TODO: backend call
-    console.log('Fournisseur choisi:', fournisseur);
-    console.log('Commentaire:', comment);
-
-    // After success, you can:
-    // this.toastr.success("Choix enregistré avec succès");
-  }
-}
-```
+### \u2713 A workflow that supports classement confirmation logic
 
 ---
 
-# \U0001f389 Final Result (UX)
+If you want, I can now:
 
-### If classement = **1**
-
-\u2714 No popup
-\u2714 User\u2019s choice is saved directly
-
-### If classement \u2260 **1**
-
-\u2714 Show confirmation dialog
-\u2714 Ask for justification comment
-\u2714 Save selection with comment
-
-Beautiful, clean, professional, and business-friendly.
-
----
-
-If you want, I can also:
-
-\u2705 Generate the backend endpoint
-\u2705 Store the selected fournisseur in database
-\u2705 Add \u201cselected\u201d highlight in the table
+\U0001f539 Add a green border on the selected fournisseur column
+\U0001f539 Disable confirmation until user picks something
+\U0001f539 Save visually which fournisseur was chosen last time
+\U0001f539 Add animation to the confirmation button
 
 Just tell me!
