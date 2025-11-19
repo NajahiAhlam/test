@@ -1,110 +1,175 @@
-You can make this **beautiful, clean, and easy for the user** without breaking your table layout by using a **"Choisir" selection row** with **Nebular radio buttons**, one button per fournisseur.
+Below is the **cleanest and most professional UX** for your case:
 
-This keeps your comparatif table exactly as it is, AND gives the user a clear place to choose.
+\u2705 User clicks **Choisir** on any fournisseur
+\u2705 If the fournisseur **is not classement = 1**, you show a **confirmation modal** + **comment textarea**
+\u2705 If classement = 1 \u2192 accept immediately
+\u2705 After confirmation, send the chosen fournisseur + comment to backend
 
----
+I\u2019ll give you:
 
-# \u2705 **\u2714 Best UI Choice: Add a \u201cCHOISIR FOURNISSEUR\u201d row with RADIO buttons**
-
-### \u2714 Looks clean
-
-### \u2714 Matches your table layout
-
-### \u2714 Only one fournisseur can be selected
-
-### \u2714 User action is obvious
-
-### \u2714 Keeps the \u201ccomparatif financier\u201d aesthetic
+1\ufe0f\u20e3 How to add the \u201cChoisir\u201d button in your table
+2\ufe0f\u20e3 The confirmation modal (Nebular dialog)
+3\ufe0f\u20e3 Component TS logic (full, correct, copy-paste ready)
 
 ---
 
-# \U0001f31f **What it will look like (example)**
+# \u2705 1. Add \u201cChoisir\u201d Button Under Each Fournisseur
 
-|             | Baticam | Gromarbre | Loft 2 A | Decomarbre |
-| ----------- | ------- | --------- | -------- | ---------- |
-| ESTIMATION  | 608 400 | 616 835   | 608 410  | 660 130    |
-| ART HC      | 60 500  | 60 500    | 60 500   | 60 500     |
-| TOTAL       | 670 880 | 697 135   | 698 610  | 740 430    |
-| CLASSEMENT  | 1       | 2         | 3        | 4          |
-| **CHOISIR** | \u25cf       | \u25cb         | \u25cb        | \u25cb          |
-
-The user simply clicks a radio button \u2192 your component stores the chosen fournisseur.
-
----
-
-# \U0001f9e9 **1. In your TS file**
-
-```ts
-selectedFournisseur: string | null = null;
-
-onSelectFournisseur(f: string) {
-  this.selectedFournisseur = f;
-}
-```
-
----
-
-# \U0001f9e9 **2. Add a clean \u201cCHOISIR\u201d row to your HTML**
-
-Insert this AFTER your \u201cCLASSEMENT\u201d row:
+Add a row **after CLASSEMENT**:
 
 ```html
-<!-- ===== CHOISIR FOURNISSEUR ===== -->
+<!-- ===== CHOIX ===== -->
 <tr>
-  <td class="fw-bold p-3">CHOISIR</td>
-
-  <td *ngFor="let f of fournisseurs" class="p-3">
-    <nb-radio
-      name="selectedFournisseur"
-      [value]="f"
-      [(ngModel)]="selectedFournisseur"
-      (valueChange)="onSelectFournisseur(f)">
-    </nb-radio>
+  <td class="fw-bold p-3">CHOIX</td>
+  <td *ngFor="let f of fournisseurs; let i = index" class="p-3 text-center">
+    <button nbButton status="primary" size="small"
+            (click)="onChooseFournisseur(f, classementRow[i])">
+      Choisir
+    </button>
   </td>
 </tr>
 ```
 
+\u2714 You already have `classementRow` \u2192 we use the same index to know which fournisseur has which classement.
+
 ---
 
-# \U0001f3af **3. Add a validation area / submit button**
+# \u2705 2. Create the Confirmation Dialog Component
 
-Below the table:
+Run:
 
-```html
-<div class="text-center mt-4">
-  <button nbButton status="success" [disabled]="!selectedFournisseur">
-    Valider le choix ({{ selectedFournisseur || '---' }})
-  </button>
-</div>
+```
+ng g c choose-fournisseur-dialog
 ```
 
----
+Then inside `choose-fournisseur-dialog.component.html`:
 
-# \U0001fa84 **4. Add small styling to center radio buttons**
+```html
+<nb-card>
+  <nb-card-header class="fw-bold">
+    Confirmation du choix
+  </nb-card-header>
 
-Optional:
+  <nb-card-body>
+    <p class="mb-2">
+      Le fournisseur <b>{{ fournisseur }}</b> n\u2019a pas le classement <b>1</b>.
+    </p>
 
-```css
-td nb-radio {
-  margin: auto;
-  display: block;
+    <p>Veuillez saisir un commentaire :</p>
+
+    <textarea nbInput fullWidth rows="5"
+              [(ngModel)]="comment"
+              placeholder="Motif du choix...">
+    </textarea>
+  </nb-card-body>
+
+  <nb-card-footer class="d-flex justify-content-end">
+    <button nbButton status="danger" outline (click)="cancel()">
+      Annuler
+    </button>
+    <button nbButton status="primary" class="ms-2" (click)="confirm()"
+            [disabled]="!comment">
+      Confirmer
+    </button>
+  </nb-card-footer>
+</nb-card>
+```
+
+TS:
+
+```ts
+import { Component, Inject } from '@angular/core';
+import { NbDialogRef, NB_DIALOG_CONFIG } from '@nebular/theme';
+
+@Component({
+  selector: 'app-choose-fournisseur-dialog',
+  templateUrl: './choose-fournisseur-dialog.component.html'
+})
+export class ChooseFournisseurDialogComponent {
+  fournisseur: string;
+  comment: string = '';
+
+  constructor(
+    protected dialogRef: NbDialogRef<ChooseFournisseurDialogComponent>,
+    @Inject(NB_DIALOG_CONFIG) config: any,
+  ) {
+    this.fournisseur = config.context.fournisseur;
+  }
+
+  confirm() {
+    this.dialogRef.close(this.comment);
+  }
+
+  cancel() {
+    this.dialogRef.close(null);
+  }
 }
 ```
 
 ---
 
-# \U0001f947 **Why this is the BEST solution**
+# \u2705 3. Add Logic in Your Main Component
 
-* Maintains your table style
-* Clear action for user
-* Uses a single row \u2192 very clean
-* The comparaison stays untouched
-* Looks professional in Nebular UI
-* Works responsively
-* Avoids buttons in every column (which looks ugly)
+```ts
+import { NbDialogService } from '@nebular/theme';
+import { ChooseFournisseurDialogComponent } from './choose-fournisseur-dialog/choose-fournisseur-dialog.component';
+
+export class ArticleProjetPriceListComponent {
+
+  constructor(private dialogService: NbDialogService) {}
+
+  onChooseFournisseur(fournisseur: string, classement: number) {
+    if (classement === 1) {
+      // Auto accept
+      this.saveFournisseurChoice(fournisseur, null);
+      return;
+    }
+
+    // Show confirmation dialog
+    this.dialogService.open(ChooseFournisseurDialogComponent, {
+      context: { fournisseur }
+    })
+    .onClose.subscribe(comment => {
+      if (comment) {
+        this.saveFournisseurChoice(fournisseur, comment);
+      }
+    });
+  }
+
+  saveFournisseurChoice(fournisseur: string, comment: string | null) {
+    // TODO: backend call
+    console.log('Fournisseur choisi:', fournisseur);
+    console.log('Commentaire:', comment);
+
+    // After success, you can:
+    // this.toastr.success("Choix enregistré avec succès");
+  }
+}
+```
 
 ---
 
-# If you want a nicer version (gold/silver/bronze color for classement row) tell me:
+# \U0001f389 Final Result (UX)
 
-\U0001f449 **\u201cAdd classement badges to the table\u201d**
+### If classement = **1**
+
+\u2714 No popup
+\u2714 User\u2019s choice is saved directly
+
+### If classement \u2260 **1**
+
+\u2714 Show confirmation dialog
+\u2714 Ask for justification comment
+\u2714 Save selection with comment
+
+Beautiful, clean, professional, and business-friendly.
+
+---
+
+If you want, I can also:
+
+\u2705 Generate the backend endpoint
+\u2705 Store the selected fournisseur in database
+\u2705 Add \u201cselected\u201d highlight in the table
+
+Just tell me!
