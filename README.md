@@ -1,138 +1,110 @@
-Below is **exactly the table you want**:
+You can make this **beautiful, clean, and easy for the user** without breaking your table layout by using a **"Choisir" selection row** with **Nebular radio buttons**, one button per fournisseur.
 
-\u2714 Columns = **Fournisseurs (sorted by classement)**
-\u2714 Rows = **ESTIMATION (CC)**, **ART HC**, **TOTAL**, **CLASSEMENT**
-\u2714 Formatting similar to your example
-\u2714 Easy to plug into Nebular `<nb-card>`
-\u2714 Uses your returned structure:
-
-```
-{
-  result: [
-    { fournisseur, estimationCC, estimationHB, total, classement }
-  ]
-}
-```
+This keeps your comparatif table exactly as it is, AND gives the user a clear place to choose.
 
 ---
 
-# \u2705 **1. Transform data in the component (TS)**
+# \u2705 **\u2714 Best UI Choice: Add a \u201cCHOISIR FOURNISSEUR\u201d row with RADIO buttons**
+
+### \u2714 Looks clean
+
+### \u2714 Matches your table layout
+
+### \u2714 Only one fournisseur can be selected
+
+### \u2714 User action is obvious
+
+### \u2714 Keeps the \u201ccomparatif financier\u201d aesthetic
+
+---
+
+# \U0001f31f **What it will look like (example)**
+
+|             | Baticam | Gromarbre | Loft 2 A | Decomarbre |
+| ----------- | ------- | --------- | -------- | ---------- |
+| ESTIMATION  | 608 400 | 616 835   | 608 410  | 660 130    |
+| ART HC      | 60 500  | 60 500    | 60 500   | 60 500     |
+| TOTAL       | 670 880 | 697 135   | 698 610  | 740 430    |
+| CLASSEMENT  | 1       | 2         | 3        | 4          |
+| **CHOISIR** | \u25cf       | \u25cb         | \u25cb        | \u25cb          |
+
+The user simply clicks a radio button \u2192 your component stores the chosen fournisseur.
+
+---
+
+# \U0001f9e9 **1. In your TS file**
 
 ```ts
-fournisseurs: string[] = [];
-estimationCCRow: number[] = [];
-estimationHBRow: number[] = [];
-totalRow: number[] = [];
-classementRow: number[] = [];
+selectedFournisseur: string | null = null;
 
-ngOnInit() {
-  this.service.getEstimation(this.projetId).subscribe(res => {
-    const result = res.result; // sorted by classement
-
-    // 1. HEADER COLUMNS (fournisseur names)
-    this.fournisseurs = result.map(r => r.fournisseur);
-
-    // 2. ROWS
-    this.estimationCCRow = result.map(r => r.estimationCC);
-    this.estimationHBRow = result.map(r => r.estimationHB);
-    this.totalRow = result.map(r => r.total);
-    this.classementRow = result.map(r => r.classement);
-  });
+onSelectFournisseur(f: string) {
+  this.selectedFournisseur = f;
 }
 ```
 
 ---
 
-# \u2705 **2. HTML Table (NEBULAR) \u2014 EXACT FORMAT YOU WANT**
+# \U0001f9e9 **2. Add a clean \u201cCHOISIR\u201d row to your HTML**
 
-\U0001f449 **Copy/paste inside `<nb-card-body>`**
+Insert this AFTER your \u201cCLASSEMENT\u201d row:
 
 ```html
-<table class="table w-100 text-center mt-4" id="excel-table">
+<!-- ===== CHOISIR FOURNISSEUR ===== -->
+<tr>
+  <td class="fw-bold p-3">CHOISIR</td>
 
-  <!-- ===== HEADER ===== -->
-  <thead class="bg-header fw-bold">
-  <tr class="border border-primary" style="background-color: whitesmoke;">
-    <th class="p-3 border-end-white"> </th>
-
-    <!-- Dynamic fournisseur columns -->
-    <th *ngFor="let f of fournisseurs" class="p-3 border-end-white text-uppercase">
-      {{ f }}
-    </th>
-  </tr>
-  </thead>
-
-  <tbody>
-
-  <!-- ===== ESTIMATION (CC) ===== -->
-  <tr>
-    <td class="fw-bold p-3">ESTIMATION (CC)</td>
-    <td *ngFor="let val of estimationCCRow" class="p-3">
-      {{ val | number:'1.0-2':'fr' }}
-    </td>
-  </tr>
-
-  <!-- ===== ART HC (estimation métreur) ===== -->
-  <tr>
-    <td class="fw-bold p-3">ART. HC (estimation métreur)</td>
-    <td *ngFor="let val of estimationHBRow" class="p-3">
-      {{ val | number:'1.0-2':'fr' }}
-    </td>
-  </tr>
-
-  <!-- ===== TOTAL ===== -->
-  <tr>
-    <td class="fw-bold p-3">TOTAL</td>
-    <td *ngFor="let val of totalRow" class="p-3">
-      {{ val | number:'1.0-2':'fr' }}
-    </td>
-  </tr>
-
-  <!-- ===== CLASSEMENT ===== -->
-  <tr>
-    <td class="fw-bold p-3">CLASSEMENT</td>
-    <td *ngFor="let val of classementRow" class="p-3 fw-bold">
-      {{ val }}
-    </td>
-  </tr>
-
-  </tbody>
-</table>
+  <td *ngFor="let f of fournisseurs" class="p-3">
+    <nb-radio
+      name="selectedFournisseur"
+      [value]="f"
+      [(ngModel)]="selectedFournisseur"
+      (valueChange)="onSelectFournisseur(f)">
+    </nb-radio>
+  </td>
+</tr>
 ```
 
 ---
 
-# \U0001f3a8 **3. Bonus: Styling for better visuals**
+# \U0001f3af **3. Add a validation area / submit button**
 
-(You can add it to your component stylesheet)
+Below the table:
+
+```html
+<div class="text-center mt-4">
+  <button nbButton status="success" [disabled]="!selectedFournisseur">
+    Valider le choix ({{ selectedFournisseur || '---' }})
+  </button>
+</div>
+```
+
+---
+
+# \U0001fa84 **4. Add small styling to center radio buttons**
+
+Optional:
 
 ```css
-table th, table td {
-  vertical-align: middle;
-}
-
-table .fw-bold {
-  font-weight: 600;
+td nb-radio {
+  margin: auto;
+  display: block;
 }
 ```
 
 ---
 
-# \U0001f3af **Result Example In Your UI**
+# \U0001f947 **Why this is the BEST solution**
 
-|                | Baticam | Gromarbre | Loft 2 A | Decomarbre |
-| -------------- | ------- | --------- | -------- | ---------- |
-| **ESTIMATION** | 608 400 | 616 835   | 608 410  | 660 130    |
-| **ART HC**     | 60 500  | 60 500    | 60 500   | 60 500     |
-| **TOTAL**      | 670 880 | 697 135   | 698 610  | 740 430    |
-| **CLASSEMENT** | 1       | 2         | 3        | 4          |
-
-\u2714 **Your result maps perfectly**
-\u2714 **Sorted by classement automatically**
-\u2714 **Dynamic columns based on fournisseurs**
+* Maintains your table style
+* Clear action for user
+* Uses a single row \u2192 very clean
+* The comparaison stays untouched
+* Looks professional in Nebular UI
+* Works responsively
+* Avoids buttons in every column (which looks ugly)
 
 ---
 
-# If you want badges for classement (1st = gold, 2nd = silver, 3rd = bronze),
+# If you want a nicer version (gold/silver/bronze color for classement row) tell me:
 
-tell me: **"add classement badges"**.
+\U0001f449 **\u201cAdd classement badges to the table\u201d**
