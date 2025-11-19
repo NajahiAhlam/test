@@ -1,175 +1,217 @@
-Below is the **cleanest and most professional UX** for your case:
-
-\u2705 User clicks **Choisir** on any fournisseur
-\u2705 If the fournisseur **is not classement = 1**, you show a **confirmation modal** + **comment textarea**
-\u2705 If classement = 1 \u2192 accept immediately
-\u2705 After confirmation, send the chosen fournisseur + comment to backend
-
-I\u2019ll give you:
-
-1\ufe0f\u20e3 How to add the \u201cChoisir\u201d button in your table
-2\ufe0f\u20e3 The confirmation modal (Nebular dialog)
-3\ufe0f\u20e3 Component TS logic (full, correct, copy-paste ready)
+Great \u2014 I understand the new requirement clearly.
+Let me rewrite it cleanly and then give you the **backend model + method + DTO updates + front logic** so you can store the choice and update classement properly.
 
 ---
 
-# \u2705 1. Add \u201cChoisir\u201d Button Under Each Fournisseur
+# \u2705 **Your New Requirement**
 
-Add a row **after CLASSEMENT**:
+After generating `EstimationResult`, the user must choose **one fournisseur**:
 
-```html
-<!-- ===== CHOIX ===== -->
-<tr>
-  <td class="fw-bold p-3">CHOIX</td>
-  <td *ngFor="let f of fournisseurs; let i = index" class="p-3 text-center">
-    <button nbButton status="primary" size="small"
-            (click)="onChooseFournisseur(f, classementRow[i])">
-      Choisir
-    </button>
-  </td>
-</tr>
-```
+### \u2714 If the chosen fournisseur already has `classement = 1`
 
-\u2714 You already have `classementRow` \u2192 we use the same index to know which fournisseur has which classement.
+\u27a1 nothing changes.
+
+### \u2714 If the chosen fournisseur has `classement \u2260 1`
+
+\u27a1 Then reorder classement like this:
+
+* The chosen fournisseur becomes **classement = 1**
+* The old fournisseur who was `classement = 1` becomes **classement = 2**
+* All others shift down by 1 or stay as they were (based on your logic \u2014 usually unchanged except old #1)
+
+\u27a1 Store this final selection in the database:
+
+* Chosen fournisseur
+* Comment (if not rank 1)
+* New classement update
 
 ---
 
-# \u2705 2. Create the Confirmation Dialog Component
+# \u2705 **1. Add database entity to store user choice**
 
-Run:
+You need a table like:
 
-```
-ng g c choose-fournisseur-dialog
-```
+### **`FournisseurSelection`** (one per project)
 
-Then inside `choose-fournisseur-dialog.component.html`:
+```java
+@Entity
+public class FournisseurSelection {
 
-```html
-<nb-card>
-  <nb-card-header class="fw-bold">
-    Confirmation du choix
-  </nb-card-header>
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  <nb-card-body>
-    <p class="mb-2">
-      Le fournisseur <b>{{ fournisseur }}</b> n\u2019a pas le classement <b>1</b>.
-    </p>
+    @ManyToOne
+    private Projet projet;
 
-    <p>Veuillez saisir un commentaire :</p>
+    private String fournisseur;  // chosen supplier
+    private Integer classementFinal; // always 1
 
-    <textarea nbInput fullWidth rows="5"
-              [(ngModel)]="comment"
-              placeholder="Motif du choix...">
-    </textarea>
-  </nb-card-body>
+    private String commentaire; // only if not original rank 1
 
-  <nb-card-footer class="d-flex justify-content-end">
-    <button nbButton status="danger" outline (click)="cancel()">
-      Annuler
-    </button>
-    <button nbButton status="primary" class="ms-2" (click)="confirm()"
-            [disabled]="!comment">
-      Confirmer
-    </button>
-  </nb-card-footer>
-</nb-card>
-```
-
-TS:
-
-```ts
-import { Component, Inject } from '@angular/core';
-import { NbDialogRef, NB_DIALOG_CONFIG } from '@nebular/theme';
-
-@Component({
-  selector: 'app-choose-fournisseur-dialog',
-  templateUrl: './choose-fournisseur-dialog.component.html'
-})
-export class ChooseFournisseurDialogComponent {
-  fournisseur: string;
-  comment: string = '';
-
-  constructor(
-    protected dialogRef: NbDialogRef<ChooseFournisseurDialogComponent>,
-    @Inject(NB_DIALOG_CONFIG) config: any,
-  ) {
-    this.fournisseur = config.context.fournisseur;
-  }
-
-  confirm() {
-    this.dialogRef.close(this.comment);
-  }
-
-  cancel() {
-    this.dialogRef.close(null);
-  }
+    private LocalDateTime dateSelection;
 }
 ```
 
 ---
 
-# \u2705 3. Add Logic in Your Main Component
+# \u2705 **2. Add backend endpoint to save choix + update classement**
 
-```ts
-import { NbDialogService } from '@nebular/theme';
-import { ChooseFournisseurDialogComponent } from './choose-fournisseur-dialog/choose-fournisseur-dialog.component';
+### **Controller**
 
-export class ArticleProjetPriceListComponent {
+```java
+@PostMapping("/{projetId}/choix-fournisseur")
+public ResponseEntity<Void> chooseFournisseur(
+        @PathVariable Long projetId,
+        @RequestBody FournisseurChoiceDTO dto) {
 
-  constructor(private dialogService: NbDialogService) {}
+    adjudicationService.chooseFournisseur(projetId, dto);
+    return ResponseEntity.ok().build();
+}
+```
 
-  onChooseFournisseur(fournisseur: string, classement: number) {
-    if (classement === 1) {
-      // Auto accept
-      this.saveFournisseurChoice(fournisseur, null);
-      return;
+### **DTO**
+
+```java
+@Data
+public class FournisseurChoiceDTO {
+    private String fournisseur;
+    private String comment;
+}
+```
+
+---
+
+# \u2705 **3. Service logic: update classement + save selection**
+
+```java
+@Override
+public void chooseFournisseur(Long projetId, FournisseurChoiceDTO dto) {
+
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new RuntimeException("Projet introuvable"));
+
+    List<ArticleProjetPrice> list = articleProjetPriceRepository
+            .findAllByProjetIdOrderByClassement(projetId);
+
+    // Find old rank 1
+    ArticleProjetPrice oldRank1 = list.stream()
+        .filter(r -> r.getClassement() == 1)
+        .findFirst()
+        .orElse(null);
+
+    // Find chosen fournisseur
+    ArticleProjetPrice chosen = list.stream()
+        .filter(r -> r.getFournisseur().equals(dto.getFournisseur()))
+        .findFirst()
+        .orElseThrow(() -> new RuntimeException("Fournisseur not found"));
+
+    // If chosen already rank 1 \u2192 nothing to do
+    if (chosen.getClassement() != 1) {
+
+        // Update classement
+        chosen.setClassement(1);
+
+        if (oldRank1 != null) {
+            oldRank1.setClassement(2);
+        }
+
+        // Save changes
+        articleProjetPriceRepository.save(chosen);
+        if (oldRank1 != null) articleProjetPriceRepository.save(oldRank1);
     }
 
-    // Show confirmation dialog
-    this.dialogService.open(ChooseFournisseurDialogComponent, {
-      context: { fournisseur }
+    // Save selection decision
+    FournisseurSelection fs = new FournisseurSelection();
+    fs.setProjet(projet);
+    fs.setFournisseur(dto.getFournisseur());
+    fs.setClassementFinal(1);
+    fs.setCommentaire(dto.getComment());
+    fs.setDateSelection(LocalDateTime.now());
+
+    fournisseurSelectionRepository.save(fs);
+}
+```
+
+---
+
+# \u2705 **4. FRONT: send the chosen fournisseur to backend**
+
+In your component:
+
+```ts
+saveFournisseurChoice(fournisseur: string, comment: string | null) {
+
+  const body = {
+    fournisseur: fournisseur,
+    comment: comment
+  };
+
+  this.adjudicationService.chooseFournisseur(this.projetId, body)
+    .subscribe({
+      next: () => {
+        this._utilService.displaySuccess("Choix enregistré avec succès", "Succès");
+      },
+      error: () => {
+        this._utilService.displayError("Erreur lors de l'enregistrement", "Erreur");
+      }
+    });
+}
+```
+
+### In your `GestionAdjudicationService`
+
+```ts
+chooseFournisseur(projetId: number, body: any): Observable<void> {
+  return this.http.post<void>(`${BASE_URL}/adjudication/${projetId}/choix-fournisseur`, body);
+}
+```
+
+---
+
+# \u2705 **5. Front logic for selecting fournisseur**
+
+Your `onChooseFournisseur()` is already good:
+
+```ts
+onChooseFournisseur() {
+  if (!this.selectedFournisseur) return;
+
+  const classement = this.classementRow[
+    this.fournisseurs.indexOf(this.selectedFournisseur)
+  ];
+
+  if (classement === 1) {
+    this.saveFournisseurChoice(this.selectedFournisseur, null);
+  } else {
+    this.windowService.open(JustificationDialogComponent, {
+      context: { fournisseur: this.selectedFournisseur }
     })
     .onClose.subscribe(comment => {
       if (comment) {
-        this.saveFournisseurChoice(fournisseur, comment);
+        this.saveFournisseurChoice(this.selectedFournisseur!, comment);
       }
     });
-  }
-
-  saveFournisseurChoice(fournisseur: string, comment: string | null) {
-    // TODO: backend call
-    console.log('Fournisseur choisi:', fournisseur);
-    console.log('Commentaire:', comment);
-
-    // After success, you can:
-    // this.toastr.success("Choix enregistré avec succès");
   }
 }
 ```
 
 ---
 
-# \U0001f389 Final Result (UX)
+# \U0001f389 **DONE \u2014 now your app can:**
 
-### If classement = **1**
-
-\u2714 No popup
-\u2714 User\u2019s choice is saved directly
-
-### If classement \u2260 **1**
-
-\u2714 Show confirmation dialog
-\u2714 Ask for justification comment
-\u2714 Save selection with comment
-
-Beautiful, clean, professional, and business-friendly.
+\u2714 Let user select fournisseur
+\u2714 Ask justification when choice is not classement 1
+\u2714 Update classement in database (swap rank)
+\u2714 Save user decision in `FournisseurSelection` table
+\u2714 Keep it linked to the project
 
 ---
 
-If you want, I can also:
+If you want, I can also generate:
 
-\u2705 Generate the backend endpoint
-\u2705 Store the selected fournisseur in database
-\u2705 Add \u201cselected\u201d highlight in the table
+\u2705 The HTML for the justification popup
+\u2705 The entity repository
+\u2705 The entire backend service with full error handling
 
-Just tell me!
+Just say **"generate everything"**.
