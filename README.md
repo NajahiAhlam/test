@@ -1,87 +1,92 @@
-Here is the **exact method you need**, clean, safe, and fully working.
-It will:
+You're getting:
 
-\u2714 Fetch existing saved estimation rows for the project
-\u2714 Update them using the incoming DTO values
-\u2714 Persist comment only for the **chosen fournisseur** (classement = 1 or where you decide)
-\u2714 Save everything in database
+```
+NG01203: No value accessor for form control name: 'selectedFournisseur'
+```
+
+This error **always means one thing**:
+
+\U0001f449 **Angular could not find a ControlValueAccessor for the component you're binding with `[(ngModel)]` or `formControlName`.**
+
+In your case, the culprit is:
+
+```html
+<nb-radio
+  name="selectedFournisseur"
+  [value]="f"
+  [(ngModel)]="selectedFournisseur"
+  (valueChange)="onSelectFournisseur(f)">
+</nb-radio>
+```
+
+`nb-radio` **cannot be used directly with `[(ngModel)]`**
+because **Nebular\u2019s `<nb-radio>` is NOT a form control**.
+
+Only `<nb-radio-group>` is compatible with Angular forms.
 
 ---
 
-# \u2705 **Final Backend Method: `saveClassement`**
+# \u2705 **FIX \u2014 Wrap radios inside `<nb-radio-group>`**
 
-```java
-@Transactional
-public void saveClassement(Long projetId, EstimationResult estimationResult, String comment) {
+Replace your radio row with this:
 
-    // 1. Load project
-    Projet projet = projetRepository.findById(projetId)
-            .orElseThrow(() -> new RuntimeException("Projet not found"));
+```html
+<nb-radio-group [(ngModel)]="selectedFournisseur" name="selectedFournisseur">
+  <td *ngFor="let f of fournisseurs" class="p-3 text-center">
+    <nb-radio [value]="f">
+      {{ f }}
+    </nb-radio>
+  </td>
+</nb-radio-group>
+```
 
-    // 2. Load existing estimation rows
-    List<EstimationFournisseurResult> existing =
-            estimationFournisseurResultRepository.findByProjetId(projetId);
+\u26a0\ufe0f Important
+Move `[(ngModel)]` and `name` **to the group**, not individual radios.
 
-    if (existing.isEmpty()) {
-        throw new RuntimeException("No estimation found for this project \u2014 calculateEstimation must run first.");
-    }
+---
 
-    // 3. Loop through incoming DTOs
-    for (EstimationFournisseurDTO dto : estimationResult.getResult()) {
+# \U0001f4a1 If inside a table row, here is the correct structure
 
-        // Find matching saved entity by fournisseur name
-        EstimationFournisseurResult entity = existing.stream()
-                .filter(e -> e.getFournisseur().getRaisonSociale().equals(dto.getFournisseur()))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException(
-                        "Saved estimation not found for fournisseur: " + dto.getFournisseur()
-                ));
+Angular does NOT require the `<nb-radio-group>` to be inside the `<tr>`.
+So you can do this:
 
-        // Update fields
-        entity.setEstimationCC(dto.getEstimationCC());
-        entity.setEstimationHB(dto.getEstimationHB());
-        entity.setTotal(dto.getTotal());
-        entity.setClassement(dto.getClassement());
+```html
+<tr *ngIf="!data$.saved">
+  <td class="fw-bold p-3">CHOISIR</td>
 
-        // Apply comment only to the chosen fournisseur (ex: rank 1)
-        if (dto.getClassement() == 1) {
-            entity.setComment(comment);
-        } else {
-            entity.setComment(null);
-        }
+  <nb-radio-group [(ngModel)]="selectedFournisseur" name="selectedFournisseur">
+    <td *ngFor="let f of fournisseurs" class="p-3 text-center">
+      <nb-radio [value]="f"></nb-radio>
+    </td>
+  </nb-radio-group>
 
-        entity.setProjet(projet);
-    }
-
-    // 4. Save
-    estimationFournisseurResultRepository.saveAll(existing);
-}
+</tr>
 ```
 
 ---
 
-# \u2705 Why this works perfectly
+# \U0001f9ea Component TS stays the same
 
-### **1. It maps DTO \u2192 Entity cleanly**
+```ts
+selectedFournisseur?: string;
 
-* Matches fournisseur by `raisonSociale`
-* Updates all numeric fields
-* Updates classement
-* Adds comment only where needed
+onSelectFournisseur(f: string) {
+  this.selectedFournisseur = f;
+}
+```
 
-### **2. It does NOT recreate the rows**
-
-You requested **update only**, not recreate.
-
-### **3. It keeps your DB clean**
-
-Existing ID values remain intact.
-Only classement & comment change.
+(though `onSelectFournisseur` is no longer needed \u2014 Nebular handles it)
 
 ---
 
-# \U0001f525 BONUS \u2014 If you want to allow *insert* when no rows exist
+# \u2714\ufe0f After this change \u2192 Error disappears
 
-I can generate a version that builds and saves **new entities** from DTO.
+No more:
 
-Just ask!
+```
+No value accessor for form control name
+```
+
+---
+
+If you want, I can help you add validation, highlighting selected supplier, or disabling the group when saved.
