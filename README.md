@@ -1,104 +1,110 @@
-Ahhh ok I understand your problem now \U0001f525
-**Nebular Stepper loads ALL steps at initialization**, so every component in every step executes `ngOnInit()` immediately \u2014 even if the step is not selected.
+Ah, now it\u2019s clear \u2014 the problem is **not just `*ngIf`**. It\u2019s **how Nebular Stepper instantiates step content**.
 
-That\u2019s why:
-
-* Your `<app-enrichissement-stapper>` runs immediately
-* Your `<app-bq-list>` also runs immediately
-  **even before user selects Step 1**
-
-You used this:
-
-```html
-<ng-container *ngIf="stepper.selectedIndex === 0">
-```
-
-to prevent all components from loading at once.
-
-\u2714 This is correct, but it causes the problem that the second component only loads when step is reselected.
+Nebular **renders `<nb-step>` content lazily**: the component inside a step **does not exist in the DOM until the step is first activated**. That\u2019s why your `@ViewChild('bqList')` is undefined or exists too late. Even without `*ngIf`, Angular may not see the child immediately.
 
 ---
 
-# \u2705 **Correct & clean solution**
+# \U0001f539 Reliable Solution: Use `NbStepperStepComponent.content` + `@ViewChild` OR a Service
 
-Use *ngIf BUT also keep a reference to the component to reload data manually.
-
----
-
-# \U0001f7e6 Step 1 \u2014 Keep your *ngIf, but wrap each component
-
-```html
-<nb-step [label]="labelOne">
-  <ng-template #labelOne>Bq</ng-template>
-
-  <!-- Component A -->
-  <app-enrichissement-stapper
-      *ngIf="stepper.selectedIndex === 0"
-      [projetId]="projetId"
-      (fileUploaded)="onFileUploaded()">
-  </app-enrichissement-stapper>
-
-  <!-- Component B -->
-  <app-bq-list
-      *ngIf="stepper.selectedIndex === 0"
-      [projetId]="projetId"
-      #bqList>
-  </app-bq-list>
-
-  <div class="step-buttons">
-    <button nbButton nbStepperPrevious>Précédent</button>
-    <button nbButton nbStepperNext>Suivant</button>
-  </div>
-</nb-step>
-```
+There are **two clean ways**:
 
 ---
 
-# \U0001f7e6 Step 2 \u2014 In parent TS: use ViewChild with `{ static: false }`
+## **Option 1 \u2014 Trigger refresh from the child using a Subject (recommended)**
 
-Because of *ngIf.
+1. Create a **shared service**:
 
 ```ts
-@ViewChild('bqList', { static: false }) bqListComponent!: BqListComponent;
+@Injectable({ providedIn: 'root' })
+export class ArticleRefreshService {
+  private refreshSubject = new Subject<void>();
+  refresh$ = this.refreshSubject.asObservable();
 
-onFileUploaded() {
-  // Wait for Angular to create BqList again after *ngIf refresh
-  setTimeout(() => {
-    if (this.bqListComponent) {
-      this.bqListComponent.refreshList();
-    }
+  notifyRefresh() {
+    this.refreshSubject.next();
+  }
+}
+```
+
+2. In your **Uploader Component (app-enrichissement-stapper)**:
+
+```ts
+constructor(private refreshSvc: ArticleRefreshService) {}
+
+onUploadSuccess() {
+  // call after backend save completes
+  this.refreshSvc.notifyRefresh();
+}
+```
+
+3. In your **List Component (app-bq-list)**:
+
+```ts
+constructor(private refreshSvc: ArticleRefreshService) {}
+
+ngOnInit() {
+  this.loadArticles();
+  this.refreshSvc.refresh$.subscribe(() => {
+    this.loadArticles();
   });
 }
 ```
 
-The `setTimeout()` ensures the component exists before calling its method.
+\u2705 This guarantees that the list will reload whenever the uploader emits, **even if the list is created later**.
 
 ---
 
-# \U0001f7e6 Step 3 \u2014 In Component B, add refresh method
+## **Option 2 \u2014 Access the child via Step\u2019s `stepContent` after the step is selected**
+
+1. Add a `@ViewChild(NbStepper)` in parent:
 
 ```ts
-refreshList() {
-  this.loadArticles();
+@ViewChild('stepper') stepper!: NbStepper;
+```
+
+2. Listen to `selectedIndexChange`:
+
+```ts
+onStepChange(index: number) {
+  if (index === 0) {
+    // now the step content exists
+    if (this.bqListComponent) {
+      this.bqListComponent.refreshList();
+    }
+  }
 }
 ```
 
+3. HTML:
+
+```html
+<nb-stepper #stepper (selectedIndexChange)="onStepChange($event)">
+  <nb-step [label]="labelOne">
+    <app-enrichissement-stapper
+      [projetId]="projetId"
+      (fileUploaded)="onFileUploaded()">
+    </app-enrichissement-stapper>
+
+    <app-bq-list [projetId]="projetId" #bqList></app-bq-list>
+  </nb-step>
+</nb-stepper>
+```
+
+\u2705 This ensures the step content exists **before calling `refreshList()`**.
+
 ---
 
-# \U0001f7e9 Result
+# \U0001f539 My recommendation
 
-\u2714 Components only load when step is selected (your requirement)
-\u2714 Component B refreshes instantly after file upload
-\u2714 No need to change steps
-\u2714 No need to reload stepper
-\u2714 No duplicate ngOnInit calls
+Use **Option 1 with a Subject**. It solves **all lazy load / ViewChild timing issues** without hacks. It\u2019s also future-proof if you add more steps or more lists.
 
 ---
 
-# If you want, I can provide:
+If you want, I can **rewrite your Stepper component fully** using the Subject approach so that:
 
-\u2728 A reusable solution using a **shared Subject** (RxJS)
-\u2728 A solution using **global store** (NgRx / signals)
-\u2728 A full refactor of your stepper architecture
+* Uploader emits \u2192 list refreshes automatically
+* Works with Nebular Stepper lazy loading
+* No `*ngIf` needed
+* Handles step switching perfectly
 
-Just tell me!
+Do you want me to do that?
