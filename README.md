@@ -1,129 +1,180 @@
-Ah! Now I understand your full scenario. You basically have **two phases**:
+Perfect \u2014 I understand exactly what you want now.
+You want a **re-ranking** logic when the user chooses a fournisseur in the UI:
 
-1. **Calculation phase**: Compute estimations (`EstimationFournisseurDTO`) dynamically for all suppliers, calculate totals, rank them, and **show them to the user** in a step.
-2. **Selection phase**: User picks **which fournisseur to keep**, typically the one with `classement = 1`, but they could choose another. Then, this choice needs to be **saved in the database**.
+### \u2705 Requirements
 
-Currently, your service just calculates the DTOs and returns them \u2014 nothing is persisted. That\u2019s fine for **display**, but you need a way to **persist the selected fournisseur** after the user confirms.
+1. If the chosen fournisseur already has **classement = 1**, then nothing changes.
+2. If the chosen fournisseur is **not rank 1**, then:
 
-Let me outline a clean approach.
+   * Set the chosen fournisseur \u2192 **classement = 1**
+   * The previous rank 1 fournisseur becomes rank 2
+   * All others get rank = their current rank + 1 (sorted by total or keep same order)
+3. Send the **updated list of EstimationFournisseurDTO** to backend in a new API call:
 
----
-
-## **1\ufe0f\u20e3 Keep calculation separate from persistence**
-
-Your `calculateEstimation()` should stay **pure** \u2014 it calculates, sorts, ranks, and returns DTOs. No database saving. This is good for **stepper display**.
-
----
-
-## **2\ufe0f\u20e3 Add a \u201cchosen fournisseur\u201d table/entity**
-
-You need an entity to store the **selected fournisseur per projet**, e.g.:
-
-```java
-@Entity
-@Table(name = "projet_fournisseur_selection")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class ProjetFournisseurSelection {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "projet_id")
-    private Projet projet;
-
-    @ManyToOne
-    @JoinColumn(name = "fournisseur_id")
-    private Fournisseur fournisseur;
-
-    private boolean selected; // true if user chooses this one
-}
-```
+   ```ts
+   EstimationResult { result: EstimationFournisseurDTO[] }
+   ```
 
 ---
 
-## **3\ufe0f\u20e3 After user selects**
+# \u2705 FRONTEND (Angular) \u2014 Do the classement update
 
-Create a service method to **persist their choice**:
-
-```java
-public void saveSelectedFournisseur(Long projetId, Long fournisseurId) {
-    Projet projet = projetRepository.findById(projetId)
-            .orElseThrow(() -> new RuntimeException("Projet not found"));
-    Fournisseur fournisseur = fournisseurRepository.findById(fournisseurId)
-            .orElseThrow(() -> new RuntimeException("Fournisseur not found"));
-
-    // Optional: remove old selection
-    projetFournisseurSelectionRepository.deleteByProjetId(projetId);
-
-    ProjetFournisseurSelection selection = ProjetFournisseurSelection.builder()
-            .projet(projet)
-            .fournisseur(fournisseur)
-            .selected(true)
-            .build();
-
-    projetFournisseurSelectionRepository.save(selection);
-}
-```
-
----
-
-## **4\ufe0f\u20e3 UI Flow in Stepper**
-
-### Step 1 \u2013 Show Estimation Table
-
-* Call `calculateEstimation(projetId)` \u2192 returns `EstimationResultDTO`.
-* Display in table:
-
-| Fournisseur | Estimation CC | Estimation HB | Total | Classement | Select? |
-| ----------- | ------------- | ------------- | ----- | ---------- | ------- |
-
-* Show a **radio button** or **select** next to each row for the user to choose.
-
----
-
-### Step 2 \u2013 Save selection
-
-* User clicks \u201cConfirm\u201d \u2192 send selected `fournisseurId` to backend.
-* Call `saveSelectedFournisseur(projetId, fournisseurId)` \u2192 persist in database.
-
----
-
-## **5\ufe0f\u20e3 Optional: Pre-select the Classement 1 fournisseur**
-
-In the frontend:
+Add a method `reorderClassement(selectedFournisseur: string)` in your component:
 
 ```ts
-const bestFournisseur = estimationResult.result.find(r => r.classement === 1);
-this.selectedFournisseurId = bestFournisseur?.id;
+private reorderClassement(fournisseur: string) {
+  const result = this.data$!.result;
+
+  // Find the selected fournisseur DTO
+  const selected = result.find(r => r.fournisseur === fournisseur);
+  if (!selected) return result;
+
+  // If already rank 1, no change
+  if (selected.classement === 1) {
+    return result;
+  }
+
+  // Get the one that is currently rank 1
+  const oldRank1 = result.find(r => r.classement === 1);
+
+  // Assign new ranks
+  selected.classement = 1;
+
+  if (oldRank1) {
+    oldRank1.classement = 2;
+  }
+
+  // Update all others: shift ranks based on total
+  const others = result
+    .filter(r => r !== selected && r !== oldRank1)
+    .sort((a, b) => a.total - b.total);
+
+  let rank = 3;
+  for (let r of others) {
+    r.classement = rank++;
+  }
+
+  // Return updated list sorted by classement
+  return [...result].sort((a, b) => a.classement - b.classement);
+}
 ```
 
-* User can change it if needed.
-* When saving, always send the selected ID.
+---
+
+# \u2705 Call this method inside `onChooseFournisseur()`
+
+```ts
+onChooseFournisseur() {
+  if (!this.selectedFournisseur) return;
+
+  const classement = this.classementRow[
+    this.fournisseurs.indexOf(this.selectedFournisseur)
+  ];
+
+  if (classement === 1) {
+    // user selected the already #1 fournisseur \u2192 directly save
+    this.sendUpdatedRanking(this.data$!.result);
+    return;
+  }
+
+  this.windowService.open(JustificationDialogComponent, {
+    context: { fournisseur: this.selectedFournisseur }
+  })
+  .onClose.subscribe(comment => {
+    if (comment) {
+      const newRanking = this.reorderClassement(this.selectedFournisseur!);
+      this.sendUpdatedRanking(newRanking, comment);
+    }
+  });
+}
+```
 
 ---
 
-## **6\ufe0f\u20e3 Advantages**
+# \u2705 Implement `sendUpdatedRanking()`
 
-* Calculation stays **pure** \u2192 easy to test.
-* User sees dynamic results **without saving intermediate calculations**.
-* Database only stores the **final selected supplier** \u2192 keeps history clean.
-* You can add multiple selections in the future if needed.
+```ts
+private sendUpdatedRanking(newList: EstimationFournisseurDTO[], comment?: string) {
+  const payload: EstimationResult = { result: newList };
+
+  this.adjudicationService.updateClassement(this.projetId, payload, comment)
+    .subscribe({
+      next: () => {
+        this._utilService.displaySuccess("Classement mis à jour", "Succès");
+        this.calculateEstimation(); // refresh UI
+      },
+      error: () => {
+        this._utilService.displayError("Erreur lors de la mise à jour", "Erreur");
+      }
+    });
+}
+```
 
 ---
 
-If you want, I can **write the full example of the Stepper + Angular table**:
+# \u2705 BACKEND \u2014 Create the updateClassement endpoint
 
-* Shows `EstimationResultDTO`
-* Auto-selects `classement = 1` fournisseur
-* User can change selection
-* Backend receives selection and persists it
+### Controller:
 
-It will be ready-to-use in your existing project.
+```java
+@PostMapping("/estimation/{projetId}/update")
+public ResponseEntity<Void> updateClassement(
+        @PathVariable Long projetId,
+        @RequestBody EstimationResult estimationResult,
+        @RequestParam(required = false) String comment
+) {
+    estimationService.updateClassement(projetId, estimationResult.getResult(), comment);
+    return ResponseEntity.ok().build();
+}
+```
 
-Do you want me to do that?
+---
+
+# \u2705 Service Logic
+
+```java
+@Transactional
+public void updateClassement(Long projetId, List<EstimationFournisseurDTO> newList, String comment) {
+
+    List<EstimationFournisseurResult> saved =
+            estimationResultRepository.findByProjetId(projetId);
+
+    for (EstimationFournisseurDTO dto : newList) {
+        EstimationFournisseurResult e = saved.stream()
+                .filter(x -> x.getFournisseur().getRaisonSociale().equals(dto.getFournisseur()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Fournisseur not found in estimation"));
+
+        e.setClassement(dto.getClassement());
+        // Optional: store justification comment if classement != 1
+        // e.setJustification(comment);
+    }
+
+    estimationResultRepository.saveAll(saved);
+}
+```
+
+---
+
+# \u2705 What you get now
+
+\u2714 When user chooses a fournisseur
+\u2714 Classements update properly
+\u2714 The UI sends a clean `EstimationResult` DTO structured like this:
+
+```json
+{
+  "result": [
+    { "fournisseur": "F1", "estimationCC": 10000, "estimationHB": 5000, "total": 15000, "classement": 1 },
+    { "fournisseur": "F2", "estimationCC": 12000, "estimationHB": 5000, "total": 17000, "classement": 2 },
+    ...
+  ]
+}
+```
+
+\u2714 Backend updates the DB accordingly
+\u2714 No recomputation \u2014 only classement changes
+
+---
+
+If you want, I can also send you a **simplified version**, or create a **before/after ranking preview** in the UI.
