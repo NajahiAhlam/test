@@ -1,40 +1,49 @@
-Nebular **renders ALL `nb-step` contents at once** \u2014 meaning all your child components inside every step are created immediately.
-That\u2019s why **all your methods (ngOnInit, API calls, file reading, etc.) execute on the first load**, even before the user navigates to that step.
+Ahhh ok I understand your problem now \U0001f525
+**Nebular Stepper loads ALL steps at initialization**, so every component in every step executes `ngOnInit()` immediately \u2014 even if the step is not selected.
 
-\U0001f449 **Nebular stepper does NOT lazy-load steps.**
-Angular still instantiates all components inside the template.
+That\u2019s why:
 
----
+* Your `<app-enrichissement-stapper>` runs immediately
+* Your `<app-bq-list>` also runs immediately
+  **even before user selects Step 1**
 
-# \u2705 **Solution: Lazy load each step\u2019s content**
-
-We must prevent Angular from creating the step content until the step becomes active.
-
-The trick:
-Use `*ngIf="stepper.selectedIndex === X"` for each step.
-
----
-
-# \u2705 **How to implement lazy loading (step-by-step)**
-
-### 1\ufe0f\u20e3 Add a template variable to your stepper
+You used this:
 
 ```html
-<nb-stepper #stepper orientation="horizontal">
+<ng-container *ngIf="stepper.selectedIndex === 0">
 ```
 
-### 2\ufe0f\u20e3 Wrap each step content with an `ng-container` + `*ngIf`
+to prevent all components from loading at once.
 
-Example for Step 1:
+\u2714 This is correct, but it causes the problem that the second component only loads when step is reselected.
+
+---
+
+# \u2705 **Correct & clean solution**
+
+Use *ngIf BUT also keep a reference to the component to reload data manually.
+
+---
+
+# \U0001f7e6 Step 1 \u2014 Keep your *ngIf, but wrap each component
 
 ```html
 <nb-step [label]="labelOne">
   <ng-template #labelOne>Bq</ng-template>
 
-  <ng-container *ngIf="stepper.selectedIndex === 0">
-    <app-enrichissement-stapper [projetId]="projetId" (fileUploaded)="onFileUploaded()"></app-enrichissement-stapper>
-    <app-bq-list [projetId]="projetId"></app-bq-list>
-  </ng-container>
+  <!-- Component A -->
+  <app-enrichissement-stapper
+      *ngIf="stepper.selectedIndex === 0"
+      [projetId]="projetId"
+      (fileUploaded)="onFileUploaded()">
+  </app-enrichissement-stapper>
+
+  <!-- Component B -->
+  <app-bq-list
+      *ngIf="stepper.selectedIndex === 0"
+      [projetId]="projetId"
+      #bqList>
+  </app-bq-list>
 
   <div class="step-buttons">
     <button nbButton nbStepperPrevious>Précédent</button>
@@ -43,43 +52,53 @@ Example for Step 1:
 </nb-step>
 ```
 
-### 3\ufe0f\u20e3 Step 2 example:
+---
 
-```html
-<nb-step [label]="labelTwo">
-  <ng-template #labelTwo>Prix Entreprise Lot unique Retour Acheteur Délegué</ng-template>
+# \U0001f7e6 Step 2 \u2014 In parent TS: use ViewChild with `{ static: false }`
 
-  <ng-container *ngIf="stepper.selectedIndex === 1">
-    <app-retour-acheteur-stepper [projetId]="projetId" (fileUploaded2)="onFileUploaded2()"></app-retour-acheteur-stepper>
-    <app-article-projet-price-list [projetId]="projetId"></app-article-projet-price-list>
-  </ng-container>
+Because of *ngIf.
 
-  <div class="step-buttons">
-    <button nbButton nbStepperPrevious>Précédent</button>
-    <button nbButton nbStepperNext>Suivant</button>
-  </div>
-</nb-step>
+```ts
+@ViewChild('bqList', { static: false }) bqListComponent!: BqListComponent;
+
+onFileUploaded() {
+  // Wait for Angular to create BqList again after *ngIf refresh
+  setTimeout(() => {
+    if (this.bqListComponent) {
+      this.bqListComponent.refreshList();
+    }
+  });
+}
 ```
 
-### 4\ufe0f\u20e3 Repeat for all your steps.
+The `setTimeout()` ensures the component exists before calling its method.
 
 ---
 
-# \U0001f4a1 TIP: Ensure it works even when going back
+# \U0001f7e6 Step 3 \u2014 In Component B, add refresh method
 
-`selectedIndex` updates automatically with `nbStepperNext` and `nbStepperPrevious`.
-
-So everything works seamlessly.
-
----
-
-# \U0001f9e8 Result:
-
-\u2714 Components inside steps load **only when their step becomes active**
-\u2714 No more API calls executed at the beginning
-\u2714 No more methods fired for steps the user didn't open yet
-\u2714 Much faster initial page load
+```ts
+refreshList() {
+  this.loadArticles();
+}
+```
 
 ---
 
-If you want, I can refactor your entire stepper code with all steps properly lazy-loaded.
+# \U0001f7e9 Result
+
+\u2714 Components only load when step is selected (your requirement)
+\u2714 Component B refreshes instantly after file upload
+\u2714 No need to change steps
+\u2714 No need to reload stepper
+\u2714 No duplicate ngOnInit calls
+
+---
+
+# If you want, I can provide:
+
+\u2728 A reusable solution using a **shared Subject** (RxJS)
+\u2728 A solution using **global store** (NgRx / signals)
+\u2728 A full refactor of your stepper architecture
+
+Just tell me!
