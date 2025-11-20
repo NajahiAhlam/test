@@ -1,195 +1,129 @@
-Perfect! Let\u2019s rewrite your **Nebular Stepper** fully, implementing the behavior you want:
+Ah! Now I understand your full scenario. You basically have **two phases**:
 
-* **Step 1:** User uploads list in `app-enrichissement-stapper`.
-* **Step 1:** `app-bq-list` automatically reloads and shows the new data.
-* **Step 2+**: Other steps work normally.
-* **No race conditions**, no `*ngIf` hacks or `setTimeout`.
+1. **Calculation phase**: Compute estimations (`EstimationFournisseurDTO`) dynamically for all suppliers, calculate totals, rank them, and **show them to the user** in a step.
+2. **Selection phase**: User picks **which fournisseur to keep**, typically the one with `classement = 1`, but they could choose another. Then, this choice needs to be **saved in the database**.
 
-We\u2019ll use a **shared service with a Subject** to communicate between uploader and list.
+Currently, your service just calculates the DTOs and returns them \u2014 nothing is persisted. That\u2019s fine for **display**, but you need a way to **persist the selected fournisseur** after the user confirms.
+
+Let me outline a clean approach.
 
 ---
 
-## **1\ufe0f\u20e3 ArticleRefreshService**
+## **1\ufe0f\u20e3 Keep calculation separate from persistence**
 
-```ts
-// article-refresh.service.ts
-import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
+Your `calculateEstimation()` should stay **pure** \u2014 it calculates, sorts, ranks, and returns DTOs. No database saving. This is good for **stepper display**.
 
-@Injectable({ providedIn: 'root' })
-export class ArticleRefreshService {
-  private refreshSubject = new Subject<void>();
-  refresh$ = this.refreshSubject.asObservable();
+---
 
-  notifyRefresh() {
-    this.refreshSubject.next();
-  }
+## **2\ufe0f\u20e3 Add a \u201cchosen fournisseur\u201d table/entity**
+
+You need an entity to store the **selected fournisseur per projet**, e.g.:
+
+```java
+@Entity
+@Table(name = "projet_fournisseur_selection")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ProjetFournisseurSelection {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "projet_id")
+    private Projet projet;
+
+    @ManyToOne
+    @JoinColumn(name = "fournisseur_id")
+    private Fournisseur fournisseur;
+
+    private boolean selected; // true if user chooses this one
 }
 ```
 
 ---
 
-## **2\ufe0f\u20e3 Stepper Component TS**
+## **3\ufe0f\u20e3 After user selects**
 
-```ts
-import { Component, ViewChild } from '@angular/core';
-import { NbStepperComponent } from '@nebular/theme';
-import { BqListComponent } from './bq-list/bq-list.component';
-import { ArticleRefreshService } from './article-refresh.service';
+Create a service method to **persist their choice**:
 
-@Component({
-  selector: 'app-stepper',
-  templateUrl: './stepper.component.html'
-})
-export class StepperComponent {
-  @ViewChild('stepper') stepper!: NbStepperComponent;
+```java
+public void saveSelectedFournisseur(Long projetId, Long fournisseurId) {
+    Projet projet = projetRepository.findById(projetId)
+            .orElseThrow(() -> new RuntimeException("Projet not found"));
+    Fournisseur fournisseur = fournisseurRepository.findById(fournisseurId)
+            .orElseThrow(() -> new RuntimeException("Fournisseur not found"));
 
-  projetId = 1; // example projetId
+    // Optional: remove old selection
+    projetFournisseurSelectionRepository.deleteByProjetId(projetId);
 
-  constructor(private refreshSvc: ArticleRefreshService) {}
+    ProjetFournisseurSelection selection = ProjetFournisseurSelection.builder()
+            .projet(projet)
+            .fournisseur(fournisseur)
+            .selected(true)
+            .build();
 
-  onFileUploaded() {
-    // Notify the list to refresh via service
-    this.refreshSvc.notifyRefresh();
-  }
+    projetFournisseurSelectionRepository.save(selection);
 }
 ```
 
 ---
 
-## **3\ufe0f\u20e3 Stepper HTML**
+## **4\ufe0f\u20e3 UI Flow in Stepper**
 
-```html
-<nb-stepper #stepper linear>
-  <!-- STEP 1 -->
-  <nb-step label="Bq">
-    <app-enrichissement-stapper
-      [projetId]="projetId"
-      (fileUploaded)="onFileUploaded()">
-    </app-enrichissement-stapper>
+### Step 1 \u2013 Show Estimation Table
 
-    <app-bq-list [projetId]="projetId"></app-bq-list>
+* Call `calculateEstimation(projetId)` \u2192 returns `EstimationResultDTO`.
+* Display in table:
 
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious>Précédent</button>
-      <button nbButton nbStepperNext>Suivant</button>
-    </div>
-  </nb-step>
+| Fournisseur | Estimation CC | Estimation HB | Total | Classement | Select? |
+| ----------- | ------------- | ------------- | ----- | ---------- | ------- |
 
-  <!-- STEP 2 -->
-  <nb-step label="Step 2">
-    <p>Step 2 content</p>
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious>Précédent</button>
-      <button nbButton nbStepperNext>Suivant</button>
-    </div>
-  </nb-step>
-
-  <!-- STEP 3 -->
-  <nb-step label="Step 3">
-    <p>Step 3 content</p>
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious>Précédent</button>
-      <button nbButton nbStepperNext>Suivant</button>
-    </div>
-  </nb-step>
-</nb-stepper>
-```
+* Show a **radio button** or **select** next to each row for the user to choose.
 
 ---
 
-## **4\ufe0f\u20e3 BqList Component**
+### Step 2 \u2013 Save selection
+
+* User clicks \u201cConfirm\u201d \u2192 send selected `fournisseurId` to backend.
+* Call `saveSelectedFournisseur(projetId, fournisseurId)` \u2192 persist in database.
+
+---
+
+## **5\ufe0f\u20e3 Optional: Pre-select the Classement 1 fournisseur**
+
+In the frontend:
 
 ```ts
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { ArticleRefreshService } from '../article-refresh.service';
-import { ProjetArticleService } from '../services/projet-article.service';
-
-@Component({
-  selector: 'app-bq-list',
-  template: `
-    <p>Articles:</p>
-    <ul>
-      <li *ngFor="let a of articles">{{ a.designation }}</li>
-    </ul>
-  `
-})
-export class BqListComponent implements OnInit, OnDestroy {
-  @Input() projetId!: number;
-  articles: any[] = [];
-  private sub: Subscription = new Subscription();
-
-  constructor(
-    private refreshSvc: ArticleRefreshService,
-    private projetArticleService: ProjetArticleService
-  ) {}
-
-  ngOnInit() {
-    this.loadArticles(); // initial load
-
-    // Subscribe to refresh event from uploader
-    this.sub.add(
-      this.refreshSvc.refresh$.subscribe(() => {
-        console.log("\U0001f525 BqList refreshing after file upload");
-        this.loadArticles();
-      })
-    );
-  }
-
-  loadArticles() {
-    this.projetArticleService.getArticles(this.projetId).subscribe((data) => {
-      this.articles = data;
-    });
-  }
-
-  ngOnDestroy() {
-    this.sub.unsubscribe();
-  }
-}
+const bestFournisseur = estimationResult.result.find(r => r.classement === 1);
+this.selectedFournisseurId = bestFournisseur?.id;
 ```
 
----
-
-## **5\ufe0f\u20e3 app-enrichissement-stapper Component**
-
-```ts
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-
-@Component({
-  selector: 'app-enrichissement-stapper',
-  template: `
-    <button nbButton (click)="uploadFile()">Upload File</button>
-  `
-})
-export class EnrichissementStapperComponent {
-  @Input() projetId!: number;
-  @Output() fileUploaded = new EventEmitter<void>();
-
-  uploadFile() {
-    // Simulate backend save
-    setTimeout(() => {
-      console.log("\u2705 File uploaded successfully");
-      this.fileUploaded.emit(); // notify parent
-    }, 1000);
-  }
-}
-```
+* User can change it if needed.
+* When saving, always send the selected ID.
 
 ---
 
-## \u2705 How it works
+## **6\ufe0f\u20e3 Advantages**
 
-1. Step 1 is active \u2192 both components rendered.
-2. User clicks **Upload File** \u2192 uploader component emits `(fileUploaded)`.
-3. Stepper parent receives event \u2192 calls `ArticleRefreshService.notifyRefresh()`.
-4. `BqListComponent` subscribes to `refresh$` \u2192 reloads articles.
-5. Step 2 and Step 3 are lazy-loaded and unaffected.
-
-This **avoids all ViewChild race conditions**, works inside the same step, and keeps your per-step lazy rendering intact.
+* Calculation stays **pure** \u2192 easy to test.
+* User sees dynamic results **without saving intermediate calculations**.
+* Database only stores the **final selected supplier** \u2192 keeps history clean.
+* You can add multiple selections in the future if needed.
 
 ---
 
-I can also make a **fully working StackBlitz example** with real upload + list if you want \u2014 so you can just copy/paste it into your project.
+If you want, I can **write the full example of the Stepper + Angular table**:
+
+* Shows `EstimationResultDTO`
+* Auto-selects `classement = 1` fournisseur
+* User can change selection
+* Backend receives selection and persists it
+
+It will be ready-to-use in your existing project.
 
 Do you want me to do that?
