@@ -1,121 +1,129 @@
-Ah, I see the issue. When you use the `<nb-radio-group>`, you need to make sure that it is properly set up to display each radio button and also bind the `[(ngModel)]` correctly.
+This error means **your Spring Boot app is calling a JAX-WS SOAP client**, but **the JAX-WS implementation (Metro / com.sun.xml.ws) is missing from the classpath**.
 
-Let\u2019s address the issue:
+Specifically, these two classes are missing:
 
-### Possible cause of the issue:
+```
+org.glassfish.hk2.osgiresourcelocator.ServiceLoader
+com.sun.xml.ws.spi.ProviderImpl
+```
 
-1. The `<nb-radio-group>` should wrap all the `<nb-radio>` elements.
-2. If it's not showing, it could be due to how the layout of `<td>` and `<nb-radio>` is set up inside the table.
-
-Let's fix the issue step by step.
+Both come from **Metro JAX-WS** (NOT included in Java 11+ and NOT included by Spring Boot).
 
 ---
 
-### \u2705 **Correct Structure with `nb-radio-group`**
+# \u2705 Why this happens
 
-Here is how the **correct structure** should look for your case:
+Java 8 included JAX-WS (javax.xml.ws).
+Java 11+ **removed** all JAX-WS classes.
 
-```html
-<nb-card accent="primary">
-  <ng-container *ngIf="data$ && hasNonZeroHB">
-    <ng-container *ngIf="loading">
-      <rpa-portal-loading></rpa-portal-loading>
-    </ng-container>
+You are using:
 
-    <nb-card-body>
-      <table class="table w-100" id="excel-table" aria-label="This table displays the data related to filters">
-        <thead class="bg-header fw-bold">
-          <tr class="border" style="background-color: whitesmoke;">
-            <th class="p-3 border-end-white"></th>
-            <th *ngFor="let f of fournisseurs" class="p-3 border-end-white text-uppercase">{{ f }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="fw-bold p-3">ESTIMATION</td>
-            <td *ngFor="let val of estimationCCRow" class="p-3">
-              {{ val | number: '1.0-2': 'fr' }}
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-bold p-3">ART. HC (estimation métreur)</td>
-            <td *ngFor="let val of estimationHBRow" class="p-3">
-              {{ val | number: '1.0-2': 'fr' }}
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-bold p-3">TOTAL</td>
-            <td *ngFor="let val of totalRow" class="p-3">
-              {{ val | number: '1.0-2': 'fr' }}
-            </td>
-          </tr>
-          <tr>
-            <td class="fw-bold p-3">CLASSEMENT</td>
-            <td *ngFor="let val of classementRow" class="p-3 fw-bold">
-              {{ val }}
-            </td>
-          </tr>
+```
+jakarta.xml.ws.Service
+jakarta.xml.ws.spi.Provider
+```
 
-          <!-- Row for radio buttons -->
-          <tr *ngIf="!data$.saved">
-            <td class="fw-bold p-3">CHOISIR</td>
-            <td *ngFor="let f of fournisseurs" class="p-3 text-center">
-              <nb-radio-group [(ngModel)]="selectedFournisseur" name="selectedFournisseur">
-                <nb-radio [value]="f">
-                  {{ f }}
-                </nb-radio>
-              </nb-radio-group>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </nb-card-body>
-  </ng-container>
-</nb-card>
+\u2192 But **you did not include the Metro/JAX-WS implementation**.
+
+So your generated SOAP client tries to load:
+
+* `com.sun.xml.ws.spi.ProviderImpl` (Metro SPI)
+* `org.glassfish.hk2.osgiresourcelocator.ServiceLoader` (needed by Metro inside OSGi)
+
+And it fails \u2192 **ClassNotFoundException**.
+
+---
+
+# \u2705 Solution: Add the correct Metro dependencies
+
+Add these to your **pom.xml**:
+
+```xml
+<dependency>
+    <groupId>com.sun.xml.ws</groupId>
+    <artifactId>rt</artifactId>
+    <version>3.0.2</version>
+</dependency>
+
+<dependency>
+    <groupId>org.glassfish.hk2</groupId>
+    <artifactId>osgi-resource-locator</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
+If your client was generated with **JAX-WS 2.x (javax)** instead of **jakarta.xml**, use:
+
+```xml
+<dependency>
+    <groupId>com.sun.xml.ws</groupId>
+    <artifactId>jaxws-rt</artifactId>
+    <version>2.3.5</version>
+</dependency>
 ```
 
 ---
 
-### \u2705 **Key Fixes:**
+# \u2757 Check which version you need
 
-1. **Wrap `nb-radio` with `nb-radio-group`:**
-   The `[(ngModel)]` and `name` must be applied **on the `nb-radio-group`** itself, not on the individual radio buttons.
+Look at this:
 
-2. **Use `nb-radio-group` inside a single `td`:**
-   If your radio buttons are inside a table, the group must wrap them, and `*ngFor` must loop over the `fournisseurs` within `nb-radio`.
-
----
-
-### \u2753 **How It Works:**
-
-* `nb-radio-group` binds the value of the selected radio button with `[(ngModel)]="selectedFournisseur"`.
-* Each `nb-radio` has a `[value]="f"`, which ensures that the value of the selected radio button is assigned to `selectedFournisseur` when the user clicks it.
-
----
-
-### **Check the Following:**
-
-1. Ensure `fournisseurs` is an array of **strings** (or values you're assigning to the radio buttons) in the TypeScript component.
-2. **Double-check the `selectedFournisseur`** in your component: It must be a string (the selected `f` value).
-
----
-
-### \u2705 **Example TypeScript:**
-
-```ts
-export class EstimationResultListComponent {
-  fournisseurs: string[] = ['Fournisseur 1', 'Fournisseur 2', 'Fournisseur 3'];
-  selectedFournisseur?: string;
-
-  onSelectFournisseur(f: string) {
-    this.selectedFournisseur = f;
-  }
-
-  // Other code...
-}
+```
+jakarta.xml.ws.Service
 ```
 
+\u2192 You are using **Jakarta JAX-WS 3.x** (Jakarta namespace), so you MUST use:
+
+```
+com.sun.xml.ws:rt:3.x
+```
+
+NOT the old `jaxws-rt:2.x`.
+
 ---
 
-This should now show the radio buttons correctly.
-Let me know if it works or if you need further adjustments!
+# If you generated client classes with wsimport (javax) but use jakarta in code
+
+You will get:
+
+```
+Provider com.sun.xml.ws.spi.ProviderImpl not found
+```
+
+In that case:
+
+\u2714 Convert your generated sources to **Jakarta namespace**
+OR
+\u2714 Generate the client again using Jakarta-compatible wsimport
+
+---
+
+# \U0001f4cc Final checklist
+
+Make sure your pom has:
+
+```xml
+<dependency>
+    <groupId>com.sun.xml.ws</groupId>
+    <artifactId>rt</artifactId>
+    <version>3.0.2</version>
+</dependency>
+
+<dependency>
+    <groupId>org.glassfish.hk2</groupId>
+    <artifactId>osgi-resource-locator</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
+Then **clean + rebuild**:
+
+```
+mvn clean install
+```
+
+Restart the app.
+
+---
+
+# If you want, paste your **pom.xml** and I will tell you exactly what is missing.
