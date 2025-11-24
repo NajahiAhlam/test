@@ -1,129 +1,110 @@
-This error means **your Spring Boot app is calling a JAX-WS SOAP client**, but **the JAX-WS implementation (Metro / com.sun.xml.ws) is missing from the classpath**.
+You have a **Nebular Stepper** that resets to the **first step on page refresh**, because the stepper's `selectedIndex` is not being restored from anywhere.
+Nebular has **no built-in route persistence**, so after refresh Angular rebuilds the component and stepper always starts at index `0`.
 
-Specifically, these two classes are missing:
+### \u2705 **Solution: Persist the selected step in the URL or in localStorage**
 
-```
-org.glassfish.hk2.osgiresourcelocator.ServiceLoader
-com.sun.xml.ws.spi.ProviderImpl
-```
-
-Both come from **Metro JAX-WS** (NOT included in Java 11+ and NOT included by Spring Boot).
+Below are the **two most common and clean ways**.
 
 ---
 
-# \u2705 Why this happens
+# \u2705 **OPTION 1 \u2014 Persist step in URL (recommended)**
 
-Java 8 included JAX-WS (javax.xml.ws).
-Java 11+ **removed** all JAX-WS classes.
+Each step corresponds to a URL:
 
-You are using:
+* `/projet/123/step/0`
+* `/projet/123/step/1`
+* ...
 
+### \u2714 Step 1: Update template
+
+Bind selectedIndex to a variable:
+
+```html
+<nb-stepper
+  #stepper
+  [selectedIndex]="currentStep"
+  (selectedChange)="onStepChange($event)"
+>
 ```
-jakarta.xml.ws.Service
-jakarta.xml.ws.spi.Provider
+
+### \u2714 Step 2: In your component:
+
+```ts
+currentStep = 0;
+
+constructor(private route: ActivatedRoute, private router: Router) {}
+
+ngOnInit() {
+  this.currentStep = Number(this.route.snapshot.paramMap.get('step')) || 0;
+}
+
+onStepChange(index: number) {
+  this.currentStep = index;
+
+  this.router.navigate(
+    ['/projet', this.projetId, 'step', index],
+    { replaceUrl: true }
+  );
+}
 ```
 
-\u2192 But **you did not include the Metro/JAX-WS implementation**.
+### \U0001f4a5 Result
 
-So your generated SOAP client tries to load:
-
-* `com.sun.xml.ws.spi.ProviderImpl` (Metro SPI)
-* `org.glassfish.hk2.osgiresourcelocator.ServiceLoader` (needed by Metro inside OSGi)
-
-And it fails \u2192 **ClassNotFoundException**.
+If you're on step **3** and you refresh \u2192 URL still contains `/step/3` \u2192 stepper restores **step 3**.
 
 ---
 
-# \u2705 Solution: Add the correct Metro dependencies
+# \u2705 **OPTION 2 \u2014 Save step index in localStorage**
 
-Add these to your **pom.xml**:
+Simplest if you don\u2019t want URL changes.
 
-```xml
-<dependency>
-    <groupId>com.sun.xml.ws</groupId>
-    <artifactId>rt</artifactId>
-    <version>3.0.2</version>
-</dependency>
+### \u2714 Template
 
-<dependency>
-    <groupId>org.glassfish.hk2</groupId>
-    <artifactId>osgi-resource-locator</artifactId>
-    <version>1.0.1</version>
-</dependency>
+```html
+<nb-stepper
+  #stepper
+  [selectedIndex]="currentStep"
+  (selectedChange)="onStepChange($event)"
+>
 ```
 
-If your client was generated with **JAX-WS 2.x (javax)** instead of **jakarta.xml**, use:
+### \u2714 Component
 
-```xml
-<dependency>
-    <groupId>com.sun.xml.ws</groupId>
-    <artifactId>jaxws-rt</artifactId>
-    <version>2.3.5</version>
-</dependency>
+```ts
+currentStep = 0;
+
+ngOnInit() {
+  const savedStep = localStorage.getItem('stepperIndex');
+  if (savedStep !== null) {
+    this.currentStep = Number(savedStep);
+  }
+}
+
+onStepChange(index: number) {
+  localStorage.setItem('stepperIndex', index.toString());
+}
 ```
+
+### \U0001f4a5 Result
+
+Refresh \u2192 stepper resumes where you left off.
 
 ---
 
-# \u2757 Check which version you need
+# \u26a0 Why your current code always resets to step 0
 
-Look at this:
+Because `*ngIf="stepper.selectedIndex === X"` is evaluated **after rendering**, and the stepper always initializes to index **0**.
 
-```
-jakarta.xml.ws.Service
-```
-
-\u2192 You are using **Jakarta JAX-WS 3.x** (Jakarta namespace), so you MUST use:
-
-```
-com.sun.xml.ws:rt:3.x
-```
-
-NOT the old `jaxws-rt:2.x`.
+Nebular stepper does NOT store its internal state across refresh.
 
 ---
 
-# If you generated client classes with wsimport (javax) but use jakarta in code
+# \U0001f91d Want me to integrate the fix directly into your full component code?
 
-You will get:
+If yes, tell me which option you prefer:
 
-```
-Provider com.sun.xml.ws.spi.ProviderImpl not found
-```
+### \U0001f539 Option 1 \u2014 URL-based persistence (best for sharing links & multi-users)
 
-In that case:
+### \U0001f539 Option 2 \u2014 LocalStorage persistence (simplest)
 
-\u2714 Convert your generated sources to **Jakarta namespace**
-OR
-\u2714 Generate the client again using Jakarta-compatible wsimport
-
----
-
-# \U0001f4cc Final checklist
-
-Make sure your pom has:
-
-```xml
-<dependency>
-    <groupId>com.sun.xml.ws</groupId>
-    <artifactId>rt</artifactId>
-    <version>3.0.2</version>
-</dependency>
-
-<dependency>
-    <groupId>org.glassfish.hk2</groupId>
-    <artifactId>osgi-resource-locator</artifactId>
-    <version>1.0.1</version>
-</dependency>
-```
-
-Then **clean + rebuild**:
-
-```
-mvn clean install
-```
-
-Restart the app.
-
----
-
-# If you want, paste your **pom.xml** and I will tell you exactly what is missing.
+I\u2019ll rewrite your component cleanly.
