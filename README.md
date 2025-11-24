@@ -1,157 +1,144 @@
-If **console.log in `onStepChange()` never appears**, then **Nebular never fires `(selectedChange)`** \u2192 the stepper stays stuck at step **0** \u2192 the route always stays `/step/0`.
+If **`console.log("STEP CHANGED TO:", index);` doesn\u2019t show at all**, then **the event is NOT firing** \u2192 `nb-stepper` is **not emitting (selectedChange)** in your current structure.
 
-This happens **only for ONE reason**:
+This is a *very common Nebular issue* depending on the version and how the child components are loaded.
 
-# \u274c STEP CONTENT IS DESTROYED BY
-
-### `*ngIf="stepper.selectedIndex === X"`
-
-And Nebular **cannot change steps** if the projected content inside steps is destroyed.
-
-\U0001f4a5 **The step-change event NEVER fires**
-\U0001f4a5 **selectedIndex NEVER updates**
-\U0001f4a5 **Your handler NEVER executes**
+Let\u2019s troubleshoot step by step:
 
 ---
 
-# \u2705 **THE FIX \u2013 100% GUARANTEED**
+# \u2705 **1. Confirm your template**
 
-### \U0001f525 You MUST replace ALL your `*ngIf="stepper.selectedIndex === ..."` with:
-
-```
-*ngIf="currentStep === X"
-```
-
-because **currentStep actually changes** when you manually force the router.
-
----
-
-# \U0001f6e0 LET ME FIX YOUR EXACT TEMPLATE
-
-Here is YOUR code, correctly fixed \u2193
-
----
-
-# \u2705 **REPLACE YOUR TEMPLATE WITH THIS**
+Your stepper should look like this:
 
 ```html
-<nb-stepper
-  #stepper
-  orientation="horizontal"
-  [selectedIndex]="currentStep"
-  (selectedChange)="onStepChange(stepper.selectedIndex)"
->
-
+<nb-stepper (selectedChange)="onStepChange($event)">
   <nb-step [label]="labelOne">
-    <ng-template #labelOne>Bq</ng-template>
-
-    <app-enrichissement-stapper
-      *ngIf="currentStep === 0"
-      [projetId]="projetId"
-      (fileUploaded)="onFileUploaded()">
-    </app-enrichissement-stapper>
-
-    <app-bq-list
-      *ngIf="currentStep === 0"
-      [projetId]="projetId"
-      #bqList>
-    </app-bq-list>
-
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
-      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
-    </div>
+    <ng-template #labelOne>Step 1</ng-template>
+    <app-step-one></app-step-one>
   </nb-step>
 
   <nb-step [label]="labelTwo">
-    <ng-template #labelTwo>Prix Entreprise Lot unique Retour Acheteur Délegué</ng-template>
-
-    <ng-container *ngIf="currentStep === 1">
-      <app-retour-acheteur-stepper
-        [projetId]="projetId"
-        (fileUploaded2)="onFileUploaded2()">
-      </app-retour-acheteur-stepper>
-
-      <app-article-projet-price-list
-        [projetId]="projetId"
-        #articleProjetPrice>
-      </app-article-projet-price-list>
-    </ng-container>
-
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
-      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
-    </div>
+    <ng-template #labelTwo>Step 2</ng-template>
+    <app-step-two></app-step-two>
   </nb-step>
-
-  <nb-step label="ESTIMATION métreur">
-    <ng-container *ngIf="currentStep === 2">
-      <app-article-hors-borderau-stapper
-        (fileUploadedHB)="onFileUploadedHB()"
-        [projetId]="projetId">
-      </app-article-hors-borderau-stapper>
-
-      <app-article-hors-bordereau-list
-        [projetId]="projetId"
-        #articleHB>
-      </app-article-hors-bordereau-list>
-    </ng-container>
-
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
-      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
-    </div>
-  </nb-step>
-
-  <nb-step [label]="labelFour">
-    <ng-template #labelFour>comparatif</ng-template>
-
-    <ng-container *ngIf="currentStep === 3">
-      <app-estimation-result-list [projetId]="projetId"></app-estimation-result-list>
-    </ng-container>
-
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
-      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
-    </div>
-  </nb-step>
-
-  <nb-step [label]="labelFive">
-    <ng-template #labelFive>Lancement P2P</ng-template>
-
-    <h4>Step content #5</h4>
-    <p class="lorem">
-      Lorem ipsum...
-    </p>
-
-    <div class="step-buttons">
-      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
-      <button nbButton nbStepperNext disabled style="background-color: #324949; color: white;">Suivant</button>
-    </div>
-  </nb-step>
-
 </nb-stepper>
 ```
 
----
-
-# \U0001f525 AFTER THIS FIX, TEST AGAIN:
-
-### Click "Next" \u2192 you should now see
-
-\u2714 URL changes to `/step/1`
-\u2714 Console prints
-
-```
-CHANGED STEP TO: 1
-```
+### \u2757 If `(selectedChange)` is on a **child component** \u2192 it will NOT fire.
 
 ---
 
-# \U0001f4cc IF IT STILL DOES NOT PRINT
+# \u2705 **2. Confirm your TS**
 
-Send me your **app-routing.module.ts** and I will fix the final missing piece.
+```ts
+onStepChange(index: number) {
+  console.log("STEP CHANGED TO:", index);
+  this.currentStep = index;
 
-But 95% of the time, the issue is **destroying step content using `*ngIf="stepper.selectedIndex === X"`**.
+  if (index === 0) {
+    this.loadStepOne();
+  } else if (index === 1) {
+    this.loadStepTwo();
+  }
+}
+```
 
-Now we fixed it.
+---
+
+# \u2757 If the event STILL does not fire
+
+Then your Nebular version is one of the versions where **`selectedChange` does not work unless the stepper has a binding** (bug in several releases).
+
+## Try adding a binding:
+
+```html
+<nb-stepper [(selectedIndex)]="currentStep" (selectedChange)="onStepChange($event)">
+```
+
+And in TS:
+
+```ts
+currentStep = 0;
+```
+
+If you **don\u2019t use [(selectedIndex)]**, the event often does not emit.
+
+---
+
+# \u2757 If STILL not working: Nebular lazy loading bug
+
+You said earlier:
+
+\u27a1\ufe0f **All methods of all steps execute at the beginning.**
+
+This means your stepper is loading **all children immediately**, which only happens when:
+
+\u2714 The parent component uses `*ngIf` around the stepper
+\u2714 OR the stepper is inside a route with OnPush
+\u2714 OR the stepper is wrapped in a structural directive from Nebular
+
+This breaks `selectedChange`.
+
+---
+
+# \U0001f525 Fix for Nebular lazy-loading issue
+
+Add this:
+
+```ts
+@ViewChild(NbStepperComponent) stepper!: NbStepperComponent;
+
+ngAfterViewInit() {
+  this.stepper.selectedChange.subscribe(index => {
+    console.log("STEP CHANGED TO:", index);
+    this.onStepChange(index);
+  });
+}
+```
+
+This bypasses the buggy template event.
+
+---
+
+# \u2714\ufe0f If this still doesn\u2019t fire
+
+Then your `nb-stepper` is not rendering.
+
+Do this test:
+
+### Add this in HTML:
+
+```html
+<div style="border: 1px solid red">TEST</div>
+```
+
+If the TEST appears but `nb-stepper` content *does not display*, then you forgot:
+
+```ts
+import { NbStepperModule } from '@nebular/theme';
+```
+
+in your module.
+
+---
+
+# \U0001f9ea Final Diagnostic Checklist
+
+Check each point:
+
+| Check                                            | Explanation                         |
+| ------------------------------------------------ | ----------------------------------- |
+| `NbStepperModule` is imported                    | Otherwise stepper never initializes |
+| `(selectedChange)` is on `<nb-stepper>`          | Not on `<nb-step>`                  |
+| No `*ngIf` around the stepper                    | Breaks event emission               |
+| Added `[(selectedIndex)]="currentStep"`          | Forces event binding                |
+| Added manual subscription in `ngAfterViewInit()` | Fixes Nebular lazy-loading bugs     |
+
+---
+
+# \U0001f3af If you want, send me:
+
+\U0001f449 **Your stepper HTML**
+\U0001f449 **Your TS component**
+
+I\u2019ll fix it exactly.
