@@ -1,110 +1,151 @@
-You have a **Nebular Stepper** that resets to the **first step on page refresh**, because the stepper's `selectedIndex` is not being restored from anywhere.
-Nebular has **no built-in route persistence**, so after refresh Angular rebuilds the component and stepper always starts at index `0`.
+If the **route always stays `/step/0`**, it means:
 
-### \u2705 **Solution: Persist the selected step in the URL or in localStorage**
+### \u274c `onStepChange()` is **NOT being called**
 
-Below are the **two most common and clean ways**.
+OR
+
+### \u274c `stepper.selectedIndex` is **never changing**
+
+Let's fix it **step-by-step** until your route becomes:
+
+```
+/stepper/15/step/1
+/stepper/15/step/2
+/stepper/15/step/3
+...
+```
 
 ---
 
-# \u2705 **OPTION 1 \u2014 Persist step in URL (recommended)**
+# \u2705 **1. Make sure selectedChange emits the REAL INDEX**
 
-Each step corresponds to a URL:
+You MUST use this EXACT code:
 
-* `/projet/123/step/0`
-* `/projet/123/step/1`
-* ...
+```html
+(selectedChange)="onStepChange(stepper.selectedIndex)"
+```
 
-### \u2714 Step 1: Update template
+NOT:
 
-Bind selectedIndex to a variable:
+\u274c `(selectedChange)="onStepChange($event)"`
+\u274c `(selectedChange)="onStepChange()"`
+\u274c `(selectedChange)="onStepChange(stepper)"`
+
+\u2714 FULL CORRECT STEP
 
 ```html
 <nb-stepper
   #stepper
   [selectedIndex]="currentStep"
-  (selectedChange)="onStepChange($event)"
+  (selectedChange)="onStepChange(stepper.selectedIndex)"
 >
 ```
 
-### \u2714 Step 2: In your component:
+---
+
+# \u2705 **2. Add a console.log to confirm the step changes**
+
+In your component:
 
 ```ts
-currentStep = 0;
-
-constructor(private route: ActivatedRoute, private router: Router) {}
-
-ngOnInit() {
-  this.currentStep = Number(this.route.snapshot.paramMap.get('step')) || 0;
-}
-
 onStepChange(index: number) {
+  console.log("CHANGED STEP TO: ", index);
   this.currentStep = index;
 
   this.router.navigate(
-    ['/projet', this.projetId, 'step', index],
+    ['/stepper', this.projetId, 'step', index],
     { replaceUrl: true }
   );
 }
 ```
 
-### \U0001f4a5 Result
+### If NOTHING prints \u2192 stepper never fires the event
 
-If you're on step **3** and you refresh \u2192 URL still contains `/step/3` \u2192 stepper restores **step 3**.
+Then your stepper is **broken by *ngIf logic***.
 
 ---
 
-# \u2705 **OPTION 2 \u2014 Save step index in localStorage**
+# \u2757 CRITICAL FIX \u2014 REMOVE *ngIf="stepper.selectedIndex === X"**
 
-Simplest if you don\u2019t want URL changes.
-
-### \u2714 Template
+I repeat:
+Nebular **CANNOT change steps** if you use this:
 
 ```html
-<nb-stepper
-  #stepper
-  [selectedIndex]="currentStep"
-  (selectedChange)="onStepChange($event)"
->
+*ngIf="stepper.selectedIndex === 0"
 ```
 
-### \u2714 Component
+It destroys the step and Nebular can't move.
+
+---
+
+# \u2705 Replace ALL these with:
+
+```html
+*ngIf="currentStep === 0"
+*ngIf="currentStep === 1"
+*ngIf="currentStep === 2"
+...
+```
+
+---
+
+# \u2705 **3. Test again \u2014 Do the next steps now update the URL?**
+
+### \U0001f449 If URL changes to `/step/1` \u2192 SUCCESS
+
+### \U0001f449 If URL stays `/step/0` \u2192 Still broken \u2192 go to next step.
+
+---
+
+# \u2757 **4. Make sure your routing path is correct**
+
+In your **app-routing.module.ts** you MUST have:
 
 ```ts
-currentStep = 0;
-
-ngOnInit() {
-  const savedStep = localStorage.getItem('stepperIndex');
-  if (savedStep !== null) {
-    this.currentStep = Number(savedStep);
-  }
-}
-
-onStepChange(index: number) {
-  localStorage.setItem('stepperIndex', index.toString());
+{
+  path: 'stepper/:id/step/:step',
+  component: StepperComponent
 }
 ```
 
-### \U0001f4a5 Result
+NOT:
 
-Refresh \u2192 stepper resumes where you left off.
-
----
-
-# \u26a0 Why your current code always resets to step 0
-
-Because `*ngIf="stepper.selectedIndex === X"` is evaluated **after rendering**, and the stepper always initializes to index **0**.
-
-Nebular stepper does NOT store its internal state across refresh.
+\u274c `stepper/:id`
+\u274c `stepper/:id/:step`
+\u274c missing \u201cstep\u201d segment
 
 ---
 
-# \U0001f91d Want me to integrate the fix directly into your full component code?
+# \u2757 **5. Make sure you opened the stepper correctly**
 
-If yes, tell me which option you prefer:
+You fixed it to:
 
-### \U0001f539 Option 1 \u2014 URL-based persistence (best for sharing links & multi-users)
+```ts
+openStepper() {
+  this.router.navigate(['/stepper', this.projet?.id, 'step', 0]);
+}
+```
 
-### \U0001f539 Option 2 \u2014 LocalStorage persistence (simplest)
+If you still navigate to `/stepper/15` \u2192 your routing is wrong.
 
-I\u2019ll rewrite your component cleanly.
+---
+
+# \U0001f525 SUMMARY \u2014 For step persistence to work:
+
+### \u2714 Correct template
+
+### \u2714 Correct change handler
+
+### \u2714 NO *ngIf on stepper.selectedIndex
+
+### \u2714 Correct route path
+
+### \u2714 Correct initial navigation
+
+---
+
+# \U0001f4cc **PLEASE SEND ME YOUR app-routing.module.ts**
+
+I absolutely need to see it to be 100% sure the routing matches what you are navigating to.
+
+Once I see it, I will give you the exact fix in one message.
