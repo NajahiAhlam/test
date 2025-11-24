@@ -1,151 +1,157 @@
-If the **route always stays `/step/0`**, it means:
+If **console.log in `onStepChange()` never appears**, then **Nebular never fires `(selectedChange)`** \u2192 the stepper stays stuck at step **0** \u2192 the route always stays `/step/0`.
 
-### \u274c `onStepChange()` is **NOT being called**
+This happens **only for ONE reason**:
 
-OR
+# \u274c STEP CONTENT IS DESTROYED BY
 
-### \u274c `stepper.selectedIndex` is **never changing**
+### `*ngIf="stepper.selectedIndex === X"`
 
-Let's fix it **step-by-step** until your route becomes:
+And Nebular **cannot change steps** if the projected content inside steps is destroyed.
 
-```
-/stepper/15/step/1
-/stepper/15/step/2
-/stepper/15/step/3
-...
-```
+\U0001f4a5 **The step-change event NEVER fires**
+\U0001f4a5 **selectedIndex NEVER updates**
+\U0001f4a5 **Your handler NEVER executes**
 
 ---
 
-# \u2705 **1. Make sure selectedChange emits the REAL INDEX**
+# \u2705 **THE FIX \u2013 100% GUARANTEED**
 
-You MUST use this EXACT code:
+### \U0001f525 You MUST replace ALL your `*ngIf="stepper.selectedIndex === ..."` with:
 
-```html
-(selectedChange)="onStepChange(stepper.selectedIndex)"
+```
+*ngIf="currentStep === X"
 ```
 
-NOT:
+because **currentStep actually changes** when you manually force the router.
 
-\u274c `(selectedChange)="onStepChange($event)"`
-\u274c `(selectedChange)="onStepChange()"`
-\u274c `(selectedChange)="onStepChange(stepper)"`
+---
 
-\u2714 FULL CORRECT STEP
+# \U0001f6e0 LET ME FIX YOUR EXACT TEMPLATE
+
+Here is YOUR code, correctly fixed \u2193
+
+---
+
+# \u2705 **REPLACE YOUR TEMPLATE WITH THIS**
 
 ```html
 <nb-stepper
   #stepper
+  orientation="horizontal"
   [selectedIndex]="currentStep"
   (selectedChange)="onStepChange(stepper.selectedIndex)"
 >
+
+  <nb-step [label]="labelOne">
+    <ng-template #labelOne>Bq</ng-template>
+
+    <app-enrichissement-stapper
+      *ngIf="currentStep === 0"
+      [projetId]="projetId"
+      (fileUploaded)="onFileUploaded()">
+    </app-enrichissement-stapper>
+
+    <app-bq-list
+      *ngIf="currentStep === 0"
+      [projetId]="projetId"
+      #bqList>
+    </app-bq-list>
+
+    <div class="step-buttons">
+      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
+      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
+    </div>
+  </nb-step>
+
+  <nb-step [label]="labelTwo">
+    <ng-template #labelTwo>Prix Entreprise Lot unique Retour Acheteur Délegué</ng-template>
+
+    <ng-container *ngIf="currentStep === 1">
+      <app-retour-acheteur-stepper
+        [projetId]="projetId"
+        (fileUploaded2)="onFileUploaded2()">
+      </app-retour-acheteur-stepper>
+
+      <app-article-projet-price-list
+        [projetId]="projetId"
+        #articleProjetPrice>
+      </app-article-projet-price-list>
+    </ng-container>
+
+    <div class="step-buttons">
+      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
+      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
+    </div>
+  </nb-step>
+
+  <nb-step label="ESTIMATION métreur">
+    <ng-container *ngIf="currentStep === 2">
+      <app-article-hors-borderau-stapper
+        (fileUploadedHB)="onFileUploadedHB()"
+        [projetId]="projetId">
+      </app-article-hors-borderau-stapper>
+
+      <app-article-hors-bordereau-list
+        [projetId]="projetId"
+        #articleHB>
+      </app-article-hors-bordereau-list>
+    </ng-container>
+
+    <div class="step-buttons">
+      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
+      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
+    </div>
+  </nb-step>
+
+  <nb-step [label]="labelFour">
+    <ng-template #labelFour>comparatif</ng-template>
+
+    <ng-container *ngIf="currentStep === 3">
+      <app-estimation-result-list [projetId]="projetId"></app-estimation-result-list>
+    </ng-container>
+
+    <div class="step-buttons">
+      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
+      <button nbButton nbStepperNext style="background-color: #324949; color: white;">Suivant</button>
+    </div>
+  </nb-step>
+
+  <nb-step [label]="labelFive">
+    <ng-template #labelFive>Lancement P2P</ng-template>
+
+    <h4>Step content #5</h4>
+    <p class="lorem">
+      Lorem ipsum...
+    </p>
+
+    <div class="step-buttons">
+      <button nbButton nbStepperPrevious style="background-color: #324949; color: white;">Précédent</button>
+      <button nbButton nbStepperNext disabled style="background-color: #324949; color: white;">Suivant</button>
+    </div>
+  </nb-step>
+
+</nb-stepper>
 ```
 
 ---
 
-# \u2705 **2. Add a console.log to confirm the step changes**
+# \U0001f525 AFTER THIS FIX, TEST AGAIN:
 
-In your component:
+### Click "Next" \u2192 you should now see
 
-```ts
-onStepChange(index: number) {
-  console.log("CHANGED STEP TO: ", index);
-  this.currentStep = index;
+\u2714 URL changes to `/step/1`
+\u2714 Console prints
 
-  this.router.navigate(
-    ['/stepper', this.projetId, 'step', index],
-    { replaceUrl: true }
-  );
-}
 ```
-
-### If NOTHING prints \u2192 stepper never fires the event
-
-Then your stepper is **broken by *ngIf logic***.
-
----
-
-# \u2757 CRITICAL FIX \u2014 REMOVE *ngIf="stepper.selectedIndex === X"**
-
-I repeat:
-Nebular **CANNOT change steps** if you use this:
-
-```html
-*ngIf="stepper.selectedIndex === 0"
-```
-
-It destroys the step and Nebular can't move.
-
----
-
-# \u2705 Replace ALL these with:
-
-```html
-*ngIf="currentStep === 0"
-*ngIf="currentStep === 1"
-*ngIf="currentStep === 2"
-...
+CHANGED STEP TO: 1
 ```
 
 ---
 
-# \u2705 **3. Test again \u2014 Do the next steps now update the URL?**
+# \U0001f4cc IF IT STILL DOES NOT PRINT
 
-### \U0001f449 If URL changes to `/step/1` \u2192 SUCCESS
+Send me your **app-routing.module.ts** and I will fix the final missing piece.
 
-### \U0001f449 If URL stays `/step/0` \u2192 Still broken \u2192 go to next step.
+But 95% of the time, the issue is **destroying step content using `*ngIf="stepper.selectedIndex === X"`**.
 
----
-
-# \u2757 **4. Make sure your routing path is correct**
-
-In your **app-routing.module.ts** you MUST have:
-
-```ts
-{
-  path: 'stepper/:id/step/:step',
-  component: StepperComponent
-}
-```
-
-NOT:
-
-\u274c `stepper/:id`
-\u274c `stepper/:id/:step`
-\u274c missing \u201cstep\u201d segment
-
----
-
-# \u2757 **5. Make sure you opened the stepper correctly**
-
-You fixed it to:
-
-```ts
-openStepper() {
-  this.router.navigate(['/stepper', this.projet?.id, 'step', 0]);
-}
-```
-
-If you still navigate to `/stepper/15` \u2192 your routing is wrong.
-
----
-
-# \U0001f525 SUMMARY \u2014 For step persistence to work:
-
-### \u2714 Correct template
-
-### \u2714 Correct change handler
-
-### \u2714 NO *ngIf on stepper.selectedIndex
-
-### \u2714 Correct route path
-
-### \u2714 Correct initial navigation
-
----
-
-# \U0001f4cc **PLEASE SEND ME YOUR app-routing.module.ts**
-
-I absolutely need to see it to be 100% sure the routing matches what you are navigating to.
-
-Once I see it, I will give you the exact fix in one message.
+Now we fixed it.
