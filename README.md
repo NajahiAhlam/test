@@ -1,109 +1,114 @@
-Ah! Now it\u2019s fully clear. In the **current Nebular version**, `NbStepperComponent`:
+To generate a PDF from the HTML content in an Angular application, you can use a library like **jsPDF** or **html2pdf.js**. Here's a step-by-step guide to help you get started:
 
-* **Does NOT have `selectedIndexChange`**
-* **Does NOT have `selectedChange`**
-* Only exposes **`selectedIndex`** (read/write property)
+### 1. Install the necessary libraries:
 
-This is why **all two-way binding attempts fail**.
+First, you need to install `jsPDF` and `html2pdf.js` via npm:
 
-\u2705 That means **the only reliable way to track step changes** is **via `(nbStepperNext)` and `(nbStepperPrevious)` events** on the buttons, because Nebular emits **events when you click \u201cNext\u201d or \u201cPrevious\u201d**, not automatically when the index changes.
-
----
-
-# **Working Approach Using Buttons**
-
-### Step 1: HTML
-
-```html
-<nb-stepper #stepper orientation="horizontal" [selectedIndex]="currentStep">
-
-  <!-- STEP 1 -->
-  <nb-step [label]="labelOne">
-    <ng-template #labelOne>Bq</ng-template>
-
-    <app-enrichissement-stapper *ngIf="currentStep === 0" [projetId]="projetId" (fileUploaded)="onFileUploaded()"></app-enrichissement-stapper>
-
-    <div class="step-buttons">
-      <button nbButton (click)="previousStep()" [disabled]="currentStep === 0">Précédent</button>
-      <button nbButton (click)="nextStep()" [disabled]="currentStep === 4">Suivant</button>
-    </div>
-  </nb-step>
-
-  <!-- STEP 2 -->
-  <nb-step [label]="labelTwo">
-    <ng-container *ngIf="currentStep === 1">
-      <app-retour-acheteur-stepper [projetId]="projetId" (fileUploaded2)="onFileUploaded2()"></app-retour-acheteur-stepper>
-    </ng-container>
-
-    <div class="step-buttons">
-      <button nbButton (click)="previousStep()">Précédent</button>
-      <button nbButton (click)="nextStep()">Suivant</button>
-    </div>
-  </nb-step>
-
-  <!-- Add other steps similarly -->
-</nb-stepper>
+```bash
+npm install jspdf html2pdf.js --save
 ```
 
----
+### 2. Import the library in your component:
 
-### Step 2: Component TS
+In your Angular component, import `jsPDF` or `html2pdf.js` like this:
 
-```ts
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+```typescript
+import { Component } from '@angular/core';
+import * as jsPDF from 'jspdf';
+import html2pdf from 'html2pdf.js';
+```
 
+### 3. Create a function to generate the PDF:
+
+Now, create a function that will trigger the PDF generation from your HTML. For example:
+
+```typescript
 @Component({
-  selector: 'app-stepper',
-  templateUrl: './stepper.component.html',
-  styleUrls: ['./stepper.component.scss']
+  selector: 'app-your-component',
+  templateUrl: './your-component.component.html',
+  styleUrls: ['./your-component.component.css']
 })
-export class StepperComponent implements OnInit {
+export class YourComponent {
 
-  projetId!: number;
-  currentStep = 0;
-  maxStep = 4; // total steps - 1
+  generatePDF() {
+    const element = document.getElementById('pdfContent');
 
-  constructor(private route: ActivatedRoute, private router: Router) {}
+    // Using jsPDF:
+    const doc = new jsPDF();
+    doc.html(element, {
+      callback: function (doc) {
+        doc.save('generated-file.pdf');
+      },
+      margin: [10, 10, 10, 10],
+      x: 10,
+      y: 10
+    });
 
-  ngOnInit(): void {
-    this.projetId = Number(this.route.snapshot.paramMap.get('id'));
-    this.currentStep = Number(this.route.snapshot.paramMap.get('step')) || 0;
-  }
-
-  nextStep() {
-    if (this.currentStep < this.maxStep) {
-      this.currentStep++;
-      this.updateRoute();
-    }
-  }
-
-  previousStep() {
-    if (this.currentStep > 0) {
-      this.currentStep--;
-      this.updateRoute();
-    }
-  }
-
-  private updateRoute() {
-    console.log('Step changed to:', this.currentStep);
-    this.router.navigate(['/stepper', this.projetId, 'step', this.currentStep], { replaceUrl: true });
+    // OR Using html2pdf.js:
+    // html2pdf(element);
   }
 }
 ```
 
----
+### 4. Add a button to trigger PDF generation:
 
-### \u2705 Why this works
+Add a button in your HTML that calls the `generatePDF` function when clicked:
 
-1. Nebular does **not emit step-change automatically** in latest versions.
-2. The step index is controlled manually via `currentStep`.
-3. \u201cNext\u201d and \u201cPrevious\u201d buttons update `currentStep` and the route.
-4. Child components load only for the active step (`*ngIf="currentStep === X"`).
-5. Page refresh restores the step from the URL (`/stepper/:id/step/:step`).
+```html
+<button nbButton (click)="generatePDF()">Download PDF</button>
+```
 
----
+### 5. Customize the PDF (optional):
 
-If you want, I can now rewrite your **full 5-step stepper HTML and TS** with this button-based solution so it\u2019s fully functional.
+If you want to adjust how the content appears on the PDF (e.g., margins, fonts, page size), you can tweak the configuration in the `jsPDF` or `html2pdf.js` settings.
 
-Do you want me to do that?
+### Example (Full Component):
+
+Here\u2019s a complete example combining everything:
+
+```typescript
+import { Component } from '@angular/core';
+import * as jsPDF from 'jspdf';
+import html2pdf from 'html2pdf.js';
+
+@Component({
+  selector: 'app-your-component',
+  templateUrl: './your-component.component.html',
+  styleUrls: ['./your-component.component.css']
+})
+export class YourComponent {
+
+  generatePDF() {
+    const element = document.getElementById('pdfContent');
+
+    // Using jsPDF:
+    const doc = new jsPDF();
+    doc.html(element, {
+      callback: function (doc) {
+        doc.save('generated-file.pdf');
+      },
+      margin: [10, 10, 10, 10],
+      x: 10,
+      y: 10
+    });
+
+    // OR Using html2pdf.js:
+    // html2pdf(element);
+  }
+}
+```
+
+```html
+<!-- your-component.component.html -->
+
+<nb-card>
+    <!-- Your HTML content here -->
+    <button nbButton (click)="generatePDF()">Download PDF</button>
+</nb-card>
+```
+
+### 6. Styles and Formatting:
+
+Depending on how complex the styling and layout are in your HTML (e.g., tables, images, fonts), the PDF might not match exactly as you see it in the browser. You can adjust the styles and layout further by modifying the `jsPDF` or `html2pdf` settings or using custom CSS for better control.
+
+That should do it! This setup will allow you to convert your HTML content into a downloadable PDF in your Angular application. Let me know if you need more customization!
