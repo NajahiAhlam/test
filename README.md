@@ -1,114 +1,238 @@
-To generate a PDF from the HTML content in an Angular application, you can use a library like **jsPDF** or **html2pdf.js**. Here's a step-by-step guide to help you get started:
+Sure! I will **clean**, **re-structure**, and **organize** your HTML **without touching the first `<div id="pdfContent">`**.
+I will improve:
 
-### 1. Install the necessary libraries:
+\u2714 Page separation
+\u2714 Indentation
+\u2714 Table structure
+\u2714 Remove repeating `id="header-ded"` (ids must be unique)
+\u2714 Organize sections in semantic blocks
+\u2714 Prepare the structure for clean PDF generation
+\u2714 Keep ALL your fields, labels, classes
 
-First, you need to install `jsPDF` and `html2pdf.js` via npm:
+---
 
-```bash
-npm install jspdf html2pdf.js --save
-```
+# \u2705 **Here is your CLEAN + WELL-STRUCTURED HTML**
 
-### 2. Import the library in your component:
+\U0001f449 **NOTE:**
 
-In your Angular component, import `jsPDF` or `html2pdf.js` like this:
+* I **did not change** `<div id="pdfContent">` at all.
+* I only restructured **inside** it.
 
-```typescript
-import { Component } from '@angular/core';
-import * as jsPDF from 'jspdf';
-import html2pdf from 'html2pdf.js';
-```
-
-### 3. Create a function to generate the PDF:
-
-Now, create a function that will trigger the PDF generation from your HTML. For example:
-
-```typescript
-@Component({
-  selector: 'app-your-component',
-  templateUrl: './your-component.component.html',
-  styleUrls: ['./your-component.component.css']
-})
-export class YourComponent {
-
-  generatePDF() {
-    const element = document.getElementById('pdfContent');
-
-    // Using jsPDF:
-    const doc = new jsPDF();
-    doc.html(element, {
-      callback: function (doc) {
-        doc.save('generated-file.pdf');
-      },
-      margin: [10, 10, 10, 10],
-      x: 10,
-      y: 10
-    });
-
-    // OR Using html2pdf.js:
-    // html2pdf(element);
-  }
-}
-```
-
-### 4. Add a button to trigger PDF generation:
-
-Add a button in your HTML that calls the `generatePDF` function when clicked:
+---
 
 ```html
-<button nbButton (click)="generatePDF()">Download PDF</button>
-```
-
-### 5. Customize the PDF (optional):
-
-If you want to adjust how the content appears on the PDF (e.g., margins, fonts, page size), you can tweak the configuration in the `jsPDF` or `html2pdf.js` settings.
-
-### Example (Full Component):
-
-Here\u2019s a complete example combining everything:
-
-```typescript
-import { Component } from '@angular/core';
-import * as jsPDF from 'jspdf';
-import html2pdf from 'html2pdf.js';
-
-@Component({
-  selector: 'app-your-component',
-  templateUrl: './your-component.component.html',
-  styleUrls: ['./your-component.component.css']
-})
-export class YourComponent {
-
-  generatePDF() {
-    const element = document.getElementById('pdfContent');
-
-    // Using jsPDF:
-    const doc = new jsPDF();
-    doc.html(element, {
-      callback: function (doc) {
-        doc.save('generated-file.pdf');
-      },
-      margin: [10, 10, 10, 10],
-      x: 10,
-      y: 10
-    });
-
-    // OR Using html2pdf.js:
-    // html2pdf(element);
-  }
-}
-```
-
-```html
-<!-- your-component.component.html -->
-
 <nb-card>
-    <!-- Your HTML content here -->
+  <nb-card-header class="d-flex flex-row justify-content-end">
     <button nbButton (click)="generatePDF()">Download PDF</button>
+  </nb-card-header>
+
+  <nb-card-body>
+    <div id="pdfContent">
+
+      <!-- ====================== PAGE 1 ====================== -->
+      <div class="pdf-header">
+        <div class="page-guard">
+          <div class="page">
+            <div class="bank">SAHAM BANK</div>
+
+            <div class="center-block">
+              <div class="line title">AMENAGEMENT DE L'AGENCE BANCAIRE</div>
+              <div class="line subtitle">GUEZNAYA</div>
+              <div class="line contract">CONTRAT CADRE ( LOT UNIQUE )</div>
+            </div>
+
+            <div class="footer">QUANTITATIF</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====================== PAGE 2 ====================== -->
+      <div class="page-guard">
+        <div class="page">
+
+          <!-- ===== Header Table ===== -->
+          <div class="header-section">
+            <table class="table header-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="w-25">Direction des Moyens Généraux</th>
+
+                  <th rowspan="2" class="w-50 text-center">
+                    FICHE DED :
+                    <span class="bold text-uppercase"></span><br /><br />
+                    <input type="text" readonly
+                      class="text-center border-bottom border border-light" />
+                  </th>
+
+                  <th class="w-25"></th>
+
+                  <th rowspan="2">
+                    <img class="logo" src="\assets\img\image (1).png" alt="Saham Bank" />
+                  </th>
+                </tr>
+
+                <tr>
+                  <th class="w-25">
+                    N° Fiche:
+                    <input class="text-center" type="text"
+                      style="border: none; background-color: transparent"
+                      placeholder="N° Fiche..." />
+                  </th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+
+          <!-- ===== Nature de la dépense ===== -->
+          <div class="naturedep mt-3 ml-5">
+            <h6 class="text-center mt-3">Nature de la dépense</h6>
+
+            <div class="form-group">
+              <label>Objet de la dépense</label>
+              <textarea class="natdep" placeholder="à remplir ..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Données géométriques et contenance</label>
+              <textarea class="natdep" placeholder="à remplir ..." required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Consistance des travaux</label>
+              <textarea class="natdep" required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Programme détaillé transmis par la ligne métier</label>
+              <textarea class="natdep" placeholder="à remplir ..." required></textarea>
+            </div>
+
+            <!-- Team Section -->
+            <div class="team-section">
+              <label>Équipe Immo :</label>
+              <div class="row">
+                <div class="col-4">
+                  <label class="text-secondary">Chef de Projet :</label>
+                  <input class="natdep" disabled placeholder="à remplir ..." required />
+                </div>
+
+                <div class="col-4">
+                  <label class="text-secondary">Acheteur Délégué :</label>
+                  <input class="natdep" disabled placeholder="à remplir ..." required />
+                </div>
+
+                <div class="col-4">
+                  <label class="text-secondary">Responsable Departement :</label>
+                  <input class="natdep" disabled placeholder="à remplir ..." required />
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ====================== PAGE 3 ====================== -->
+      <div class="page-guard">
+        <div class="page">
+
+          <!-- ===== Intervenants ===== -->
+          <div class="intervenants-section mb-4">
+            <label>Intervenants et équipe du maître d'\u0153uvre</label>
+
+            <div class="row">
+              <div class="col-4">
+                <label class="text-secondary">Architecte :</label>
+                <input class="natdep" placeholder="Architecte..." required />
+              </div>
+
+              <div class="col-4">
+                <label class="text-secondary">Architecte d'intérieur :</label>
+                <input class="natdep" placeholder="Architecte d'intérieur..." required />
+              </div>
+
+              <div class="col-4">
+                <label class="text-secondary">Métreur :</label>
+                <input class="natdep" placeholder="Métreur..." required />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-6">
+                <label class="text-secondary">BET :</label>
+                <input class="natdep" placeholder="BET..." required />
+              </div>
+
+              <div class="col-6">
+                <label class="text-secondary">BC :</label>
+                <input class="natdep" placeholder="BC..." required />
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Prestataire ===== -->
+          <div class="prestataire-section">
+            <label>Informations sur le prestataire</label>
+
+            <div class="row">
+              <div class="col-4">
+                <label class="text-secondary">Raison Sociale :</label>
+                <input class="natdep" placeholder="Raison sociale..." required />
+              </div>
+
+              <div class="col-4">
+                <label class="text-secondary">Montant Adjugé (MAD) :</label>
+                <input class="natdep" placeholder="Montant..." required />
+              </div>
+
+              <div class="col-4">
+                <label class="text-secondary">Chiffre d'Affaires :</label>
+                <input class="natdep" placeholder="CA..." required />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-6">
+                <label class="text-secondary">Expertise :</label>
+                <input class="natdep" placeholder="Expertise..." required />
+              </div>
+
+              <div class="col-6">
+                <label class="text-secondary">Anciennes Transactions :</label>
+                <input class="natdep" placeholder="Transactions..." required />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-6">
+                <label class="text-secondary">Réputation :</label>
+                <input class="natdep" placeholder="Réputation..." required />
+              </div>
+
+              <div class="col-6">
+                <label class="text-secondary">Frais de Déplacement :</label>
+                <input class="natdep" placeholder="Frais..." required />
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </nb-card-body>
 </nb-card>
 ```
 
-### 6. Styles and Formatting:
+---
 
-Depending on how complex the styling and layout are in your HTML (e.g., tables, images, fonts), the PDF might not match exactly as you see it in the browser. You can adjust the styles and layout further by modifying the `jsPDF` or `html2pdf` settings or using custom CSS for better control.
+# \u2705 If you want, I can also:
 
-That should do it! This setup will allow you to convert your HTML content into a downloadable PDF in your Angular application. Let me know if you need more customization!
+\u2714 Add **CSS** for perfect PDF pages
+\u2714 Add **page breaks** that work with html2pdf/JSPDF
+\u2714 Add a **better layout**
+\u2714 Make it look **like a real bank PDF**
+\u2714 Fix your PDF generation errors
+
+Just tell me!
