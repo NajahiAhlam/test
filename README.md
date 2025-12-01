@@ -1,118 +1,147 @@
-<nb-card-body>
-  <div id="pdfContent">
-    <!-- ====================== PAGE 1 ====================== -->
-    <div class="pdf-header">
-      <div class="page-guard">
-        <div class="page">
-          <div class="bank">SAHAM BANK</div>
+You're right \u2014 **your test does not actually cover or verify the logic inside the `Specification`**, because using:
 
-          <div class="center-block">
-            <div class="line title">AMENAGEMENT DE L'AGENCE BANCAIRE</div>
-            <div class="line subtitle">{{ resultF?.projet?.nom }}</div>
-            <div class="line contract">CONTRAT CADRE ( LOT UNIQUE )</div>
-          </div>
+```java
+when(projetPriceArticleRepository.findAll((Specification<ProjetPriceArticle>) any(), any(Pageable.class)))
+    .thenReturn(page);
+```
 
-          <div class="footer">QUANTITATIF</div>
-        </div>
-      </div>
-    </div>
+means:
 
-    <!-- ====================== PAGE 2 ====================== -->
-    <div class="page-guard">
-      <div class="page">
-        <!-- Form Start -->
-        <form [formGroup]="form" (ngSubmit)="onSubmit()">
-          <!-- ===== Nature de la dépense ===== -->
-          <div class="naturedep mt-3 ml-5">
-            <h6 class="text-center mt-3">Nature de la dépense</h6>
+\u27a1\ufe0f You are **not testing the predicates**, nor whether `cb.equal`, `cb.like`, joins, etc. were generated properly.
+\u27a1\ufe0f The `Specification` lambda *is never executed by your test*.
+\u27a1\ufe0f So filters (`projetId`, `code`, `fournisseurId`, etc.) are **not being tested at all**.
 
-            <div class="form-group">
-              <label>Objet de la dépense</label>
-              <textarea class="natdep" formControlName="objetDepense" placeholder="à remplir ..." required></textarea>
-            </div>
+---
 
-            <div class="form-group">
-              <label>Données géométriques et contenance</label>
-              <textarea class="natdep" formControlName="donneesGeometriques" placeholder="à remplir ..." required></textarea>
-            </div>
+# \u2705 Why your predicates aren't covered
 
-            <div class="form-group">
-              <label>Consistance des travaux</label>
-              <textarea class="natdep" formControlName="consistanceTravaux" required></textarea>
-            </div>
+### Because you are mocking `findAll(specification, pageable)` with `any(Specification.class)`
 
-            <div class="form-group">
-              <label>Programme détaillé transmis par la ligne métier</label>
-              <textarea class="natdep" formControlName="programmeTransmis" placeholder="à remplir ..." required></textarea>
-            </div>
-          </div>
+Mocking with `any()` makes Mockito **skip** executing the real JPA specification logic and simply return your mocked `Page`.
 
-          <!-- Team Section -->
-          <div class="team-section">
-            <label class="section-title">Équipe Immo :</label>
+So none of these lines ever run:
 
-            <div class="row">
-              <div class="col-4">
-                <label class="text-secondary d-block mb-1">Chef de Projet :</label>
-                <input class="natdep" formControlName="chefDeProjet" placeholder="à remplir ..." required />
-              </div>
+```java
+switch (key) {
+  case "projetId": predicates.add( ... );
+  case "code": predicates.add( ... );
+  ...
+}
+```
 
-              <div class="col-4">
-                <label class="text-secondary d-block mb-1">Acheteur Délégué :</label>
-                <input class="natdep" formControlName="acheteurDelegue" placeholder="à remplir ..." required />
-              </div>
+---
 
-              <div class="col-4">
-                <label class="text-secondary d-block mb-1">Responsable Département :</label>
-                <input class="natdep" formControlName="responsableDepartement" placeholder="à remplir ..." required />
-              </div>
-            </div>
-          </div>
+# \u2705 How to properly test Specifications
 
-          <!-- ===== Intervenants ===== -->
-          <div class="intervenants-section mb-4">
-            <label>Intervenants et équipe du maître d'oeuvre</label>
+There are **two** correct approaches:
 
-            <div class="row">
-              <div class="col-4">
-                <label class="text-secondary">Architecte :</label>
-                <input class="natdep" formControlName="architecte" placeholder="Architecte..." required />
-              </div>
+---
 
-              <div class="col-4">
-                <label class="text-secondary">Architecte d'intérieur :</label>
-                <input class="natdep" formControlName="architecteInterieur" placeholder="Architecte d'intérieur..." required />
-              </div>
+# \u2714 **Option 1 (Recommended): Use ArgumentCaptor to verify predicates were built**
 
-              <div class="col-4">
-                <label class="text-secondary">Métreur :</label>
-                <input class="natdep" formControlName="metreur" placeholder="Métreur..." required />
-              </div>
-            </div>
+You don\u2019t let the JPA repo execute anything.
+Instead, you inspect the **Specification** passed into your repository.
 
-            <div class="row">
-              <div class="col-6">
-                <label class="text-secondary">BET :</label>
-                <input class="natdep" formControlName="bet" placeholder="BET..." required />
-              </div>
+### Example Fix:
 
-              <div class="col-6">
-                <label class="text-secondary">BC :</label>
-                <input class="natdep" formControlName="bc" placeholder="BC..." required />
-              </div>
-            </div>
-          </div>
+```java
+@Captor
+ArgumentCaptor<Specification<ProjetPriceArticle>> specCaptor;
 
-          <!-- Fiche N° -->
-          <div class="form-group">
-            <label>N° Fiche :</label>
-            <input class="text-center border-bottom border-light" formControlName="ficheNumber" placeholder="N° Fiche..." />
-          </div>
+@Test
+void testProjetIdPredicateIsCreated() {
 
-          <!-- Submit Button -->
-          <button type="submit" [disabled]="form.invalid" class="btn btn-primary">Save</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</nb-card-body>
+    Map<String, String> params = Map.of("projetId", "123");
+
+    service.getAllProjetPriceArticle(0, 10, "ASC", "id", params);
+
+    verify(projetPriceArticleRepository).findAll(specCaptor.capture(), any(Pageable.class));
+
+    Specification<ProjetPriceArticle> specification = specCaptor.getValue();
+
+    // Create mock Root, CriteriaBuilder, CriteriaQuery
+    Root<ProjetPriceArticle> root = mock(Root.class);
+    CriteriaBuilder cb = mock(CriteriaBuilder.class);
+    CriteriaQuery<?> query = mock(CriteriaQuery.class);
+
+    // Calling specification.toPredicate MUST execute your switch-case
+    specification.toPredicate(root, query, cb);
+
+    // Verify that joins and cb.equal were called
+    verify(root).join("articleProjet");
+    verify(cb).equal(any(), eq(123L));
+}
+```
+
+### This **forces your predicates to run**, and you verify that:
+
+* the join is performed
+* the predicate `cb.equal(..., 123)` is created
+
+\u2714 **NOW your code is covered.**
+
+---
+
+# \u2714 **Option 2: Use a real in-memory DB (H2) and do an integration test**
+
+If you want to test the whole query end-to-end:
+
+```java
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class ProjetPriceArticleRepositoryTest {
+
+    @Autowired
+    ProjetPriceArticleRepository repository;
+
+    @Test
+    void testFilterByProjetId() {
+        // insert real Projet, Article, etc.
+        Projet projet = new Projet();
+        projet.setId(1L);
+        em.persist(projet); 
+
+        // ...
+
+        Map<String, String> params = Map.of("projetId", "1");
+        Specification<ProjetPriceArticle> spec = ... // call your method to build it
+
+        Page result = repository.findAll(spec, PageRequest.of(0, 10));
+
+        assertEquals(1, result.getTotalElements());
+    }
+}
+```
+
+\u2714 This verifies Spring Data JPA + real SQL + your joins + predicates.
+
+---
+
+# \u274c What **NOT** to do
+
+Do NOT test Specifications like this:
+
+```java
+when(repo.findAll(any(), any())).thenReturn(page)
+```
+
+Because **none of your filtering logic will execute**.
+
+---
+
+# \U0001f4cc Summary of Recommended Fix
+
+\u27a1\ufe0f **Use ArgumentCaptor to capture the Specification**
+\u27a1\ufe0f **Invoke `toPredicate()` manually**
+\u27a1\ufe0f **Verify joins + predicates via Mockito**
+
+This method gives **full coverage** over:
+
+* `cb.like`
+* `cb.equal`
+* joins (`root.join(...)`)
+* switching between cases
+
+---
+
+If you want, I can generate a **complete corrected test class** with all predicate verifications.
