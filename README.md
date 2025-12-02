@@ -1,34 +1,37 @@
-You're skipping this row **because both `code` and `designation` are empty**, but in your Excel the text *\u201cFrais de déplacement\u201d* is visually centered between the two columns \u2014 meaning **it's inside *one single cell*** (probably the *designation* column), but your code is reading it as empty.
+You have **one critical bug** in your code:
 
-\u2714\ufe0f **This happens when your Excel uses \u201cmerge cells\u201d** or the text is not in the column you expect.
+\U0001f449 **You check `missingCode` and `missingDesignation` *before* moving the \u201cfrais \u2026\u201d text from code \u2192 designation.**
+So when code contains \u201cfrais \u2026\u201d:
+
+* You detect **missingDesignation = true**
+* Then you move code \u2192 designation
+* But `missingDesignation` **still stays true**, so you skip the row OR process it wrong
+  \u2192 leading to **quantité = 0 being saved** even when Excel has a real value.
 
 ---
 
-# \u2705 **Fix: Accept rows where only `designation` is filled**
+# \u2705 **100% FIX**
 
-If you want to import rows that have **NO code but HAVE a designation**, then modify your condition.
+\U0001f449 **Recalculate `missingCode` and `missingDesignation` after moving \u201cfrais\u201d to designation.**
 
-### \u274c Current logic (too strict)
+Here is the corrected block:
 
 ```java
-if ((code == null || code.isEmpty()) && (designation == null || designation.isEmpty()) ) {
-    skipped.add(new SkippedRow(i + 1, "Code et désignation manquants"));
-    continue;
+String code = getCellValue(row.getCell(0));
+String designation = getCellValue(row.getCell(1));
+String unite = getCellValue(row.getCell(2));
+String quantiteStr = getCellValue(row.getCell(3));
+
+// --- Move FRAIS... from code \u2192 designation ---
+if (code != null && !code.trim().isEmpty()) {
+    String lower = code.toLowerCase();
+    if (lower.contains("frais")) {
+        designation = code;
+        code = "";
+    }
 }
-```
 
-This skips anything without a code, even if designation exists.
-
----
-
-# \u2705 **Correct logic**
-
-\U0001f449 Skip only if **both code AND designation are missing**
-\U0001f449 Import if **designation exists**, even when code is empty
-
-Use this:
-
-```java
+// \U0001f525 MUST RECALCULATE AFTER MOVING FRAIS !!!
 boolean missingCode = (code == null || code.trim().isEmpty());
 boolean missingDesignation = (designation == null || designation.trim().isEmpty());
 
@@ -38,37 +41,34 @@ if (missingCode && missingDesignation) {
 }
 ```
 
-This will **import** a row like:
+---
 
-| Code    | Designation          | Unite | Quantité |
-| ------- | -------------------- | ----- | -------- |
-| (empty) | Frais de déplacement | KM    | 660      |
+# \u26a0\ufe0f Why quantity becomes 0?
+
+### CASE A \u2014 You skipped the row
+
+Before fix, the row was skipped because:
+
+* designation was empty *before* the move
+* missingDesignation stayed **true**, even after move
+
+So the row never reached the quantite parsing part.
+
+\u2192 **quantity saved = 0 because articleProjet created with default 0**
 
 ---
 
-# \U0001f9ea If Excel has merged cells
+### CASE B \u2014 Wrong column alignment
 
-Merged cells in Apache POI return **the value only in the top-left cell** of the merged region.
+Often rows like *"Frais de déplacement    KM   660"*
+have merged cells and your quantite appears in another column.
 
-If Excel merges col 0 + col 1, POI returns value only for column 0 (code).
-Column 1 (designation) will appear empty.
-
-If your merged cell is supposed to be in *designation*, you can shift it:
-
-### Fix for merged regions (optional)
-
-```java
-if ((designation == null || designation.isEmpty()) && (code != null && !code.isEmpty())) {
-    // Move code into designation if designation is empty
-    designation = code;
-    code = "";
-}
-```
+But let's first apply the fix above \u2014 80% chance it's only the missingDesignation bug.
 
 ---
 
-# \u2714\ufe0f FINAL BEHAVIOR
+# \U0001f7e2 If quantity still becomes 0 after fix
 
-Your problematic row **WILL be imported**.
+Tell me, and I'll help you auto-detect quantite even when column shifts.
 
-If this is not enough and you want me to detect the merged cell automatically, send me **a screenshot of the Excel row** and I\u2019ll adjust the code.
+Or just send me the screenshot of the row in Excel.
