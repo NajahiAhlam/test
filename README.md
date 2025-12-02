@@ -1,29 +1,74 @@
-You want to modify the condition to avoid skipping rows that contain categories or subcategories starting with "a)", "b)", "c)", etc., while still enforcing the other checks. We can add a check for this pattern using a regular expression to ensure that the `designation` does not start with such patterns.
+You're skipping this row **because both `code` and `designation` are empty**, but in your Excel the text *\u201cFrais de déplacement\u201d* is visually centered between the two columns \u2014 meaning **it's inside *one single cell*** (probably the *designation* column), but your code is reading it as empty.
 
-Here's how you can update your condition:
+\u2714\ufe0f **This happens when your Excel uses \u201cmerge cells\u201d** or the text is not in the column you expect.
+
+---
+
+# \u2705 **Fix: Accept rows where only `designation` is filled**
+
+If you want to import rows that have **NO code but HAVE a designation**, then modify your condition.
+
+### \u274c Current logic (too strict)
 
 ```java
-boolean hasCode = !code.isEmpty();
-boolean hasDesignation = !designation.isEmpty();
-boolean hasUnit = !unite.isEmpty();
-boolean hasAnySupplierPrice = !supplierPrice.isEmpty();
-
-// Regular expression to match strings starting with 'a)', 'b)', 'c)', etc.
-boolean isSubCategory = designation.matches("^[a-zA-Z]\\)[\\s].*");
-
-if (hasDesignation && !hasCode && !hasUnit && !hasAnySupplierPrice && !isSubCategory) {
-    skipped.add(new SkippedRow(i + 1, "Catégorie / sous-catégorie (seulement désignation remplie)"));
+if ((code == null || code.isEmpty()) && (designation == null || designation.isEmpty()) ) {
+    skipped.add(new SkippedRow(i + 1, "Code et désignation manquants"));
     continue;
 }
 ```
 
-### Explanation:
+This skips anything without a code, even if designation exists.
 
-* `isSubCategory` uses a regular expression `^[a-zA-Z]\\)[\\s].*` to match strings that start with `a)`, `b)`, `c)`, etc.
+---
 
-  * `^[a-zA-Z]` ensures the first character is a letter (either uppercase or lowercase).
-  * `\\)` matches the closing parenthesis `)`.
-  * `[\\s]` checks for a space after the parenthesis.
-  * `.*` ensures that there can be any following content.
+# \u2705 **Correct logic**
 
-This will allow you to skip the row only when it meets the condition of having a `designation` starting with "a)", "b)", or similar, and other fields are empty or invalid.
+\U0001f449 Skip only if **both code AND designation are missing**
+\U0001f449 Import if **designation exists**, even when code is empty
+
+Use this:
+
+```java
+boolean missingCode = (code == null || code.trim().isEmpty());
+boolean missingDesignation = (designation == null || designation.trim().isEmpty());
+
+if (missingCode && missingDesignation) {
+    skipped.add(new SkippedRow(i + 1, "Code et désignation manquants"));
+    continue;
+}
+```
+
+This will **import** a row like:
+
+| Code    | Designation          | Unite | Quantité |
+| ------- | -------------------- | ----- | -------- |
+| (empty) | Frais de déplacement | KM    | 660      |
+
+---
+
+# \U0001f9ea If Excel has merged cells
+
+Merged cells in Apache POI return **the value only in the top-left cell** of the merged region.
+
+If Excel merges col 0 + col 1, POI returns value only for column 0 (code).
+Column 1 (designation) will appear empty.
+
+If your merged cell is supposed to be in *designation*, you can shift it:
+
+### Fix for merged regions (optional)
+
+```java
+if ((designation == null || designation.isEmpty()) && (code != null && !code.isEmpty())) {
+    // Move code into designation if designation is empty
+    designation = code;
+    code = "";
+}
+```
+
+---
+
+# \u2714\ufe0f FINAL BEHAVIOR
+
+Your problematic row **WILL be imported**.
+
+If this is not enough and you want me to detect the merged cell automatically, send me **a screenshot of the Excel row** and I\u2019ll adjust the code.
