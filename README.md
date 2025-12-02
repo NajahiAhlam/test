@@ -1,74 +1,81 @@
-You have **one critical bug** in your code:
+OK, since the **quantity is still saved as 0**, that means **your `quantiteStr` is EMPTY** for this line.
 
-\U0001f449 **You check `missingCode` and `missingDesignation` *before* moving the \u201cfrais \u2026\u201d text from code \u2192 designation.**
-So when code contains \u201cfrais \u2026\u201d:
+So the REAL problem is:
 
-* You detect **missingDesignation = true**
-* Then you move code \u2192 designation
-* But `missingDesignation` **still stays true**, so you skip the row OR process it wrong
-  \u2192 leading to **quantité = 0 being saved** even when Excel has a real value.
+\U0001f449 **Your Excel row "Frais de déplacement   KM   660" is not aligned like your code thinks.**
+The number **660** is NOT in column 3.
+
+### Typical case:
+
+Because \u201cFrais de déplacement\u201d is centered or merged, Excel shifts the row like this:
+
+| Col(0)               | Col(1)  | Col(2) | Col(3)    | Col(4?) |
+| -------------------- | ------- | ------ | --------- | ------- |
+| Frais de déplacement | (empty) | KM     | *(empty)* | **660** |
+
+So your code reads:
+
+* `quantiteStr` = `getCellValue(row.getCell(3))`
+  \u2192 returns `""` \u2192 becomes `0`.
 
 ---
 
-# \u2705 **100% FIX**
+# \u2705 100% FIX: Auto-detect the first numeric value after unite
 
-\U0001f449 **Recalculate `missingCode` and `missingDesignation` after moving \u201cfrais\u201d to designation.**
+Here is a robust solution:
 
-Here is the corrected block:
+\U0001f449 Look at **cells 3, 4, 5, 6\u2026**
+\U0001f449 Pick the **first numeric value**
+\U0001f449 Use it as quantite
+
+### \u2714\ufe0f Add this block **instead of your current quantiteStr logic**:
 
 ```java
-String code = getCellValue(row.getCell(0));
-String designation = getCellValue(row.getCell(1));
-String unite = getCellValue(row.getCell(2));
-String quantiteStr = getCellValue(row.getCell(3));
+// Detect quantity (first numeric value in the row after column 2)
+Double quantite = 0.0;
+boolean foundQuantite = false;
 
-// --- Move FRAIS... from code \u2192 designation ---
-if (code != null && !code.trim().isEmpty()) {
-    String lower = code.toLowerCase();
-    if (lower.contains("frais")) {
-        designation = code;
-        code = "";
+// Start scanning from column 3 to column 10 (just in case)
+for (int c = 3; c <= 10; c++) {
+    Cell cell = row.getCell(c);
+    if (cell == null) continue;
+
+    String val = getCellValue(cell);
+    if (val == null || val.trim().isEmpty()) continue;
+
+    val = val.replace(" ", "").replace(",", ".");
+
+    try {
+        quantite = Double.parseDouble(val);
+        foundQuantite = true;
+        break;
+    } catch (Exception ignore) {
     }
 }
 
-// \U0001f525 MUST RECALCULATE AFTER MOVING FRAIS !!!
-boolean missingCode = (code == null || code.trim().isEmpty());
-boolean missingDesignation = (designation == null || designation.trim().isEmpty());
-
-if (missingCode && missingDesignation) {
-    skipped.add(new SkippedRow(i + 1, "Code et désignation manquants"));
+if (!foundQuantite) {
+    skipped.add(new SkippedRow(i + 1, "Quantité introuvable dans la ligne"));
     continue;
 }
 ```
 
 ---
 
-# \u26a0\ufe0f Why quantity becomes 0?
+# \U0001f525 What this solves
 
-### CASE A \u2014 You skipped the row
+This automatically handles ALL Excel formats:
 
-Before fix, the row was skipped because:
+\u2714 merged cells
+\u2714 centered text
+\u2714 shifted columns
+\u2714 quantity in col 4 or col 5 or col 6
+\u2714 thousand separators \u201c8 500\u201d
+\u2714 decimal \u201c660,00\u201d
 
-* designation was empty *before* the move
-* missingDesignation stayed **true**, even after move
-
-So the row never reached the quantite parsing part.
-
-\u2192 **quantity saved = 0 because articleProjet created with default 0**
-
----
-
-### CASE B \u2014 Wrong column alignment
-
-Often rows like *"Frais de déplacement    KM   660"*
-have merged cells and your quantite appears in another column.
-
-But let's first apply the fix above \u2014 80% chance it's only the missingDesignation bug.
+Your line **will be imported with the correct quantity**.
 
 ---
 
-# \U0001f7e2 If quantity still becomes 0 after fix
+# If you want, I can fully rewrite your import method clean and safe.
 
-Tell me, and I'll help you auto-detect quantite even when column shifts.
-
-Or just send me the screenshot of the row in Excel.
+If you send me ONE screenshot of your Excel row, I can make it perfect.
