@@ -1,81 +1,99 @@
-OK, since the **quantity is still saved as 0**, that means **your `quantiteStr` is EMPTY** for this line.
-
-So the REAL problem is:
-
-\U0001f449 **Your Excel row "Frais de déplacement   KM   660" is not aligned like your code thinks.**
-The number **660** is NOT in column 3.
-
-### Typical case:
-
-Because \u201cFrais de déplacement\u201d is centered or merged, Excel shifts the row like this:
-
-| Col(0)               | Col(1)  | Col(2) | Col(3)    | Col(4?) |
-| -------------------- | ------- | ------ | --------- | ------- |
-| Frais de déplacement | (empty) | KM     | *(empty)* | **660** |
-
-So your code reads:
-
-* `quantiteStr` = `getCellValue(row.getCell(3))`
-  \u2192 returns `""` \u2192 becomes `0`.
+OK let\u2019s debug this **exact 30-difference (436668 vs 436698)** \u2014 that is NOT random.
+A **difference of exactly 30** means one of the following happened:
 
 ---
 
-# \u2705 100% FIX: Auto-detect the first numeric value after unite
+# \u2705 **1. One price increased by exactly 30 (ex: \u201c10\u201d became \u201c40\u201d)**
 
-Here is a robust solution:
+This usually happens when Excel cell contains something like:
 
-\U0001f449 Look at **cells 3, 4, 5, 6\u2026**
-\U0001f449 Pick the **first numeric value**
-\U0001f449 Use it as quantite
+* `30` but user typed **\u201c30 \u201d** (with space) and your parser mis-parsed
+* or a column shifted (wrong fournisseur column aligned)
 
-### \u2714\ufe0f Add this block **instead of your current quantiteStr logic**:
+---
+
+# \u2705 **2. A hidden \u201c30\u201d was imported from another column**
+
+Your code maps suppliers using:
 
 ```java
-// Detect quantity (first numeric value in the row after column 2)
-Double quantite = 0.0;
-boolean foundQuantite = false;
-
-// Start scanning from column 3 to column 10 (just in case)
-for (int c = 3; c <= 10; c++) {
-    Cell cell = row.getCell(c);
-    if (cell == null) continue;
-
-    String val = getCellValue(cell);
-    if (val == null || val.trim().isEmpty()) continue;
-
-    val = val.replace(" ", "").replace(",", ".");
-
-    try {
-        quantite = Double.parseDouble(val);
-        foundQuantite = true;
-        break;
-    } catch (Exception ignore) {
-    }
-}
-
-if (!foundQuantite) {
-    skipped.add(new SkippedRow(i + 1, "Quantité introuvable dans la ligne"));
-    continue;
-}
+int cellIndex = fournisseurStartIndex + j;
 ```
 
----
+If the Excel header contains an **empty column**, Excel shifts your data, so:
 
-# \U0001f525 What this solves
-
-This automatically handles ALL Excel formats:
-
-\u2714 merged cells
-\u2714 centered text
-\u2714 shifted columns
-\u2714 quantity in col 4 or col 5 or col 6
-\u2714 thousand separators \u201c8 500\u201d
-\u2714 decimal \u201c660,00\u201d
-
-Your line **will be imported with the correct quantity**.
+\U0001f4cc **The price of supplier X is read from the NEXT column**, which contains 30.
 
 ---
 
-# If you want, I can fully rewrite your import method clean and safe.
+# \u2705 **3. A \u201cmerged cell\u201d or \u201cformat cell \u2192 percentage\u201d issue**
 
-If you send me ONE screenshot of your Excel row, I can make it perfect.
+If Excel cell contains `3000%`, Java reads it as **30.00**
+\u2192 EXACT difference: `×30` or `+30`.
+
+This happens when:
+
+* Excel formatting is `%`
+* User typed `3000%` thinking it's `3000`
+
+---
+
+# \u2705 **4. Your parse logic treats \u201c30,000\u201d as `30.000` \u2192 gives 30**
+
+Because you do:
+
+```java
+prix = Double.parseDouble(prixStr.replace(",", "."));
+```
+
+Case example:
+
+| Excel Cell                             | Your Java Parses As |
+| -------------------------------------- | ------------------- |
+| `30,000` (meaning **thirty thousand**) | `30.000` \u2192 **30**   |
+
+If you SUM dozens of prices, adding **30 once** gives exactly your difference.
+
+---
+
+# \U0001f50d **I need one thing to confirm 100%**
+
+\U0001f449 **Send me the exact price values from the Excel row for the fournisseur that gives wrong sum**
+*(just the numeric values of the row)*
+
+Example:
+
+```
+Row 12 \u2014 Fournisseur X:
+1050
+230
+18000
+1390
+30
+24000
+150
+```
+
+If I see the list, I can identify which one produced the incorrect +30.
+
+---
+
+# \U0001f527 Meanwhile, here is the fix:
+
+### Replace your parsing with:
+
+```java
+NumberFormat format = NumberFormat.getInstance(Locale.FRANCE);
+Number number = format.parse(prixStr);
+prix = number.doubleValue();
+```
+
+\u2714 Handles: `30`, `30.5`, `30,5`, `30 000`, `30.000,50`, `30,000`
+\u2714 No false 30.
+
+---
+
+# \U0001f9ea Quick test:
+
+Give me **the prixStr list** for the fournisseur where sum differs.
+I\u2019ll compute and tell you exactly which cell caused the +30.
