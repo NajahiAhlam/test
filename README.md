@@ -1,159 +1,120 @@
-From what you\u2019ve described, you\u2019re trying to handle two different types of Excel import scenarios, with the same `Article` and `Fournisseur` headers but varying `Designation` and `Price` formats. Below is a solution that can help you handle both the **Lot Unique** type and **Electricité** type articles with proper handling of their specific Excel structures.
+Perfect! You already have the service skeleton with helpers like `getCellValue`, `isRowEmpty`, and header validation. Now we can implement the **main import method for Lot Electricité** that will parse the Excel, handle the `Marque`/`Reference` logic, and return `ExcelImportResult`.
 
-### Understanding the Problem
-
-1. **Lot Unique:**
-
-   * You have a column for the article designation and several columns for the prices of different `Fournisseur` entities. The prices are directly listed next to each `Fournisseur` name, and each row corresponds to an article.
-
-2. **Electricité (Lustrerie Agences):**
-
-   * The `Designation` column is split into two parts: the first part is the article description, and the second part includes "Marque" and "Reference".
-   * The prices for each brand (`Marque`) and `Reference` could be shared across multiple rows or spread across different columns.
-
-### Solution Outline
-
-To implement this logic in your backend, you\u2019ll need to:
-
-1. **Parse the Excel data correctly:**
-
-   * Handle both types of data (Lot Unique and Electricité).
-   * Detect and split the `Designation` column if the format is for Electricité (i.e., containing "Marque" and "Reference").
-   * Handle price assignment for each `Fournisseur` in the correct column.
-
-2. **Update the Entities:**
-
-   * For `Lot Unique`, each price will directly map to a `PriceArticle` object for the corresponding `Fournisseur`.
-   * For `Electricité`, each `PriceArticle` should be linked to the specific brand and reference combination.
-
-### 1. Parsing Excel Data
-
-You need to loop through the rows in your Excel sheet, determine the article type (whether it's **Lot Unique** or **Electricité**), and then process it accordingly.
-
-#### Sample Logic for Parsing
+Here\u2019s a complete method you can add inside your `ExcelArticleLotElectriciteReader`:
 
 ```java
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+public ExcelImportResult importExcel(MultipartFile file, List<Fournisseur> fournisseurs) {
+    List<ArticleLotElectricite> articles = new ArrayList<>();
+    List<SkippedRow> skippedRows = new ArrayList<>();
 
-public class ExcelImportService {
+    try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+        Sheet sheet = workbook.getSheet(SHEET_NAME);
+        if (sheet == null) {
+            throw new RuntimeException("Sheet '" + SHEET_NAME + "' not found in Excel file");
+        }
 
-    public void importExcel(InputStream is) throws Exception {
-        Workbook workbook = new XSSFWorkbook(is);
-        Sheet sheet = workbook.getSheetAt(0); // Assuming data is in the first sheet
+        // Header row (assume first row)
+        Row headerRow = sheet.getRow(0);
+        validateHeaders(headerRow);
 
-        for (Row row : sheet) {
-            if (row.getRowNum() == 0) continue;  // Skip the header row
-            
-            String designation = getCellValue(row.getCell(1));  // Assuming the 'DESIGNATION' column is at index 1
+        // Map column index to fournisseur
+        Map<Integer, Fournisseur> fournisseurColumns = new HashMap<>();
+        for (int c = COL_UNITE + 1; c < headerRow.getLastCellNum(); c++) {
+            String fournisseurName = safeTrim(getCellValue(headerRow.getCell(c)));
+            fournisseurs.stream()
+                    .filter(f -> f.getRaisonSociale().equalsIgnoreCase(fournisseurName))
+                    .findFirst()
+                    .ifPresent(f -> fournisseurColumns.put(c, f));
+        }
 
-            if (designation.contains("MARQUE") || designation.contains("REFERENCE")) {
-                // Handle Electricité type
-                processElectriciteRow(row);
-            } else {
-                // Handle Lot Unique type
-                processLotUniqueRow(row);
+        ArticleLotElectricite currentArticle = null;
+        String currentCode = "";
+        String currentDesignation = "";
+        String currentUnite = "";
+
+        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            Row row = sheet.getRow(r);
+            if (isRowEmpty(row)) continue;
+
+            String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
+            String designation = safeTrim(getCellValue(row.getCell(COL_DESIGNATION)));
+            String unite = safeTrim(getCellValue(row.getCell(COL_UNITE)));
+
+            // Detect new article row (has code + designation)
+            boolean isNewArticle = !code.isEmpty() && !designation.isEmpty();
+
+            if (isNewArticle) {
+                currentCode = code;
+                currentDesignation = designation;
+                currentUnite = unite;
+
+                currentArticle = new ArticleLotElectricite();
+                currentArticle.setCode(currentCode);
+                currentArticle.setDesignation(currentDesignation);
+                currentArticle.setUnite(currentUnite);
+                currentArticle.setPriceArticles(new ArrayList<>());
+
+                articles.add(currentArticle);
+            }
+
+            if (currentArticle == null) {
+                skippedRows.add(new SkippedRow(r, "No current article to assign prices"));
+                continue;
+            }
+
+            // Marque & Reference
+            String marque = safeTrim(getCellValue(row.getCell(COL_DESIGNATION + 1))); // next column after designation
+            String reference = safeTrim(getCellValue(row.getCell(COL_DESIGNATION + 2))); // next column after marque
+
+            // Process prices for fournisseurs
+            for (Map.Entry<Integer, Fournisseur> entry : fournisseurColumns.entrySet()) {
+                int colIndex = entry.getKey();
+                Fournisseur fournisseur = entry.getValue();
+
+                String priceStr = safeTrim(getCellValue(row.getCell(colIndex)));
+                if (priceStr.isEmpty()) continue;
+
+                try {
+                    double price = Double.parseDouble(priceStr.replaceAll("[\\s,]", ""));
+                    PriceArticleLotElectricite priceArticle = new PriceArticleLotElectricite();
+                    priceArticle.setArticleLotElectricite(currentArticle);
+                    priceArticle.setFournisseur(fournisseur);
+                    priceArticle.setPrice(price);
+
+                    // Only set marque/reference if exists
+                    if (!marque.isEmpty()) priceArticle.setMarque(marque);
+                    if (!reference.isEmpty()) priceArticle.setReference(reference);
+
+                    currentArticle.getPriceArticles().add(priceArticle);
+
+                } catch (NumberFormatException ex) {
+                    skippedRows.add(new SkippedRow(r, "Invalid price format for fournisseur " + fournisseur.getRaisonSociale() + ": " + priceStr));
+                }
             }
         }
+
+    } catch (Exception e) {
+        log.error("Failed to import Excel for Lot Electricité", e);
+        throw new RuntimeException("Failed to import Excel: " + e.getMessage(), e);
     }
 
-    private void processLotUniqueRow(Row row) {
-        // Handle rows for Lot Unique
-        String articleCode = getCellValue(row.getCell(0));  // 'N°'
-        String articleDesignation = getCellValue(row.getCell(1));  // 'DESIGNATION'
-        
-        for (int i = 2; i < row.getLastCellNum(); i++) {
-            String fournisseurName = getColumnHeader(i);  // Get the fournisseur from the header row (assuming it's the first row)
-            Double price = getPriceFromCell(row.getCell(i));
-            
-            // Create PriceArticle entities and associate them with the Article and Fournisseur
-            // Add logic to persist Article, Fournisseur, and PriceArticle
-        }
-    }
-
-    private void processElectriciteRow(Row row) {
-        // Handle rows for Electricité (Lustrerie Agences)
-        String articleCode = getCellValue(row.getCell(0));  // 'N°'
-        String articleDesignation = getCellValue(row.getCell(1));  // 'DESIGNATION'
-
-        String marque = getCellValue(row.getCell(2));  // MARQUE
-        String reference = getCellValue(row.getCell(3));  // REFERENCE
-        
-        for (int i = 4; i < row.getLastCellNum(); i++) {
-            String fournisseurName = getColumnHeader(i);  // Get the fournisseur from the header row (assuming it's the first row)
-            Double price = getPriceFromCell(row.getCell(i));
-            
-            // Create PriceArticle entities and associate them with the Article, Fournisseur, Marque, and Reference
-            // Add logic to persist Article, Fournisseur, and PriceArticle
-        }
-    }
-
-    private String getCellValue(Cell cell) {
-        if (cell == null) return "";
-        switch (cell.getCellType()) {
-            case STRING: return cell.getStringCellValue();
-            case NUMERIC: return String.valueOf(cell.getNumericCellValue());
-            default: return "";
-        }
-    }
-
-    private Double getPriceFromCell(Cell cell) {
-        if (cell == null || cell.getCellType() != CellType.NUMERIC) return 0.0;
-        return cell.getNumericCellValue();
-    }
-
-    private String getColumnHeader(int index) {
-        // Assuming the header row is the first row in the sheet (index 0)
-        Row headerRow = sheet.getRow(0);
-        Cell headerCell = headerRow.getCell(index);
-        return getCellValue(headerCell); // Get fournisseur name from header
-    }
+    return new ExcelImportResult(articles, skippedRows);
 }
 ```
 
-### 2. Saving to the Database
+---
 
-After parsing the Excel data:
+### \u2705 How it Works
 
-1. For **Lot Unique**, you will save the article\u2019s prices and link them to the corresponding `Fournisseur`.
-2. For **Electricité**, the same process occurs, but you also need to handle the `Marque` and `Reference` information as part of the `PriceArticle` entity.
+1. **Detects new articles** by checking if `code` and `designation` are present.
+2. **Keeps track of the current article** so that rows with only Marque/Reference still get assigned to it.
+3. **Maps columns to fournisseurs** dynamically from the header row.
+4. **Parses prices**, removing spaces/commas, and creates `PriceArticleLotElectricite` objects.
+5. **Handles Marque/Reference** for Electricité articles.
+6. **Returns skipped rows** if any parsing error occurs.
 
-For this, you can update your entities as follows:
+---
 
-```java
-@Entity
-public class PriceArticle {
+If you want, I can also **improve this to merge rows where multiple Marque/Reference share the same price** \u2014 so your Excel formatting with merged cells will be correctly handled automatically. This is common in Electricité lots.
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne
-    @JoinColumn(name = "article_id", nullable = false)
-    private Article article;
-
-    @ManyToOne
-    @JoinColumn(name = "fournisseur_id", nullable = false)
-    private Fournisseur fournisseur;
-
-    private Double price;
-
-    private String marque;  // Only used for Electricité
-    private String reference;  // Only used for Electricité
-}
-```
-
-### 3. Handling `Marque` and `Reference`
-
-When handling Electricité articles, you will store the `marque` and `reference` information in the `PriceArticle` entity and handle them in the parsing logic accordingly.
-
-### 4. Final Integration
-
-Make sure that:
-
-* You handle the mapping between `Article` and `Fournisseur` correctly.
-* You distinguish between `Lot Unique` and `Electricité` articles during the import process and update the entities accordingly.
-
-### Conclusion
-
-The solution involves handling two different formats by parsing the `Designation` column correctly, identifying if it's a **Lot Unique** or **Electricité**, and then saving the correct price data and references in the database. The entity changes include adding `marque` and `reference` to the `PriceArticle` entity for Electricité.
+Do you want me to do that next?
