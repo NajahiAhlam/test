@@ -1,109 +1,115 @@
-The problem is **very clear** now:
+Perfect \u2014 that means **your "Frais de déplacement" row is being processed BEFORE the special case**, so it gets treated as:
 
-\U0001f449 Your code enters the block **before** your special case, and tries to parse `"Frais de déplacement"` as a number, because:
+* `code = "Frais de déplacement"` \u274c
+* `designation = ""` \u274c
+* and then you get the wrong values.
 
-```java
-if (hasCode)
-    lastValidCode = Double.parseDouble(code);
-```
+To fix this **100%**, we must detect the merged cell **correctly**.
 
-But in this row **code is empty**, so `hasCode = false`.
-However **designation contains the text** `"Frais de déplacement"`, and later your logic **pushes it into `code`**, causing parsing errors.
+\U0001f449 In your Excel, the merged row looks like this:
 
----
+| N°                                | DESIGNATION | U  | \u2026  |   |
+| --------------------------------- | ----------- | -- | -- | - |
+| (merged) **Frais de déplacement** |             | KM | 50 | \u2026 |
 
-# \u2705 **100% FIX \u2014 Detect "Frais de déplacement" BEFORE ANY OTHER LOGIC**
+\U0001f449 That means in your sheet:
 
-You need to detect the case **BEFORE all the validation rules**, because `"Frais de déplacement"` is a "merged row", so:
+* `row.getCell(COL_CODE)` \u2192 contains **"Frais de déplacement"**
+* `row.getCell(COL_DESIGNATION)` \u2192 is **null or empty**
 
-* No code
-* No unit
-* Only designation
-* But prices exist
-
-\U0001f449 Your earlier rules classify it as a **category** or invalid row, so it is skipped!
+So you MUST detect the special case using **code, not designation**.
 
 ---
 
-# \u2705 PERFECT FIX FOR YOUR CASE
+# \u2705 PERFECT FIX
 
-Add this block **immediately after reading the row**, before ALL other conditions:
+Detect \u201cFrais de déplacement\u201d using **code column**, NOT designation column.
 
-```java
-// SPECIAL CASE: Frais de déplacement
-if (designation.equalsIgnoreCase("Frais de déplacement")) {
-
-    if (lastValidCode == null) {
-        skipped.add(new SkippedRow(i + 1, "Impossible de générer N° pour Frais de déplacement"));
-        continue;
-    }
-
-    // increment previous code dynamically
-    double newCode = lastValidCode + 0.01;
-    code = String.format("%.2f", newCode);
-
-    // unit = what Excel provides (KM)
-    // designation already OK
-
-    lastValidCode = newCode; // update pointer
-
-    // continue directly to article creation below
-}
-```
-
-\U0001f449 Put it **BEFORE this block**:
+Replace:
 
 ```java
-if (!hasCode && !hasUnit && !rowHasAnyPrice && !isSubCategory) {
-    skipped.add(new SkippedRow(i + 1, "Catégorie"));
-    continue;
-}
+if (designation.equalsIgnoreCase("Frais de déplacement"))
 ```
 
-Because that block was accidentally skipping your row.
+with:
 
----
+```java
+boolean isFrais = code.equalsIgnoreCase("Frais de déplacement") 
+               || designation.equalsIgnoreCase("Frais de déplacement");
+```
 
-# \u2705 Full Correct Placement
+Then put this block **right after reading code/designation**, before ANY other validation:
 
 ```java
 String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
 String designation = safeTrim(getCellValue(row.getCell(COL_DESIGNATION)));
 String unite = safeTrim(getCellValue(row.getCell(COL_UNITE)));
 
-// SPECIAL CASE FIRST
-if (designation.equalsIgnoreCase("Frais de déplacement")) {
+boolean isFrais = code.equalsIgnoreCase("Frais de déplacement")
+               || designation.equalsIgnoreCase("Frais de déplacement");
+
+// SPECIAL CASE: FRAIS DE DÉPLACEMENT (MERGED CELL)
+if (isFrais) {
 
     if (lastValidCode == null) {
         skipped.add(new SkippedRow(i + 1, "Impossible de générer N° pour Frais de déplacement"));
         continue;
     }
 
+    // Generate dynamic new code
     double newCode = lastValidCode + 0.01;
     code = String.format("%.2f", newCode);
 
+    // Force correct designation
+    designation = "Frais de déplacement";
+
     lastValidCode = newCode;
 
-    // DO NOT CONTINUE; let it pass to the creation logic
+    // Continue to normal article processing BELOW
 }
 ```
 
-After that block \u2192 **continue normal logic**.
+---
+
+# \U0001f9e0 WHY THIS WORKS
+
+Your Excel row is:
+
+```
+| Frais de déplacement |   | KM | 50 | \u2026
+```
+
+So:
+
+* `code = "Frais de déplacement"` \u2714
+* `designation = ""` \u274c (empty because the Excel cells were merged)
+
+Therefore detection **must be done on CODE**, not designation.
 
 ---
 
-# \U0001f3af RESULT
+# \U0001f3af RESULT YOU WILL GET
 
-\u2714 "Frais de déplacement" will NO LONGER be skipped
-\u2714 It will generate a dynamic N° based on previous line
-\u2714 Example:
+Row before:
 
-Previous article: `900.11`
-Frais de déplacement \u2192 `900.12`
+```
+900.11   | Travaux | m2 | \u2026
+```
 
-\u2714 Unit and prices remain correct
-\u2714 No more \u201cCode invalide: Frais de déplacement\u201d warnings
+Your "Frais de déplacement" row becomes:
+
+```
+code = 900.12
+designation = "Frais de déplacement"
+unite = KM
+price columns = OK
+```
+
+\u2714 Inserted correctly
+\u2714 No more skipped
+\u2714 No more wrong mapping
+\u2714 No more "designation null"
 
 ---
 
-# Want me to insert this directly into your full method and give you a clean final version?
+# \U0001f525 If you want, I can rewrite **your full method with the corrected logic inserted**.
