@@ -1,120 +1,138 @@
-Perfect! You already have the service skeleton with helpers like `getCellValue`, `isRowEmpty`, and header validation. Now we can implement the **main import method for Lot Electricité** that will parse the Excel, handle the `Marque`/`Reference` logic, and return `ExcelImportResult`.
+To dynamically handle date inputs in your table, you can modify the `columns` array to include a `type` property for each column that represents the type of input for that column, such as `text`, `number`, or `date`. Based on the `type`, you can conditionally render the appropriate input element inside the table.
 
-Here\u2019s a complete method you can add inside your `ExcelArticleLotElectriciteReader`:
+Here's how you can adjust your code to support dynamic date filtering in the table:
 
-```java
-public ExcelImportResult importExcel(MultipartFile file, List<Fournisseur> fournisseurs) {
-    List<ArticleLotElectricite> articles = new ArrayList<>();
-    List<SkippedRow> skippedRows = new ArrayList<>();
+1. **Columns Configuration**: Update the columns configuration to explicitly specify `type: 'date'` for the date-related columns like `createdAt` and `updatedAt`.
 
-    try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
-        Sheet sheet = workbook.getSheet(SHEET_NAME);
-        if (sheet == null) {
-            throw new RuntimeException("Sheet '" + SHEET_NAME + "' not found in Excel file");
-        }
+   ```typescript
+   columns = [
+     {key: 'nom', label: 'Nom', type: 'text'},
+     {key: 'budgetEstime', label: 'Budget estimé', type: 'number'},
+     {key: 'surface', label: 'Surface', type: 'number'},
+     {key: 'localisationProjet', label: 'Ville', type: 'text'},
+     {key: 'consistence', label: 'Consistence', type: 'text'},
+     {key: 'familleProjetNom', label: 'Famille de Projet', type: 'text'},
+     {key: 'createdAt', label: 'Date de création', type: 'date'},
+     {key: 'updatedAt', label: 'Mis à jour', type: 'date'},
+   ];
+   ```
 
-        // Header row (assume first row)
-        Row headerRow = sheet.getRow(0);
-        validateHeaders(headerRow);
+2. **Dynamic Template Rendering**: In the HTML template, check if the column `type` is `date`, and if so, render the `nb-datepicker`. The rest of the columns can use a generic input field or select dropdown.
 
-        // Map column index to fournisseur
-        Map<Integer, Fournisseur> fournisseurColumns = new HashMap<>();
-        for (int c = COL_UNITE + 1; c < headerRow.getLastCellNum(); c++) {
-            String fournisseurName = safeTrim(getCellValue(headerRow.getCell(c)));
-            fournisseurs.stream()
-                    .filter(f -> f.getRaisonSociale().equalsIgnoreCase(fournisseurName))
-                    .findFirst()
-                    .ifPresent(f -> fournisseurColumns.put(c, f));
-        }
+   Here\u2019s how you can modify the dynamic table template:
 
-        ArticleLotElectricite currentArticle = null;
-        String currentCode = "";
-        String currentDesignation = "";
-        String currentUnite = "";
+   ```html
+   <ng-template [ngIf]="data">
+     <table class="table w-100">
+       <thead class="bg-header fw-bold">
+         <tr>
+           <td *ngFor="let column of columns" 
+               (click)="column.sortable !== false ? sortBy(column.key) : null"
+               [class.sort-disabled]="column.sortable === false"
+               class="p-3 border border-end-white">
+             <div class="d-flex justify-content-between">
+               <div>{{ column.label }}</div>
+               <div [ngClass]="(keyword == column.key) ? 'text-black' : 'd-none'">
+                 <span *ngIf="direction">
+                   <nb-icon icon="arrow-up-line"></nb-icon>
+                 </span>
+                 <span *ngIf="!direction">
+                   <nb-icon icon="arrow-down-line"></nb-icon>
+                 </span>
+               </div>
+             </div>
+           </td>
+           <td *ngIf="action" colspan="2" class="p-3 border border-end-white">Actions</td>
+         </tr>
+       </thead>
+       <tbody>
+         <tr>
+           <td *ngFor="let column of columns">
+             <form [formGroup]="searchFormGroup">
+               <ng-container *ngIf="column.searchable !== false" [ngSwitch]="column.key">
+                 <!-- Specific case for 'enabled' column -->
+                 <ng-container *ngSwitchCase="'enabled'">
+                   <nb-select formControlName="{{column.key}}" placeholder="{{column.label}}" (selectedChange)="onSearch()" fullWidth>
+                     <nb-option value="">Tous</nb-option>
+                     <nb-option value="true">Activé</nb-option>
+                     <nb-option value="false">Désactivé</nb-option>
+                   </nb-select>
+                 </ng-container>
+                 
+                 <!-- Specific case for date type columns -->
+                 <ng-container *ngSwitchCase="'createdAt'">
+                   <input fullWidth class="form-control" [nbDatepicker]="datepicker_createdAt" name="createdAt" id="createdAt" formControlName="createdAt" placeholder="Date de création" (click)="onSearch()" />
+                   <nb-datepicker #datepicker_createdAt format="dd/MM/yyyy"></nb-datepicker>
+                 </ng-container>
+                 
+                 <ng-container *ngSwitchCase="'updatedAt'">
+                   <input fullWidth class="form-control" [nbDatepicker]="datepicker_updatedAt" name="updatedAt" id="updatedAt" formControlName="updatedAt" placeholder="Date de Modification" (click)="onSearch()" />
+                   <nb-datepicker #datepicker_updatedAt format="dd/MM/yyyy"></nb-datepicker>
+                 </ng-container>
+                 
+                 <!-- General case for other columns -->
+                 <ng-container *ngSwitchDefault>
+                   <input *ngIf="column.type === 'text'" formControlName="{{column.key}}" class="form-control" placeholder="{{column.label}}" (input)="onSearch()" />
+                   <input *ngIf="column.type === 'number'" formControlName="{{column.key}}" class="form-control" placeholder="{{column.label}}" type="number" (input)="onSearch()" />
+                 </ng-container>
+               </ng-container>
+             </form>
+           </td>
+           <td *ngIf="action">
+             <a class="text-decoration-none float-right">
+               <button type="button" class="d-flex btn btn-dark m-auto" (click)="onAddNewObject()">
+                 <div class="addNewUser">Ajouter</div>
+               </button>
+             </a>
+           </td>
+         </tr>
+         <!-- Render table rows -->
+         <tr *ngFor="let item of data.content">
+           <td *ngFor="let column of columns" class="px-4" (click)="rowClicked.emit(item)">
+             {{ getColumnValue(item, column.key) }}
+           </td>
+           <td class="editIcon text-center" *ngIf="action">
+             <nb-icon class="btn-details edit-icon" style="color:darkorange" icon="edit-line" (click)="editItem.emit(item)"></nb-icon>
+             <nb-icon class="btn-details delete-icon" icon="spam-3-line" style="color: red" (click)="deleteItem.emit(item)"></nb-icon>
+           </td>
+         </tr>
+         <ng-template [ngIf]="!data?.content?.length">
+           <tr>
+             <td class="px-4" [attr.colspan]="columns.length" style="text-align: center;">
+               <div style="display: flex; flex-direction: column; align-items: center;">
+                 <nb-icon icon="folder-reduce-line" style="font-size: 30px; color: rgb(65, 62, 62);margin-top: 10px;" class="mb-2"></nb-icon>
+                 <p>Aucun élément trouvée pour le moment</p>
+               </div>
+             </td>
+           </tr>
+         </ng-template>
+       </tbody>
+     </table>
+   </ng-template>
+   ```
 
-        for (int r = 1; r <= sheet.getLastRowNum(); r++) {
-            Row row = sheet.getRow(r);
-            if (isRowEmpty(row)) continue;
+3. **Form Control Setup**: Ensure that the `searchFormGroup` is properly initialized with form controls corresponding to each of the columns. You already have this part in your component:
 
-            String code = safeTrim(getCellValue(row.getCell(COL_CODE)));
-            String designation = safeTrim(getCellValue(row.getCell(COL_DESIGNATION)));
-            String unite = safeTrim(getCellValue(row.getCell(COL_UNITE)));
+   ```typescript
+   ngOnInit(): void {
+     this.searchFormGroup = this.fb.group({});
+     this.columns.forEach(column => {
+       if (column.searchable !== false) {
+         this.searchFormGroup.addControl(column.key, this.fb.control(''));
+       }
+     });
 
-            // Detect new article row (has code + designation)
-            boolean isNewArticle = !code.isEmpty() && !designation.isEmpty();
+     this.searchFormGroup.valueChanges.pipe(
+       debounceTime(1000)
+     ).subscribe(() => {
+       if (this.formValue !== this.searchFormGroup.value) {
+         this.formValue = this.searchFormGroup.value;
+         this.searchForm.emit(this.searchFormGroup.value);
+       }
+     });
+   }
+   ```
 
-            if (isNewArticle) {
-                currentCode = code;
-                currentDesignation = designation;
-                currentUnite = unite;
+4. **Date Formatting and Search**: Ensure that the `onSearch()` method is correctly implemented to filter based on the date range or specific date values. Depending on your backend logic, you can send the selected dates and other form values for filtering.
 
-                currentArticle = new ArticleLotElectricite();
-                currentArticle.setCode(currentCode);
-                currentArticle.setDesignation(currentDesignation);
-                currentArticle.setUnite(currentUnite);
-                currentArticle.setPriceArticles(new ArrayList<>());
-
-                articles.add(currentArticle);
-            }
-
-            if (currentArticle == null) {
-                skippedRows.add(new SkippedRow(r, "No current article to assign prices"));
-                continue;
-            }
-
-            // Marque & Reference
-            String marque = safeTrim(getCellValue(row.getCell(COL_DESIGNATION + 1))); // next column after designation
-            String reference = safeTrim(getCellValue(row.getCell(COL_DESIGNATION + 2))); // next column after marque
-
-            // Process prices for fournisseurs
-            for (Map.Entry<Integer, Fournisseur> entry : fournisseurColumns.entrySet()) {
-                int colIndex = entry.getKey();
-                Fournisseur fournisseur = entry.getValue();
-
-                String priceStr = safeTrim(getCellValue(row.getCell(colIndex)));
-                if (priceStr.isEmpty()) continue;
-
-                try {
-                    double price = Double.parseDouble(priceStr.replaceAll("[\\s,]", ""));
-                    PriceArticleLotElectricite priceArticle = new PriceArticleLotElectricite();
-                    priceArticle.setArticleLotElectricite(currentArticle);
-                    priceArticle.setFournisseur(fournisseur);
-                    priceArticle.setPrice(price);
-
-                    // Only set marque/reference if exists
-                    if (!marque.isEmpty()) priceArticle.setMarque(marque);
-                    if (!reference.isEmpty()) priceArticle.setReference(reference);
-
-                    currentArticle.getPriceArticles().add(priceArticle);
-
-                } catch (NumberFormatException ex) {
-                    skippedRows.add(new SkippedRow(r, "Invalid price format for fournisseur " + fournisseur.getRaisonSociale() + ": " + priceStr));
-                }
-            }
-        }
-
-    } catch (Exception e) {
-        log.error("Failed to import Excel for Lot Electricité", e);
-        throw new RuntimeException("Failed to import Excel: " + e.getMessage(), e);
-    }
-
-    return new ExcelImportResult(articles, skippedRows);
-}
-```
-
----
-
-### \u2705 How it Works
-
-1. **Detects new articles** by checking if `code` and `designation` are present.
-2. **Keeps track of the current article** so that rows with only Marque/Reference still get assigned to it.
-3. **Maps columns to fournisseurs** dynamically from the header row.
-4. **Parses prices**, removing spaces/commas, and creates `PriceArticleLotElectricite` objects.
-5. **Handles Marque/Reference** for Electricité articles.
-6. **Returns skipped rows** if any parsing error occurs.
-
----
-
-If you want, I can also **improve this to merge rows where multiple Marque/Reference share the same price** \u2014 so your Excel formatting with merged cells will be correctly handled automatically. This is common in Electricité lots.
-
-Do you want me to do that next?
+With this setup, you will have date pickers in the columns where the `type` is set to `date`, and the search functionality will work dynamically across the entire table.
