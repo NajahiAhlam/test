@@ -1,122 +1,375 @@
-To make your `importArticlesFromExcel` method cleaner, we'll **extract the logic into helper methods** and **maintain clear separation of concerns**. I'll refactor it into smaller, more readable methods and fix the main method accordingly.
+Let's break it down step by step, based on the provided information:
 
-Here\u2019s the approach:
+1. **Entity**: This represents the data structure in your system, mapping to the fields in the API.
+2. **DTO (Data Transfer Object)**: Used for transferring data between layers.
+3. **Service Method**: Business logic for handling the creation of a "declaration".
+4. **Controller Method**: The endpoint for handling the incoming request and interacting with the service.
 
-* We'll keep the `@Transactional` annotation on the main method.
-* The logic for **deactivating articles** and **processing Excel data** will be split into separate helper methods, each focusing on a single responsibility.
-
----
-
-### \u2705 Refactored Code:
-
-#### 1\ufe0f\u20e3 Main Method (`importArticlesFromExcel`)
+### 1. **Entity Class** (`DeclarationNantissement`)
 
 ```java
-@Override
-@Transactional
-public void importArticlesFromExcel(MultipartFile file) {
-    try {
-        validateExcelFile(file);
-        deactivateExistingArticles();
+import javax.persistence.*;
+import java.time.LocalDateTime;
 
-        ExcelArticleReader.ExcelImportResult result = excelArticleReader.excelToArticles(file.getInputStream());
-        validateImportResult(result);
+@Entity
+@Table(name = "declaration_nantissement")
+public class DeclarationNantissement {
 
-        articleRepository.saveAll(result.getArticles());
-        logSkippedRows(result.getSkippedRows());
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    } catch (IOException e) {
-        throw new RuntimeException("Failed to store Excel data: " + e.getMessage(), e);
+    private String idRequete;
+    private String codeSF;
+    private String numContrat;
+    private String idType;
+    private String idBeneficiaire;
+    private String villeRC;
+    private String intituleBeneficiaire;
+    private String numWW;
+    private String immatVeh1;
+    private String immatVeh2;
+    private String immatVeh3;
+    private String numChassis;
+    private LocalDateTime dateNantissement;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getIdRequete() {
+        return idRequete;
+    }
+
+    public void setIdRequete(String idRequete) {
+        this.idRequete = idRequete;
+    }
+
+    public String getCodeSF() {
+        return codeSF;
+    }
+
+    public void setCodeSF(String codeSF) {
+        this.codeSF = codeSF;
+    }
+
+    public String getNumContrat() {
+        return numContrat;
+    }
+
+    public void setNumContrat(String numContrat) {
+        this.numContrat = numContrat;
+    }
+
+    public String getIdType() {
+        return idType;
+    }
+
+    public void setIdType(String idType) {
+        this.idType = idType;
+    }
+
+    public String getIdBeneficiaire() {
+        return idBeneficiaire;
+    }
+
+    public void setIdBeneficiaire(String idBeneficiaire) {
+        this.idBeneficiaire = idBeneficiaire;
+    }
+
+    public String getVilleRC() {
+        return villeRC;
+    }
+
+    public void setVilleRC(String villeRC) {
+        this.villeRC = villeRC;
+    }
+
+    public String getIntituleBeneficiaire() {
+        return intituleBeneficiaire;
+    }
+
+    public void setIntituleBeneficiaire(String intituleBeneficiaire) {
+        this.intituleBeneficiaire = intituleBeneficiaire;
+    }
+
+    public String getNumWW() {
+        return numWW;
+    }
+
+    public void setNumWW(String numWW) {
+        this.numWW = numWW;
+    }
+
+    public String getImmatVeh1() {
+        return immatVeh1;
+    }
+
+    public void setImmatVeh1(String immatVeh1) {
+        this.immatVeh1 = immatVeh1;
+    }
+
+    public String getImmatVeh2() {
+        return immatVeh2;
+    }
+
+    public void setImmatVeh2(String immatVeh2) {
+        this.immatVeh2 = immatVeh2;
+    }
+
+    public String getImmatVeh3() {
+        return immatVeh3;
+    }
+
+    public void setImmatVeh3(String immatVeh3) {
+        this.immatVeh3 = immatVeh3;
+    }
+
+    public String getNumChassis() {
+        return numChassis;
+    }
+
+    public void setNumChassis(String numChassis) {
+        this.numChassis = numChassis;
+    }
+
+    public LocalDateTime getDateNantissement() {
+        return dateNantissement;
+    }
+
+    public void setDateNantissement(LocalDateTime dateNantissement) {
+        this.dateNantissement = dateNantissement;
     }
 }
 ```
 
-#### 2\ufe0f\u20e3 Helper Methods
-
-**File Validation** (Ensures file format is valid)
+### 2. **DTO Class** (`DeclarationNantissementDTO`)
 
 ```java
-private void validateExcelFile(MultipartFile file) {
-    if (!ExcelArticleReader.hasExcelFormat(file)) {
-        throw new IllegalArgumentException("Invalid file format. Please upload an Excel (.xlsx) file.");
+public class DeclarationNantissementDTO {
+
+    private String idRequete;
+    private String codeSF;
+    private String numContrat;
+    private String idType;
+    private String idBeneficiaire;
+    private String villeRC;
+    private String intituleBeneficiaire;
+    private String numWW;
+    private String immatVeh1;
+    private String immatVeh2;
+    private String immatVeh3;
+    private String numChassis;
+    private String dateNantissement;
+
+    // Getters and Setters
+    public String getIdRequete() {
+        return idRequete;
+    }
+
+    public void setIdRequete(String idRequete) {
+        this.idRequete = idRequete;
+    }
+
+    public String getCodeSF() {
+        return codeSF;
+    }
+
+    public void setCodeSF(String codeSF) {
+        this.codeSF = codeSF;
+    }
+
+    public String getNumContrat() {
+        return numContrat;
+    }
+
+    public void setNumContrat(String numContrat) {
+        this.numContrat = numContrat;
+    }
+
+    public String getIdType() {
+        return idType;
+    }
+
+    public void setIdType(String idType) {
+        this.idType = idType;
+    }
+
+    public String getIdBeneficiaire() {
+        return idBeneficiaire;
+    }
+
+    public void setIdBeneficiaire(String idBeneficiaire) {
+        this.idBeneficiaire = idBeneficiaire;
+    }
+
+    public String getVilleRC() {
+        return villeRC;
+    }
+
+    public void setVilleRC(String villeRC) {
+        this.villeRC = villeRC;
+    }
+
+    public String getIntituleBeneficiaire() {
+        return intituleBeneficiaire;
+    }
+
+    public void setIntituleBeneficiaire(String intituleBeneficiaire) {
+        this.intituleBeneficiaire = intituleBeneficiaire;
+    }
+
+    public String getNumWW() {
+        return numWW;
+    }
+
+    public void setNumWW(String numWW) {
+        this.numWW = numWW;
+    }
+
+    public String getImmatVeh1() {
+        return immatVeh1;
+    }
+
+    public void setImmatVeh1(String immatVeh1) {
+        this.immatVeh1 = immatVeh1;
+    }
+
+    public String getImmatVeh2() {
+        return immatVeh2;
+    }
+
+    public void setImmatVeh2(String immatVeh2) {
+        this.immatVeh2 = immatVeh2;
+    }
+
+    public String getImmatVeh3() {
+        return immatVeh3;
+    }
+
+    public void setImmatVeh3(String immatVeh3) {
+        this.immatVeh3 = immatVeh3;
+    }
+
+    public String getNumChassis() {
+        return numChassis;
+    }
+
+    public void setNumChassis(String numChassis) {
+        this.numChassis = numChassis;
+    }
+
+    public String getDateNantissement() {
+        return dateNantissement;
+    }
+
+    public void setDateNantissement(String dateNantissement) {
+        this.dateNantissement = dateNantissement;
     }
 }
 ```
 
-**Deactivate Existing Articles** (Marks all articles as inactive)
+### 3. **Service Class** (`DeclarationNantissementService`)
 
 ```java
-private void deactivateExistingArticles() {
-    List<Article> existingArticles = articleRepository.findAll();
-    if (existingArticles.isEmpty()) {
-        return;
-    }
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-    existingArticles.forEach(this::deactivateArticle);
-    articleRepository.saveAll(existingArticles);
+@Service
+public class DeclarationNantissementService {
+
+    @Autowired
+    private DeclarationNantissementRepository declarationNantissementRepository;
+
+    @Transactional
+    public DeclarationNantissementDTO createDeclarationNantissement(DeclarationNantissementDTO dto) {
+        // Convert DTO to Entity
+        DeclarationNantissement declaration = new DeclarationNantissement();
+        declaration.setIdRequete(dto.getIdRequete());
+        declaration.setCodeSF(dto.getCodeSF());
+        declaration.setNumContrat(dto.getNumContrat());
+        declaration.setIdType(dto.getIdType());
+        declaration.setIdBeneficiaire(dto.getIdBeneficiaire());
+        declaration.setVilleRC(dto.getVilleRC());
+        declaration.setIntituleBeneficiaire(dto.getIntituleBeneficiaire());
+        declaration.setNumWW(dto.getNumWW());
+        declaration.setImmatVeh1(dto.getImmatVeh1());
+        declaration.setImmatVeh2(dto.getImmatVeh2());
+        declaration.setImmatVeh3(dto.getImmatVeh3());
+        declaration.setNumChassis(dto.getNumChassis());
+        declaration.setDateNantissement(LocalDateTime.parse(dto.getDateNantissement()));
+
+        // Save to DB
+        DeclarationNantissement savedDeclaration = declarationNantissementRepository.save(declaration);
+
+        // Convert Entity back to DTO for response
+        DeclarationNantissementDTO responseDto = new DeclarationNantissementDTO();
+        responseDto.setIdRequete(savedDeclaration.getIdRequete());
+        responseDto.setCodeSF(savedDeclaration.getCodeSF());
+        responseDto.setNumContrat(savedDeclaration.getNumContrat());
+        responseDto.setIdType(savedDeclaration.getIdType());
+        responseDto.setIdBeneficiaire(savedDeclaration.getIdBeneficiaire());
+        responseDto.setVilleRC(savedDeclaration.getVilleRC());
+        responseDto.setIntituleBeneficiaire(savedDeclaration.getIntituleBeneficiaire());
+        responseDto.setNumWW(savedDeclaration.getNumWW());
+        responseDto.setImmatVeh1(savedDeclaration.getImmatVeh1());
+        responseDto.setImmatVeh2(savedDeclaration.getImmat
+```
+
+
+Veh2());
+responseDto.setImmatVeh3(savedDeclaration.getImmatVeh3());
+responseDto.setNumChassis(savedDeclaration.getNumChassis());
+responseDto.setDateNantissement(savedDeclaration.getDateNantissement().toString());
+
+```
+    return responseDto;
 }
 ```
 
-**Deactivate Individual Article** (Marks an article and its price articles as inactive)
+}
+
+````
+
+### 4. **Controller Class** (`DeclarationNantissementController`)
 
 ```java
-private void deactivateArticle(Article article) {
-    article.setActive(false);
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-    if (article.getPriceArticles() != null) {
-        article.getPriceArticles()
-                .forEach(priceArticle -> priceArticle.setActive(false));
+@RestController
+@RequestMapping("/api/nantissements")
+public class DeclarationNantissementController {
+
+    @Autowired
+    private DeclarationNantissementService declarationNantissementService;
+
+    @PostMapping("/creer")
+    public ResponseEntity<DeclarationNantissementDTO> createDeclarationNantissement(
+            @RequestBody DeclarationNantissementDTO declarationNantissementDTO) {
+        try {
+            DeclarationNantissementDTO response = declarationNantissementService.createDeclarationNantissement(declarationNantissementDTO);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }
-```
+````
 
-**Validate Import Result** (Checks if Excel import data is valid)
+### Explanation:
 
-```java
-private void validateImportResult(ExcelArticleReader.ExcelImportResult result) {
-    if (result == null || result.getArticles().isEmpty()) {
-        throw new IllegalArgumentException("Le fichier Excel est vide ou ne contient aucune donnée valide.");
-    }
-}
-```
+* **Entity**: Represents the data model (`DeclarationNantissement`), with fields that correspond to the parameters from the API documentation.
+* **DTO**: A lightweight object used for transferring the data over the network.
+* **Service**: Handles the business logic of creating a "declaration". It converts the DTO to an entity, saves it to the database, and returns a response DTO.
+* **Controller**: Exposes the API endpoint `/api/nantissements/creer`, accepts a `POST` request, and calls the service method to create the declaration.
 
-**Log Skipped Rows** (Logs any skipped rows from the import)
-
-```java
-private void logSkippedRows(List<ExcelArticleReader.SkippedRow> skippedRows) {
-    if (skippedRows != null && !skippedRows.isEmpty()) {
-        skippedRows.forEach(s -> log.warn(s.toString()));
-        log.info("*************************** {} lignes ignorées lors de l'import.", skippedRows.size());
-    }
-}
-```
-
----
-
-### \u2705 Key Changes:
-
-1. **Helper Methods**:
-
-   * `validateExcelFile`: Ensures the file is in the correct format.
-   * `deactivateExistingArticles`: Deactivates all existing articles.
-   * `deactivateArticle`: Deactivates an individual article and its price entries.
-   * `validateImportResult`: Ensures the Excel data has articles and isn't empty.
-   * `logSkippedRows`: Logs any skipped rows during the import process.
-
-2. **Main Method Refactor**:
-
-   * **Simplified flow**: Each method now does one job, and the main method orchestrates the process without getting too deep into nested logic.
-   * **Transaction safety**: The `@Transactional` ensures all changes are rolled back in case of any failure.
-
----
-
-### \u2705 Why This is Good
-
-* **Sonar-compliant**: No deep nesting, clear and concise methods.
-* **Single Responsibility Principle**: Each method is now focused on doing a single job.
-* **Improved readability**: The main method is cleaner and easier to follow.
-* **Maintainability**: Smaller methods are easier to test, debug, and maintain.
-
----
-
-Let me know if you'd like any further tweaks, such as handling **exceptions** more granularly or adding logging for specific steps!
+This should handle the basic functionality as described in your API requirements. Let me know if you need adjustments!
