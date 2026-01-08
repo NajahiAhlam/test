@@ -1,188 +1,239 @@
-Très bien \U0001f44d
-Dans **`create`**, tu **ne dois PAS retourner l\u2019entité ni le DTO d\u2019entrée**, mais **un DTO de réponse conforme exactement aux paramètres de sortie NARSA**.
+Got it \U0001f44d
+You want a **clean Spring Boot backend logic** to:
 
-\U0001f449 **La réponse doit toujours contenir :**
+* Store a `Dossier`
+* Call an **external API via Feign** for events (nantissement, mainlevée, etc.)
+* **Persist the last event** returned by the external system
+* Be able to **display the \u201cDernier Événement\u201d** in the frontend (Nebular alert)
 
-* `idRequete` (reçu dans la requête)
-* `codeRetour` (code métier + HTTP)
-* `messageRetour` (message explicatif)
+I\u2019ll give you a **simple, robust, and scalable design**.
 
 ---
 
-## \u2705 1. DTO de réponse (OBLIGATOIRE)
+## 1\ufe0f\u20e3 What you should store in DB (important)
 
-### `NantissementResponseDTO`
+You already have almost everything \U0001f44c
+These fields are perfect for the \u201clast event\u201d:
 
 ```java
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+private String idRequete;
+private String dernierCodeRetour;
+private String dernierMessageRetour;
 
+@Enumerated(EnumType.STRING)
+private DossierStatus status;
+```
+
+\U0001f449 **Rule**:
+Each time an external event is called, you **overwrite** these 3 fields with the latest response.
+
+---
+
+## 2\ufe0f\u20e3 Define your business statuses clearly
+
+Create a clear enum for dossier lifecycle:
+
+```java
+public enum DossierStatus {
+    BROUILLON,                  // Saved but not sent
+    NANTISSEMENT_ENCOURS,
+    NANTISSEMENT_ACCEPTE,
+    NANTISSEMENT_REFUSE,
+    MAINLEVEE_ENCOURS,
+    MAINLEVEE_ACCEPTEE,
+    ERREUR
+}
+```
+
+This lets you:
+
+* Control UI buttons
+* Avoid invalid transitions
+* Be future-proof
+
+---
+
+## 3\ufe0f\u20e3 DTO for external API response
+
+```java
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class NantissementResponseDTO {
-
-    private String idRequete;      // même valeur que la requête
-    private String codeRetour;     // 201, 400, 406, 500...
-    private String messageRetour;  // message métier
+public class NarsaResponseDto {
+    private String idRequete;
+    private String codeRetour;
+    private String messageRetour;
 }
 ```
 
 ---
 
-## \u2705 2. Enum pour les codes métier (RECOMMANDÉ)
-
-\U0001f449 Pour éviter le **hardcoding** partout.
+## 4\ufe0f\u20e3 Feign Client (external API)
 
 ```java
-public enum NantissementCodeRetour {
+@FeignClient(name = "narsaClient", url = "${narsa.api.url}")
+public interface NarsaFeignClient {
 
-    NANTI01("201", "NANTI01: Demande de nantissement créée"),
-    NANTI02("400", "NANTI02: Erreur par défaut pour manque d'information ou incohérence"),
-    NANTI03("406", "NANTI03: Véhicule déjà soumis par un autre organisme"),
-    NANTI04("406", "NANTI04: Demande de nantissement déjà soumise"),
-    NANTI05("406", "NANTI05: Incohérence châssis et matricule"),
-    NANTI06("406", "NANTI06: Nantissement déjà déclaré"),
-    NANTI07("500", "NANTI07: Erreur interne");
+    @PostMapping("/nantissement")
+    ResponseEntity<NarsaResponseDto> declarationNantissement(
+            @RequestBody DossierDto dossierDto
+    );
 
-    private final String codeHttp;
-    private final String message;
-
-    NantissementCodeRetour(String codeHttp, String message) {
-        this.codeHttp = codeHttp;
-        this.message = message;
-    }
-
-    public String getCodeHttp() {
-        return codeHttp;
-    }
-
-    public String getMessage() {
-        return message;
-    }
+    // same idea for mainlevée, modification, etc.
 }
 ```
 
 ---
 
-## \u2705 3. Service : méthode `create`
+## 5\ufe0f\u20e3 Centralize the response handling (VERY IMPORTANT)
 
-\U0001f449 **Le service retourne `NantissementResponseDTO`**, pas l\u2019entité.
+Create **one method** that maps external response \u2192 Dossier state.
+
+```java
+@Service
+public class DossierEventHandler {
+
+    public void applyExternalResponse(Dossier dossier,
+                                      NarsaResponseDto response,
+                                      HttpStatus httpStatus) {
+
+        dossier.setIdRequete(response.getIdRequete());
+        dossier.setDernierCodeRetour(response.getCodeRetour());
+        dossier.setDernierMessageRetour(response.getMessageRetour());
+
+        if (httpStatus.is2xxSuccessful()) {
+            switch (response.getCodeRetour()) {
+                case "NANTI01":
+                    dossier.setStatus(DossierStatus.NANTISSEMENT_ACCEPTE);
+                    dossier.setDateNantissement(LocalDateTime.now());
+                    break;
+                default:
+                    dossier.setStatus(DossierStatus.ERREUR);
+            }
+        } else {
+            dossier.setStatus(DossierStatus.NANTISSEMENT_REFUSE);
+        }
+    }
+}
+```
+
+\u2705 This avoids **if/else chaos** in controllers
+\u2705 Reusable for other events
+
+---
+
+## 6\ufe0f\u20e3 Service layer (main logic)
 
 ```java
 @Service
 @RequiredArgsConstructor
-public class DeclarationNantissementService {
+@Transactional
+public class NantissementService {
 
-    private final DeclarationNantissementRepository repository;
+    private final DossierRepository dossierRepository;
+    private final NarsaFeignClient narsaFeignClient;
+    private final DossierEventHandler eventHandler;
 
-    @Transactional
-    public NantissementResponseDTO create(DeclarationNantissementDTO dto) {
+    public NarsaResponseDto declarationNantissement(Long dossierId) {
 
-        try {
-            // \U0001f534 Exemple de validations métier
-            if (dto.getIdRequete() == null || dto.getNumChassis() == null) {
-                return buildResponse(dto.getIdRequete(), NantissementCodeRetour.NANTI02);
-            }
+        Dossier dossier = dossierRepository.findById(dossierId)
+                .orElseThrow(() -> new EntityNotFoundException("Dossier not found"));
 
-            // \U0001f534 Exemple : nantissement déjà existant
-            if (repository.existsByNumChassis(dto.getNumChassis())) {
-                return buildResponse(dto.getIdRequete(), NantissementCodeRetour.NANTI06);
-            }
+        dossier.setStatus(DossierStatus.NANTISSEMENT_ENCOURS);
 
-            // \u2705 Mapping DTO \u2192 Entity
-            DeclarationNantissement entity = mapToEntity(dto);
-            repository.save(entity);
+        ResponseEntity<NarsaResponseDto> response =
+                narsaFeignClient.declarationNantissement(mapToDto(dossier));
 
-            // \u2705 Succès
-            return buildResponse(dto.getIdRequete(), NantissementCodeRetour.NANTI01);
-
-        } catch (Exception e) {
-            return buildResponse(dto.getIdRequete(), NantissementCodeRetour.NANTI07);
-        }
-    }
-
-    private NantissementResponseDTO buildResponse(String idRequete, NantissementCodeRetour code) {
-        return new NantissementResponseDTO(
-                idRequete,
-                code.getCodeHttp(),
-                code.getMessage()
+        eventHandler.applyExternalResponse(
+                dossier,
+                response.getBody(),
+                response.getStatusCode()
         );
+
+        dossierRepository.save(dossier);
+
+        return response.getBody();
     }
 }
 ```
 
 ---
 
-## \u2705 4. Controller : respecter HTTP + payload métier
-
-\U0001f449 **HTTP status = codeRetour**
+## 7\ufe0f\u20e3 Controller (clean & simple)
 
 ```java
-@RestController
-@RequestMapping("/sfi/nantissements")
-@RequiredArgsConstructor
-public class DeclarationNantissementController {
+@PostMapping("/dossiers/{id}/nantissement")
+public ResponseEntity<NarsaResponseDto> declarationNantissement(
+        @PathVariable Long id) {
 
-    private final DeclarationNantissementService service;
+    NarsaResponseDto response = nantissementService.declarationNantissement(id);
 
-    @PostMapping("/creer")
-    public ResponseEntity<NantissementResponseDTO> create(
-            @RequestBody DeclarationNantissementDTO dto) {
-
-        NantissementResponseDTO response = service.create(dto);
-
-        return ResponseEntity
-                .status(Integer.parseInt(response.getCodeRetour()))
-                .body(response);
+    if ("NANTI01".equals(response.getCodeRetour())) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 }
 ```
 
 ---
 
-## \u2705 5. Exemple de réponse réelle
+## 8\ufe0f\u20e3 What the frontend consumes (perfect for your nb-alert)
 
-### \u2714 Succès
+Your entity already returns exactly what you need \U0001f447
 
 ```json
 {
   "idRequete": "bc1c35aa-8c39-400f-85b3-75e392fa3f9b",
-  "codeRetour": "201",
-  "messageRetour": "NANTI01: Demande de nantissement créée"
+  "dernierCodeRetour": "NANTI01",
+  "dernierMessageRetour": "Demande de nantissement créée",
+  "status": "NANTISSEMENT_ACCEPTE"
 }
 ```
 
-### \u274c Nantissement déjà déclaré
+Angular HTML stays **pure display logic**:
 
-```json
-{
-  "idRequete": "bc1c35aa-8c39-400f-85b3-75e392fa3f9b",
-  "codeRetour": "406",
-  "messageRetour": "NANTI06: Nantissement déjà déclaré"
-}
+```html
+<nb-alert status="success" *ngIf="dossier">
+  <div class="alert-header">
+    <h4><strong>Dernier Événement :</strong> Demande de nantissement</h4>
+  </div>
+
+  <div class="alert-body">
+    <p>
+      <strong>{{ dossier.dernierCodeRetour }} :</strong>
+      {{ dossier.dernierMessageRetour }}
+    </p>
+  </div>
+
+  <div class="alert-footer">
+    <p>
+      <strong>idRequete :</strong> {{ dossier.idRequete }}
+    </p>
+  </div>
+</nb-alert>
 ```
 
 ---
 
-## \u2705 Conclusion (important)
+## 9\ufe0f\u20e3 Bonus (best practice)
 
-\u2714 **Tu retournes TOUJOURS :**
+If later you want **history**, not just the last event:
 
-* `idRequete`
-* `codeRetour`
-* `messageRetour`
+* Create `DossierEvent` entity
+* Store each response
+* Keep `dernier*` as a **cache**
 
-\u274c **Tu ne retournes jamais :**
+---
 
-* l\u2019entité
-* le DTO d\u2019entrée
-* des erreurs Spring par défaut
+### \u2705 Summary
 
-Si tu veux, je peux ensuite te fournir :
+\u2714 One Dossier
+\u2714 Multiple external events
+\u2714 Always store **last event**
+\u2714 Clean Spring Boot architecture
+\u2714 Frontend-ready response
 
-* \u2714 les **règles de validation exactes**
-* \u2714 les **queries repository**
-* \u2714 un **diagramme du flow métier**
-* \u2714 une **gestion d\u2019erreurs centralisée (@ControllerAdvice)**
+If you want, next I can:
+
+* Design **event history table**
+* Secure transitions (state machine)
+* Improve error mapping per NANTI code
