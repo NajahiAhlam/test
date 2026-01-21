@@ -1,239 +1,259 @@
-Got it \U0001f44d
-You want a **clean Spring Boot backend logic** to:
-
-* Store a `Dossier`
-* Call an **external API via Feign** for events (nantissement, mainlevée, etc.)
-* **Persist the last event** returned by the external system
-* Be able to **display the \u201cDernier Événement\u201d** in the frontend (Nebular alert)
-
-I\u2019ll give you a **simple, robust, and scalable design**.
+D\u2019accord \U0001f44d
+Je vais t\u2019expliquer **pas à pas**, en termes simples, ce que fait ce code et **comment les classes travaillent ensemble**.
+C\u2019est un **client SOAP JAX-WS** généré à partir d\u2019un **WSDL**.
 
 ---
 
-## 1\ufe0f\u20e3 What you should store in DB (important)
-
-You already have almost everything \U0001f44c
-These fields are perfect for the \u201clast event\u201d:
+## 1\ufe0f\u20e3 `DataPort` \u2013 l\u2019interface SOAP (le contrat)
 
 ```java
-private String idRequete;
-private String dernierCodeRetour;
-private String dernierMessageRetour;
-
-@Enumerated(EnumType.STRING)
-private DossierStatus status;
+@WebService(
+    name = "DataPort",
+    targetNamespace = "http://com.socgen.ma/internal/service/local/SM_CustomerAccount_Sync/v2"
+)
+@SOAPBinding(parameterStyle = SOAPBinding.ParameterStyle.BARE)
+public interface DataPort {
 ```
 
-\U0001f449 **Rule**:
-Each time an external event is called, you **overwrite** these 3 fields with the latest response.
+### \U0001f449 Rôle
+
+`DataPort` représente **le port SOAP** défini dans le WSDL.
+C\u2019est **le contrat** entre ton application et le web service distant.
 
 ---
 
-## 2\ufe0f\u20e3 Define your business statuses clearly
-
-Create a clear enum for dossier lifecycle:
+### La méthode SOAP
 
 ```java
-public enum DossierStatus {
-    BROUILLON,                  // Saved but not sent
-    NANTISSEMENT_ENCOURS,
-    NANTISSEMENT_ACCEPTE,
-    NANTISSEMENT_REFUSE,
-    MAINLEVEE_ENCOURS,
-    MAINLEVEE_ACCEPTEE,
-    ERREUR
+@WebMethod(operationName = "GetCustomerAccountDetail", action = "GetCustomerAccountDetail")
+@WebResult(
+    name = "Reply",
+    targetNamespace = "http://com.socgen.ma/internal/schema/local/CII_CustomerAccount_Sync/v2",
+    partName = "parameters"
+)
+Reply getCustomerAccountDetail(
+    @WebParam(
+        name = "Request",
+        targetNamespace = "http://com.socgen.ma/internal/schema/local/CII_CustomerAccount_Sync/v2",
+        partName = "parameters"
+    )
+    Request parameters
+);
+```
+
+### \U0001f449 Ce que ça signifie
+
+* **`@WebMethod`**
+  \u2192 Correspond à une **opération SOAP** dans le WSDL
+
+* **`Request`**
+  \u2192 Objet envoyé dans le **SOAP Request**
+
+* **`Reply`**
+  \u2192 Objet reçu dans le **SOAP Response**
+
+* **`SOAPBinding.ParameterStyle.BARE`**
+  \u2192 Le body SOAP contient directement `Request` et `Reply`
+  (pas d\u2019objet wrapper autour)
+
+\U0001f4e6 En résumé :
+
+> Cette méthode appelle le web service **GetCustomerAccountDetail**
+> avec un `Request` et retourne un `Reply`.
+
+---
+
+## 2\ufe0f\u20e3 `HTTPServiceServiceagent` \u2013 le client SOAP généré
+
+```java
+@WebServiceClient(
+    name = "HTTP_Service.serviceagent",
+    targetNamespace = "...",
+    wsdlLocation = "file:/D:/CHARAY/virement-de-masse/wsdl/CustomerAccount.wsdl"
+)
+public class HTTPServiceServiceagent extends Service {
+```
+
+### \U0001f449 Rôle
+
+Cette classe :
+
+* Charge le **WSDL**
+* Crée les **proxies SOAP**
+* Fournit l\u2019accès aux ports (`DataPort`)
+
+\U0001f4a1 Elle est **générée automatiquement** par `wsimport`.
+
+---
+
+### Initialisation du WSDL
+
+```java
+static {
+    System.setProperty("com.sun.xml.ws.transport.http.client.HttpTransportPipe.dump", "true");
+    ...
+    url = new URL("file:/data/itf/wsdl/CustomerAccount.wsdl");
 }
 ```
 
-This lets you:
+### \U0001f449 À quoi ça sert
 
-* Control UI buttons
-* Avoid invalid transitions
-* Be future-proof
+* Active le **dump SOAP** (request & response XML dans les logs)
+* Charge le WSDL depuis un **fichier local**
+
+Très utile pour :
+
+* Debug
+* Vérifier les messages SOAP envoyés / reçus
 
 ---
 
-## 3\ufe0f\u20e3 DTO for external API response
+### Constructeurs
 
 ```java
-@Data
-public class NarsaResponseDto {
-    private String idRequete;
-    private String codeRetour;
-    private String messageRetour;
+public HTTPServiceServiceagent() {
+    super(__getWsdlLocation(), HTTPSERVICESERVICEAGENT_QNAME);
 }
 ```
 
+\U0001f449 Ils permettent de :
+
+* Créer le client SOAP
+* Avec ou sans options (`WebServiceFeature`)
+
 ---
 
-## 4\ufe0f\u20e3 Feign Client (external API)
+### Récupération du port SOAP
 
 ```java
-@FeignClient(name = "narsaClient", url = "${narsa.api.url}")
-public interface NarsaFeignClient {
-
-    @PostMapping("/nantissement")
-    ResponseEntity<NarsaResponseDto> declarationNantissement(
-            @RequestBody DossierDto dossierDto
+@WebEndpoint(name = "DataPortEndpoint2")
+public DataPort getDataPortEndpoint2() {
+    return super.getPort(
+        new QName("http://com.socgen.ma/internal/service/local/SM_CustomerAccount_Sync/v2", 
+                  "DataPortEndpoint2"),
+        DataPort.class
     );
-
-    // same idea for mainlevée, modification, etc.
 }
 ```
 
+### \U0001f449 Ce que ça fait
+
+* Crée un **proxy SOAP** de type `DataPort`
+* Ce proxy :
+
+  * Sérialise `Request` \u2192 XML
+  * Envoie la requête SOAP
+  * Désérialise la réponse XML \u2192 `Reply`
+
+\U0001f4de C\u2019est **l\u2019appel réel du web service**.
+
 ---
 
-## 5\ufe0f\u20e3 Centralize the response handling (VERY IMPORTANT)
-
-Create **one method** that maps external response \u2192 Dossier state.
+## 3\ufe0f\u20e3 `SoapProxyCustomerDetailV2` \u2013 la couche métier (wrapper)
 
 ```java
-@Service
-public class DossierEventHandler {
-
-    public void applyExternalResponse(Dossier dossier,
-                                      NarsaResponseDto response,
-                                      HttpStatus httpStatus) {
-
-        dossier.setIdRequete(response.getIdRequete());
-        dossier.setDernierCodeRetour(response.getCodeRetour());
-        dossier.setDernierMessageRetour(response.getMessageRetour());
-
-        if (httpStatus.is2xxSuccessful()) {
-            switch (response.getCodeRetour()) {
-                case "NANTI01":
-                    dossier.setStatus(DossierStatus.NANTISSEMENT_ACCEPTE);
-                    dossier.setDateNantissement(LocalDateTime.now());
-                    break;
-                default:
-                    dossier.setStatus(DossierStatus.ERREUR);
-            }
-        } else {
-            dossier.setStatus(DossierStatus.NANTISSEMENT_REFUSE);
-        }
-    }
-}
+@Component
+public class SoapProxyCustomerDetailV2 {
 ```
 
-\u2705 This avoids **if/else chaos** in controllers
-\u2705 Reusable for other events
+### \U0001f449 Rôle
+
+C\u2019est une **classe Spring** qui encapsule le client SOAP.
+
+Objectif :
+
+* Simplifier l\u2019appel
+* Centraliser la logique
+* Éviter de manipuler directement `Service` partout
 
 ---
 
-## 6\ufe0f\u20e3 Service layer (main logic)
+### Champs
 
 ```java
-@Service
-@RequiredArgsConstructor
-@Transactional
-public class NantissementService {
-
-    private final DossierRepository dossierRepository;
-    private final NarsaFeignClient narsaFeignClient;
-    private final DossierEventHandler eventHandler;
-
-    public NarsaResponseDto declarationNantissement(Long dossierId) {
-
-        Dossier dossier = dossierRepository.findById(dossierId)
-                .orElseThrow(() -> new EntityNotFoundException("Dossier not found"));
-
-        dossier.setStatus(DossierStatus.NANTISSEMENT_ENCOURS);
-
-        ResponseEntity<NarsaResponseDto> response =
-                narsaFeignClient.declarationNantissement(mapToDto(dossier));
-
-        eventHandler.applyExternalResponse(
-                dossier,
-                response.getBody(),
-                response.getStatusCode()
-        );
-
-        dossierRepository.save(dossier);
-
-        return response.getBody();
-    }
-}
+HTTPServiceServiceagent httpService = null;
+DataPort dataPort = null;
 ```
+
+* `HTTPServiceServiceagent` \u2192 le client SOAP
+* `DataPort` \u2192 le port SOAP (proxy)
 
 ---
 
-## 7\ufe0f\u20e3 Controller (clean & simple)
+### Méthode métier
 
 ```java
-@PostMapping("/dossiers/{id}/nantissement")
-public ResponseEntity<NarsaResponseDto> declarationNantissement(
-        @PathVariable Long id) {
-
-    NarsaResponseDto response = nantissementService.declarationNantissement(id);
-
-    if ("NANTI01".equals(response.getCodeRetour())) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+public Reply getCustomerAccountDetail(Request parameters) {
+    if (httpService == null || dataPort == null) {
+        httpService = new HTTPServiceServiceagent();
+        dataPort = httpService.getDataPortEndpoint2();
     }
-
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    return dataPort.getCustomerAccountDetail(parameters);
 }
 ```
 
+### \U0001f449 Déroulement
+
+1. Initialise le client SOAP (une seule fois)
+2. Récupère le port `DataPort`
+3. Appelle :
+
+   ```java
+   dataPort.getCustomerAccountDetail(parameters);
+   ```
+4. Retourne la réponse `Reply`
+
+\U0001f4cc Cette classe joue le rôle de **façade**.
+
 ---
 
-## 8\ufe0f\u20e3 What the frontend consumes (perfect for your nb-alert)
+## 4\ufe0f\u20e3 Schéma global (très important)
 
-Your entity already returns exactly what you need \U0001f447
-
-```json
-{
-  "idRequete": "bc1c35aa-8c39-400f-85b3-75e392fa3f9b",
-  "dernierCodeRetour": "NANTI01",
-  "dernierMessageRetour": "Demande de nantissement créée",
-  "status": "NANTISSEMENT_ACCEPTE"
-}
 ```
-
-Angular HTML stays **pure display logic**:
-
-```html
-<nb-alert status="success" *ngIf="dossier">
-  <div class="alert-header">
-    <h4><strong>Dernier Événement :</strong> Demande de nantissement</h4>
-  </div>
-
-  <div class="alert-body">
-    <p>
-      <strong>{{ dossier.dernierCodeRetour }} :</strong>
-      {{ dossier.dernierMessageRetour }}
-    </p>
-  </div>
-
-  <div class="alert-footer">
-    <p>
-      <strong>idRequete :</strong> {{ dossier.idRequete }}
-    </p>
-  </div>
-</nb-alert>
+Ton code métier
+      |
+      v
+SoapProxyCustomerDetailV2
+      |
+      v
+HTTPServiceServiceagent
+      |
+      v
+DataPort (proxy SOAP)
+      |
+      v
+Web Service distant (SOAP)
 ```
 
 ---
 
-## 9\ufe0f\u20e3 Bonus (best practice)
+## 5\ufe0f\u20e3 Pourquoi `DataPort` est déclaré 2 fois ?
 
-If later you want **history**, not just the last event:
+Tu as ceci **deux fois** dans ton code :
 
-* Create `DossierEvent` entity
-* Store each response
-* Keep `dernier*` as a **cache**
+```java
+public interface DataPort { ... }
+```
+
+\U0001f449 C\u2019est **une duplication** (probablement un copier-coller).
+\u26a0\ufe0f **À éviter** : il ne doit exister **qu\u2019une seule interface `DataPort`**.
 
 ---
 
-### \u2705 Summary
+## 6\ufe0f\u20e3 Résumé ultra-simple
 
-\u2714 One Dossier
-\u2714 Multiple external events
-\u2714 Always store **last event**
-\u2714 Clean Spring Boot architecture
-\u2714 Frontend-ready response
+| Élément                     | Rôle                                              |
+| --------------------------- | ------------------------------------------------- |
+| `DataPort`                  | Contrat SOAP (opérations exposées)                |
+| `Request`                   | Données envoyées au service                       |
+| `Reply`                     | Données reçues du service                         |
+| `HTTPServiceServiceagent`   | Client SOAP généré depuis le WSDL                 |
+| `SoapProxyCustomerDetailV2` | Wrapper Spring pour appeler le service facilement |
 
-If you want, next I can:
+---
 
-* Design **event history table**
-* Secure transitions (state machine)
-* Improve error mapping per NANTI code
+Si tu veux, je peux aussi :
+
+* t\u2019expliquer **le SOAP XML généré**
+* t\u2019aider à **configurer timeout / auth**
+* ou **refactorer ce code en best practices Spring**
