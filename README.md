@@ -1,259 +1,227 @@
-D\u2019accord \U0001f44d
-Je vais t\u2019expliquer **pas à pas**, en termes simples, ce que fait ce code et **comment les classes travaillent ensemble**.
-C\u2019est un **client SOAP JAX-WS** généré à partir d\u2019un **WSDL**.
+You\u2019re on the **right track** \U0001f44d
+What you want is a **clean, reliable audit/history mechanism** for `Dossier`.
+I\u2019ll give you the **best practice approach** used in real Spring Boot projects, not just something that \u201cworks\u201d.
 
 ---
 
-## 1\ufe0f\u20e3 `DataPort` \u2013 l\u2019interface SOAP (le contrat)
+## 1\ufe0f\u20e3 What you should (and should NOT) do
+
+### \u274c Not recommended
+
+* Saving history manually **inside every service method**
+* Comparing fields by hand everywhere
+* Letting controllers manage history logic
+
+This becomes **hard to maintain** and error-prone.
+
+---
+
+## \u2705 Best practice (recommended)
+
+### \u2714 Centralized history creation
+
+Use **JPA Entity Listeners** or **Service-level diff tracking**, depending on how detailed you want the history.
+
+I\u2019ll show you **the best balanced approach** for your case \U0001f447
+
+---
+
+# \u2b50 Recommended Solution: Service-level History with Snapshot (Most Flexible)
+
+This approach gives you:
+
+* Full control
+* Clear business meaning
+* Easy JSON storage of `valueBefore` / `valueAfter`
+* No magic JPA surprises
+
+---
+
+## 2\ufe0f\u20e3 Store BEFORE / AFTER as JSON (very important)
+
+You already use:
 
 ```java
-@WebService(
-    name = "DataPort",
-    targetNamespace = "http://com.socgen.ma/internal/service/local/SM_CustomerAccount_Sync/v2"
-)
-@SOAPBinding(parameterStyle = SOAPBinding.ParameterStyle.BARE)
-public interface DataPort {
+@Column(columnDefinition = "TEXT")
+private String valueBefore;
+
+@Column(columnDefinition = "TEXT")
+private String valueAfter;
 ```
 
-### \U0001f449 Rôle
-
-`DataPort` représente **le port SOAP** défini dans le WSDL.
-C\u2019est **le contrat** entre ton application et le web service distant.
+\U0001f449 **Good choice**
+We\u2019ll store **JSON snapshots** of the dossier.
 
 ---
 
-### La méthode SOAP
+## 3\ufe0f\u20e3 Create a History Service (clean separation)
+
+### `DossierHistoryService`
 
 ```java
-@WebMethod(operationName = "GetCustomerAccountDetail", action = "GetCustomerAccountDetail")
-@WebResult(
-    name = "Reply",
-    targetNamespace = "http://com.socgen.ma/internal/schema/local/CII_CustomerAccount_Sync/v2",
-    partName = "parameters"
-)
-Reply getCustomerAccountDetail(
-    @WebParam(
-        name = "Request",
-        targetNamespace = "http://com.socgen.ma/internal/schema/local/CII_CustomerAccount_Sync/v2",
-        partName = "parameters"
-    )
-    Request parameters
-);
-```
+@Service
+public class DossierHistoryService {
 
-### \U0001f449 Ce que ça signifie
+    private final DossierHistoryRepository historyRepository;
+    private final ObjectMapper objectMapper;
 
-* **`@WebMethod`**
-  \u2192 Correspond à une **opération SOAP** dans le WSDL
-
-* **`Request`**
-  \u2192 Objet envoyé dans le **SOAP Request**
-
-* **`Reply`**
-  \u2192 Objet reçu dans le **SOAP Response**
-
-* **`SOAPBinding.ParameterStyle.BARE`**
-  \u2192 Le body SOAP contient directement `Request` et `Reply`
-  (pas d\u2019objet wrapper autour)
-
-\U0001f4e6 En résumé :
-
-> Cette méthode appelle le web service **GetCustomerAccountDetail**
-> avec un `Request` et retourne un `Reply`.
-
----
-
-## 2\ufe0f\u20e3 `HTTPServiceServiceagent` \u2013 le client SOAP généré
-
-```java
-@WebServiceClient(
-    name = "HTTP_Service.serviceagent",
-    targetNamespace = "...",
-    wsdlLocation = "file:/D:/CHARAY/virement-de-masse/wsdl/CustomerAccount.wsdl"
-)
-public class HTTPServiceServiceagent extends Service {
-```
-
-### \U0001f449 Rôle
-
-Cette classe :
-
-* Charge le **WSDL**
-* Crée les **proxies SOAP**
-* Fournit l\u2019accès aux ports (`DataPort`)
-
-\U0001f4a1 Elle est **générée automatiquement** par `wsimport`.
-
----
-
-### Initialisation du WSDL
-
-```java
-static {
-    System.setProperty("com.sun.xml.ws.transport.http.client.HttpTransportPipe.dump", "true");
-    ...
-    url = new URL("file:/data/itf/wsdl/CustomerAccount.wsdl");
-}
-```
-
-### \U0001f449 À quoi ça sert
-
-* Active le **dump SOAP** (request & response XML dans les logs)
-* Charge le WSDL depuis un **fichier local**
-
-Très utile pour :
-
-* Debug
-* Vérifier les messages SOAP envoyés / reçus
-
----
-
-### Constructeurs
-
-```java
-public HTTPServiceServiceagent() {
-    super(__getWsdlLocation(), HTTPSERVICESERVICEAGENT_QNAME);
-}
-```
-
-\U0001f449 Ils permettent de :
-
-* Créer le client SOAP
-* Avec ou sans options (`WebServiceFeature`)
-
----
-
-### Récupération du port SOAP
-
-```java
-@WebEndpoint(name = "DataPortEndpoint2")
-public DataPort getDataPortEndpoint2() {
-    return super.getPort(
-        new QName("http://com.socgen.ma/internal/service/local/SM_CustomerAccount_Sync/v2", 
-                  "DataPortEndpoint2"),
-        DataPort.class
-    );
-}
-```
-
-### \U0001f449 Ce que ça fait
-
-* Crée un **proxy SOAP** de type `DataPort`
-* Ce proxy :
-
-  * Sérialise `Request` \u2192 XML
-  * Envoie la requête SOAP
-  * Désérialise la réponse XML \u2192 `Reply`
-
-\U0001f4de C\u2019est **l\u2019appel réel du web service**.
-
----
-
-## 3\ufe0f\u20e3 `SoapProxyCustomerDetailV2` \u2013 la couche métier (wrapper)
-
-```java
-@Component
-public class SoapProxyCustomerDetailV2 {
-```
-
-### \U0001f449 Rôle
-
-C\u2019est une **classe Spring** qui encapsule le client SOAP.
-
-Objectif :
-
-* Simplifier l\u2019appel
-* Centraliser la logique
-* Éviter de manipuler directement `Service` partout
-
----
-
-### Champs
-
-```java
-HTTPServiceServiceagent httpService = null;
-DataPort dataPort = null;
-```
-
-* `HTTPServiceServiceagent` \u2192 le client SOAP
-* `DataPort` \u2192 le port SOAP (proxy)
-
----
-
-### Méthode métier
-
-```java
-public Reply getCustomerAccountDetail(Request parameters) {
-    if (httpService == null || dataPort == null) {
-        httpService = new HTTPServiceServiceagent();
-        dataPort = httpService.getDataPortEndpoint2();
+    public DossierHistoryService(DossierHistoryRepository historyRepository) {
+        this.historyRepository = historyRepository;
+        this.objectMapper = new ObjectMapper();
     }
-    return dataPort.getCustomerAccountDetail(parameters);
+
+    public void saveHistory(
+            Dossier before,
+            Dossier after,
+            String action,
+            User user
+    ) {
+        try {
+            DossierHistory history = new DossierHistory();
+            history.setDateHistory(LocalDateTime.now());
+            history.setAction(action);
+            history.setUser(user);
+            history.setDossier(after);
+
+            history.setValueBefore(
+                    before != null ? objectMapper.writeValueAsString(before) : null
+            );
+            history.setValueAfter(
+                    after != null ? objectMapper.writeValueAsString(after) : null
+            );
+
+            historyRepository.save(history);
+
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Erreur lors de la création de l'historique", e);
+        }
+    }
 }
 ```
 
-### \U0001f449 Déroulement
-
-1. Initialise le client SOAP (une seule fois)
-2. Récupère le port `DataPort`
-3. Appelle :
-
-   ```java
-   dataPort.getCustomerAccountDetail(parameters);
-   ```
-4. Retourne la réponse `Reply`
-
-\U0001f4cc Cette classe joue le rôle de **façade**.
-
 ---
 
-## 4\ufe0f\u20e3 Schéma global (très important)
+## 4\ufe0f\u20e3 Use it in your Dossier Service (VERY IMPORTANT PATTERN)
 
-```
-Ton code métier
-      |
-      v
-SoapProxyCustomerDetailV2
-      |
-      v
-HTTPServiceServiceagent
-      |
-      v
-DataPort (proxy SOAP)
-      |
-      v
-Web Service distant (SOAP)
-```
-
----
-
-## 5\ufe0f\u20e3 Pourquoi `DataPort` est déclaré 2 fois ?
-
-Tu as ceci **deux fois** dans ton code :
+### Example: Update dossier
 
 ```java
-public interface DataPort { ... }
+@Transactional
+public Dossier updateDossier(Long id, Dossier newData, User user) {
+
+    Dossier existing = dossierRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
+
+    // \U0001f539 Snapshot BEFORE
+    Dossier before = cloneDossier(existing);
+
+    // \U0001f539 Apply changes
+    existing.setNumChassis(newData.getNumChassis());
+    existing.setStatus(newData.getStatus());
+    existing.setDernierCodeRetour(newData.getDernierCodeRetour());
+    // etc...
+
+    Dossier saved = dossierRepository.save(existing);
+
+    // \U0001f539 Save history
+    dossierHistoryService.saveHistory(
+            before,
+            saved,
+            "UPDATE_DOSSIER",
+            user
+    );
+
+    return saved;
+}
 ```
 
-\U0001f449 C\u2019est **une duplication** (probablement un copier-coller).
-\u26a0\ufe0f **À éviter** : il ne doit exister **qu\u2019une seule interface `DataPort`**.
+---
+
+## 5\ufe0f\u20e3 How to clone the dossier safely (important!)
+
+### Best simple solution
+
+```java
+private Dossier cloneDossier(Dossier dossier) {
+    try {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(
+                mapper.writeValueAsString(dossier),
+                Dossier.class
+        );
+    } catch (Exception e) {
+        throw new RuntimeException("Erreur lors du clonage du dossier", e);
+    }
+}
+```
+
+\u2714 Avoids lazy loading issues
+\u2714 No manual copying
+\u2714 Perfect snapshot
 
 ---
 
-## 6\ufe0f\u20e3 Résumé ultra-simple
+## 6\ufe0f\u20e3 Actions you should log (examples)
 
-| Élément                     | Rôle                                              |
-| --------------------------- | ------------------------------------------------- |
-| `DataPort`                  | Contrat SOAP (opérations exposées)                |
-| `Request`                   | Données envoyées au service                       |
-| `Reply`                     | Données reçues du service                         |
-| `HTTPServiceServiceagent`   | Client SOAP généré depuis le WSDL                 |
-| `SoapProxyCustomerDetailV2` | Wrapper Spring pour appeler le service facilement |
+Use **clear business actions**, not technical ones:
+
+```java
+"CREATION_DOSSIER"
+"UPDATE_DOSSIER"
+"DECLARATION_NANTISSEMENT"
+"CONSULTATION_NANTISSEMENT"
+"MAINLEVEE"
+"ERREUR_NARSA"
+"CHANGEMENT_STATUT"
+```
 
 ---
 
-Si tu veux, je peux aussi :
+## 7\ufe0f\u20e3 Bonus \u2013 Create helper methods in Dossier
 
-* t\u2019expliquer **le SOAP XML généré**
-* t\u2019aider à **configurer timeout / auth**
-* ou **refactorer ce code en best practices Spring**
+```java
+public void addHistory(DossierHistory history) {
+    histories.add(history);
+    history.setDossier(this);
+}
+```
+
+---
+
+## 8\ufe0f\u20e3 Final Architecture (clean & scalable)
+
+```
+controller
+   \u2193
+service
+   \u2193
+dossierHistoryService  \u2190 ONLY place managing history
+   \u2193
+repository
+```
+
+\u2714 Clean
+\u2714 Testable
+\u2714 Easy to extend (diff later, filtering, export, audit)
+
+---
+
+## 9\ufe0f\u20e3 When to use EntityListeners instead?
+
+Only if:
+
+* You want **automatic history for ALL changes**
+* You don\u2019t care about business meaning
+
+For **business dossiers like yours**, **service-level history is the best choice**.
+
+---
+
+If you want, next I can:
+
+* \U0001f50d Show how to **store only changed fields**
+* \U0001f4c4 Design a **history UI DTO**
+* \u26a1 Add **Spring Security integration** to auto-set user
+* \U0001f9ea Show how to **unit test history**
+
+Just tell me \U0001f44d
