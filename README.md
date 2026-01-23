@@ -1,227 +1,174 @@
-You\u2019re on the **right track** \U0001f44d
-What you want is a **clean, reliable audit/history mechanism** for `Dossier`.
-I\u2019ll give you the **best practice approach** used in real Spring Boot projects, not just something that \u201cworks\u201d.
+Perfect, thanks for pasting the code \u2014 now we can be **very precise** \U0001f44d
+What you\u2019re seeing actually makes total sense given this implementation.
 
 ---
 
-## 1\ufe0f\u20e3 What you should (and should NOT) do
+## \U0001f534 What is REALLY happening
 
-### \u274c Not recommended
-
-* Saving history manually **inside every service method**
-* Comparing fields by hand everywhere
-* Letting controllers manage history logic
-
-This becomes **hard to maintain** and error-prone.
-
----
-
-## \u2705 Best practice (recommended)
-
-### \u2714 Centralized history creation
-
-Use **JPA Entity Listeners** or **Service-level diff tracking**, depending on how detailed you want the history.
-
-I\u2019ll show you **the best balanced approach** for your case \U0001f447
-
----
-
-# \u2b50 Recommended Solution: Service-level History with Snapshot (Most Flexible)
-
-This approach gives you:
-
-* Full control
-* Clear business meaning
-* Easy JSON storage of `valueBefore` / `valueAfter`
-* No magic JPA surprises
-
----
-
-## 2\ufe0f\u20e3 Store BEFORE / AFTER as JSON (very important)
-
-You already use:
+### 1\ufe0f\u20e3 Line 505 **is correctly identified**
 
 ```java
-@Column(columnDefinition = "TEXT")
-private String valueBefore;
-
-@Column(columnDefinition = "TEXT")
-private String valueAfter;
+throw new ValidationException(error.getCode(), error.getMessage(), error.getField());
 ```
 
-\U0001f449 **Good choice**
-We\u2019ll store **JSON snapshots** of the dossier.
+So **yes**, the exception is thrown **intentionally** from validation.
 
 ---
 
-## 3\ufe0f\u20e3 Create a History Service (clean separation)
+### 2\ufe0f\u20e3 Why the JMS log shows
 
-### `DossierHistoryService`
+```
+ValidationException: null
+```
+
+This is the key confusion point \U0001f447
+It **does NOT mean** `error.getMessage()` is null.
+
+It means:
+
+\U0001f449 **`ValidationException.getMessage()` returns `null`**
+
+Very common when:
+
+* `ValidationException` does **not pass the message to `super(message)`**
+* Or overrides `getMessage()` incorrectly
+
+---
+
+## \U0001f50d Proof from your logs
+
+You said:
+
+> the only log shown from validate method is
 
 ```java
-@Service
-public class DossierHistoryService {
+ITFLogger.info(this, "validate", body);
+```
 
-    private final DossierHistoryRepository historyRepository;
-    private final ObjectMapper objectMapper;
+That tells us:
 
-    public DossierHistoryService(DossierHistoryRepository historyRepository) {
-        this.historyRepository = historyRepository;
-        this.objectMapper = new ObjectMapper();
-    }
+\u2705 `validate()` **is entered**
+\u274c No error logs
+\u274c No traceEnd log
+\u27a1\ufe0f Validation **returns errors**, not an exception
 
-    public void saveHistory(
-            Dossier before,
-            Dossier after,
-            String action,
-            User user
-    ) {
-        try {
-            DossierHistory history = new DossierHistory();
-            history.setDateHistory(LocalDateTime.now());
-            history.setAction(action);
-            history.setUser(user);
-            history.setDossier(after);
+Then **updateTransferFile() throws the exception**, and JMS logs it.
 
-            history.setValueBefore(
-                    before != null ? objectMapper.writeValueAsString(before) : null
-            );
-            history.setValueAfter(
-                    after != null ? objectMapper.writeValueAsString(after) : null
-            );
+---
 
-            historyRepository.save(history);
+## \u26a0\ufe0f The REAL bug (100% sure)
 
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Erreur lors de la création de l'historique", e);
-        }
+Your `ValidationException` class is broken or incomplete.
+
+### Typical broken implementation
+
+Something like this \U0001f447
+
+```java
+public class ValidationException extends Exception {
+    private String code;
+    private String field;
+
+    public ValidationException(String code, String message, String field) {
+        this.code = code;
+        this.field = field;
+        // \u274c message NOT passed to super
     }
 }
 ```
 
----
+\u27a1\ufe0f Result:
 
-## 4\ufe0f\u20e3 Use it in your Dossier Service (VERY IMPORTANT PATTERN)
-
-### Example: Update dossier
-
-```java
-@Transactional
-public Dossier updateDossier(Long id, Dossier newData, User user) {
-
-    Dossier existing = dossierRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
-
-    // \U0001f539 Snapshot BEFORE
-    Dossier before = cloneDossier(existing);
-
-    // \U0001f539 Apply changes
-    existing.setNumChassis(newData.getNumChassis());
-    existing.setStatus(newData.getStatus());
-    existing.setDernierCodeRetour(newData.getDernierCodeRetour());
-    // etc...
-
-    Dossier saved = dossierRepository.save(existing);
-
-    // \U0001f539 Save history
-    dossierHistoryService.saveHistory(
-            before,
-            saved,
-            "UPDATE_DOSSIER",
-            user
-    );
-
-    return saved;
-}
+```
+ValidationException: null
 ```
 
 ---
 
-## 5\ufe0f\u20e3 How to clone the dossier safely (important!)
+## \u2705 THE FIX (VERY IMPORTANT)
 
-### Best simple solution
+### \u2705 Correct ValidationException constructor
 
 ```java
-private Dossier cloneDossier(Dossier dossier) {
-    try {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(
-                mapper.writeValueAsString(dossier),
-                Dossier.class
-        );
-    } catch (Exception e) {
-        throw new RuntimeException("Erreur lors du clonage du dossier", e);
+public class ValidationException extends Exception {
+
+    private final String code;
+    private final String field;
+
+    public ValidationException(String code, String message, String field) {
+        super(message); // \u2705 THIS IS THE FIX
+        this.code = code;
+        this.field = field;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getField() {
+        return field;
     }
 }
 ```
 
-\u2714 Avoids lazy loading issues
-\u2714 No manual copying
-\u2714 Perfect snapshot
+After this, your log will become:
+
+```
+ValidationException: Bordereau manquant
+```
+
+instead of `null`.
 
 ---
 
-## 6\ufe0f\u20e3 Actions you should log (examples)
+## \U0001f9e0 Secondary issue you should also fix (hidden NPE risk)
 
-Use **clear business actions**, not technical ones:
+This line is dangerous:
 
 ```java
-"CREATION_DOSSIER"
-"UPDATE_DOSSIER"
-"DECLARATION_NANTISSEMENT"
-"CONSULTATION_NANTISSEMENT"
-"MAINLEVEE"
-"ERREUR_NARSA"
-"CHANGEMENT_STATUT"
+request.getPayload().getOriginInfo().getOriginType()
 ```
 
----
+If `originInfo` is `null`, you\u2019ll get an NPE **before validation**.
 
-## 7\ufe0f\u20e3 Bonus \u2013 Create helper methods in Dossier
+### Safer version:
 
 ```java
-public void addHistory(DossierHistory history) {
-    histories.add(history);
-    history.setDossier(this);
-}
+if (request.getPayload().getOriginInfo() != null
+    && request.getPayload().getOriginInfo().getOriginType() == FileTransferOriginType.Email) {
 ```
 
 ---
 
-## 8\ufe0f\u20e3 Final Architecture (clean & scalable)
+## \u2705 Why only ONE validate log appears
 
-```
-controller
-   \u2193
-service
-   \u2193
-dossierHistoryService  \u2190 ONLY place managing history
-   \u2193
-repository
-```
+Because:
 
-\u2714 Clean
-\u2714 Testable
-\u2714 Easy to extend (diff later, filtering, export, audit)
+* `validate()` is called once
+* It returns `errors`
+* You immediately throw the exception
+* No further logs are executed
+
+This is expected behavior \u2714\ufe0f
 
 ---
 
-## 9\ufe0f\u20e3 When to use EntityListeners instead?
+## \U0001f9fe TL;DR (short & clear)
 
-Only if:
-
-* You want **automatic history for ALL changes**
-* You don\u2019t care about business meaning
-
-For **business dossiers like yours**, **service-level history is the best choice**.
+* \u2705 JMS is fine
+* \u2705 Validation logic works
+* \u274c `ValidationException` does **not call `super(message)`**
+* \u274c That\u2019s why JMS prints `ValidationException: null`
+* \u2705 Fix the constructor
+* \u2705 Add null-check for `originInfo`
 
 ---
 
-If you want, next I can:
+If you want, next we can:
 
-* \U0001f50d Show how to **store only changed fields**
-* \U0001f4c4 Design a **history UI DTO**
-* \u26a1 Add **Spring Security integration** to auto-set user
-* \U0001f9ea Show how to **unit test history**
+* Add **clean JMS ErrorHandler**
+* Prevent **message redelivery loops**
+* Standardize **business vs technical exceptions**
+* Improve validation logging (very useful in prod)
 
-Just tell me \U0001f44d
+Just say the word \U0001f44c
