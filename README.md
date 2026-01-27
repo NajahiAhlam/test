@@ -1,62 +1,99 @@
-Yep \U0001f44d you\u2019re **very close**, and your instinct is right:
-what\u2019s happening now is **ModelMapper is overwriting fields with `null`**, so the diff sees *everything* as changed.
+Perfect, thanks for the clarification \U0001f44d
+This changes **everything** \u2014 and your requirement is 100% valid.
 
-So the fix is **NOT in the diff**, it\u2019s in **how you map the DTO \u2192 entity**.
+\U0001f449 **DTO contains ALL attributes**
+\U0001f449 You still want **history to contain ONLY what actually changed**
 
----
-
-## \u274c Root cause (important)
-
-Your DTO update probably looks like this:
-
-```json
-{
-  "numChassis": "ABC123",
-  "numWW": "WW999"
-}
-```
-
-But `ModelMapper.map(dossierDto, existing)` does this:
-
-\U0001f449 sets **all other fields to null**
-\U0001f449 diff detects *all fields changed*
-\U0001f449 history saves everything
+So **ModelMapper is NOT the problem** \u274c
+The solution is **diff smarter**, not map smarter.
 
 ---
 
-## \u2705 CORRECT SOLUTION (industry standard)
+## \u2705 FINAL CORRECT STRATEGY
 
-### \U0001f7e2 Ignore `null` values during update
+We will:
 
-Only fields **explicitly provided** in the DTO will be updated \u2192 diff works perfectly.
+1. Snapshot entity **before update**
+2. Apply DTO (full update)
+3. Compare **value-by-value**
+4. Keep ONLY fields where `old != new`
+5. Save **ONE history row**
+
+Your code structure stays the same \u2014 only the diff logic must be strict.
 
 ---
 
-## 1\ufe0f\u20e3 Configure ModelMapper ONCE
+## 1\ufe0f\u20e3 FINAL `EntityDiffUtil` (robust & correct)
+
+This version:
+\u2714 ignores unchanged values
+\u2714 ignores same strings, numbers, enums
+\u2714 ignores audit & relations
+\u2714 works even if DTO sends all fields
 
 ```java
-@Bean
-public ModelMapper modelMapper() {
-    ModelMapper mapper = new ModelMapper();
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
-    mapper.getConfiguration()
-            .setSkipNullEnabled(true)  // \U0001f525 THIS IS THE KEY
-            .setFieldMatchingEnabled(true)
-            .setFieldAccessLevel(org.modelmapper.config.Configuration.AccessLevel.PRIVATE);
+public final class EntityDiffUtil {
 
-    return mapper;
+    private static final Set<String> IGNORED_FIELDS = Set.of(
+            "id",
+            "createdBy",
+            "modifiedBy",
+            "createdDate",
+            "dateModification",
+            "histories",
+            "events"
+    );
+
+    private EntityDiffUtil() {}
+
+    public static Map<String, Object[]> diff(Object oldObj, Object newObj) {
+
+        Map<String, Object[]> changes = new HashMap<>();
+
+        if (oldObj == null || newObj == null) {
+            return changes;
+        }
+
+        for (Field field : oldObj.getClass().getDeclaredFields()) {
+            field.setAccessible(true);
+
+            if (IGNORED_FIELDS.contains(field.getName())) {
+                continue;
+            }
+
+            try {
+                Object oldValue = field.get(oldObj);
+                Object newValue = field.get(newObj);
+
+                // \U0001f525 ONLY REAL CHANGES
+                if (!Objects.equals(oldValue, newValue)) {
+                    changes.put(field.getName(), new Object[]{oldValue, newValue});
+                }
+
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Error comparing field " + field.getName(), e);
+            }
+        }
+        return changes;
+    }
 }
 ```
 
-\U0001f4cc This means:
+\U0001f4cc `Objects.equals()` already handles:
 
-* `null` in DTO \u2192 **does NOT overwrite entity**
-* unchanged fields stay untouched
-* diff sees ONLY real changes
+* `null vs null` \u2192 same
+* `"A" vs "A"` \u2192 same
+* `1 vs 1` \u2192 same
+* enum vs enum \u2192 same
 
 ---
 
-## 2\ufe0f\u20e3 Your `updateDossier` stays EXACTLY the same
+## 2\ufe0f\u20e3 Your `updateDossier` (NO CHANGE NEEDED)
 
 ```java
 @Transactional
@@ -65,10 +102,11 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
     Dossier existing = dossierRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
 
+    // snapshot BEFORE update
     Dossier oldSnapshot = new Dossier();
     modelMapper.map(existing, oldSnapshot);
 
-    // \u2705 Now only changed fields are updated
+    // full update (DTO contains all fields)
     modelMapper.map(dossierDto, existing);
 
     Map<String, Object[]> changes =
@@ -81,14 +119,14 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
 
         changes.forEach((field, values) -> {
             before.append(field)
-                    .append("=")
-                    .append(values[0])
-                    .append("; ");
+                  .append("=")
+                  .append(values[0])
+                  .append("; ");
 
             after.append(field)
-                    .append("=")
-                    .append(values[1])
-                    .append("; ");
+                 .append("=")
+                 .append(values[1])
+                 .append("; ");
         });
 
         history.updateDossierHistory(
@@ -106,15 +144,26 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
 
 ---
 
-## \u2705 RESULT (what you wanted)
+## 3\ufe0f\u20e3 REAL-LIFE RESULT (exactly what you want)
 
-### You update ONLY:
+### Front sends FULL DTO:
 
 ```json
 {
-  "numChassis": "ABC123",
-  "numWW": "WW999"
+  "numContrat": "123",
+  "numChassis": "NEW123",
+  "numWW": "WW999",
+  "typeClient": "PRO"
 }
+```
+
+### DB already had:
+
+```
+numContrat=123
+numChassis=OLD999
+numWW=WW111
+typeClient=PRO
 ```
 
 ### History saved:
@@ -122,52 +171,46 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
 **value_before**
 
 ```
-numChassis=OLD123; numWW=WW111;
+numChassis=OLD999; numWW=WW111;
 ```
 
 **value_after**
 
 ```
-numChassis=ABC123; numWW=WW999;
+numChassis=NEW123; numWW=WW999;
 ```
 
-\U0001f4a5 Nothing else appears
-\U0001f4a5 One history row
-\U0001f4a5 Perfect audit
+\u2714 Only changed fields
+\u2714 One history row
+\u2714 DTO full update supported
+\u2714 No false positives
 
 ---
 
-## \U0001f525 EXTRA SAFETY (optional but recommended)
+## \U0001f525 EXTRA (recommended for banking/audit)
 
-Exclude fields that should never be audited:
-
-```java
-if (values[0] == null && values[1] == null) {
-    return;
-}
-```
-
-Or exclude empty strings:
+If you want to **exclude technical changes** like spaces or case:
 
 ```java
-if ("".equals(values[0]) && "".equals(values[1])) {
-    return;
+if (oldValue instanceof String && newValue instanceof String) {
+    if (((String) oldValue).trim().equals(((String) newValue).trim())) {
+        continue;
+    }
 }
 ```
 
 ---
 
-## \U0001f9e0 TL;DR
+## \U0001f9e0 Final takeaway
 
-\u2714 Problem was **ModelMapper null overwrite**
-\u2714 Fix = `setSkipNullEnabled(true)`
-\u2714 Diff logic already correct
-\u2714 History now logs ONLY changed fields
+\u27a1\ufe0f **DTO content doesn\u2019t matter**
+\u27a1\ufe0f Only **entity-before vs entity-after** matters
+\u27a1\ufe0f Your history is now **accurate, minimal, and audit-proof**
 
-If you want next:
+If you want:
 
-* PATCH vs PUT handling
-* validation per updated field
-* status transition history only
+* human-readable labels
+* status transition history
+* grouped history by business action
 
-I\u2019ve got you \U0001f604
+Just say the word \U0001f44c
