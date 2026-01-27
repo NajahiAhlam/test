@@ -1,55 +1,45 @@
-Yep, classic (and very real) problem \U0001f604
-You want **automatic field-level history** on update: detect *what changed*, get **old value / new value**, and call `updateDossierHistory(...)` for each change.
+Ahh got it \U0001f44d
+You **don\u2019t want one history row per field**, you want **ONE single history row per update**, containing **only the fields that actually changed**. Clean audit trail. Love it.
 
-I\u2019ll give you **clean + scalable solutions**, from **best practice** to **quick win**, and you can pick.
-
----
-
-## \u2705 BEST PRACTICE (clean & future-proof)
-
-### 1\ufe0f\u20e3 Clone entity BEFORE mapping, then compare AFTER mapping
-
-You already use `ModelMapper`, so we\u2019ll:
-
-* Load existing dossier
-* Make a **copy snapshot**
-* Map DTO \u2192 entity
-* Compare snapshot vs updated entity
-* Save history per changed field
+Let\u2019s do it properly.
 
 ---
 
-### \U0001f539 Step 1 \u2013 Create a utility to compare fields (Reflection-based)
+## \U0001f3af What you want (exact behavior)
 
-```java
-public class EntityDiffUtil {
+On update:
 
-    public static Map<String, Object[]> diff(Object oldObj, Object newObj) {
-        Map<String, Object[]> changes = new HashMap<>();
+* Detect changed fields \u2705
+* Ignore unchanged fields \u2705
+* Save **ONE row** in `dossier_history`
+* `valueBefore` \u2192 concatenation (or JSON) of old values
+* `valueAfter` \u2192 concatenation (or JSON) of new values
 
-        for (Field field : oldObj.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
+---
 
-            try {
-                Object oldValue = field.get(oldObj);
-                Object newValue = field.get(newObj);
+## \u2705 Recommended format (clean & readable)
 
-                if (!Objects.equals(oldValue, newValue)) {
-                    changes.put(field.getName(), new Object[]{oldValue, newValue});
-                }
+### Example stored in DB
 
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return changes;
-    }
-}
+**valueBefore**
+
+```
+numContrat=12345; numChassis=ABC123
 ```
 
+**valueAfter**
+
+```
+numContrat=67890; numChassis=XYZ999
+```
+
+(Or JSON if you prefer \u2014 I\u2019ll show both)
+
 ---
 
-### \U0001f539 Step 2 \u2013 Update service with history tracking
+## \u2705 SOLUTION 1 \u2014 Simple & readable (String-based)
+
+### \U0001f539 Update service (ONE history call only)
 
 ```java
 @Transactional
@@ -58,102 +48,121 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
     Dossier existing = dossierRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Dossier introuvable"));
 
-    // 1\ufe0f\u20e3 Snapshot BEFORE update
     Dossier oldSnapshot = new Dossier();
     modelMapper.map(existing, oldSnapshot);
 
-    // 2\ufe0f\u20e3 Apply updates
     modelMapper.map(dossierDto, existing);
 
-    // 3\ufe0f\u20e3 Detect changes
     Map<String, Object[]> changes =
             EntityDiffUtil.diff(oldSnapshot, existing);
 
-    // 4\ufe0f\u20e3 Save history per field
-    changes.forEach((field, values) -> {
-        dossierHistoryService.updateDossierHistory(
+    if (!changes.isEmpty()) {
+
+        StringBuilder before = new StringBuilder();
+        StringBuilder after = new StringBuilder();
+
+        changes.forEach((field, values) -> {
+            before.append(field)
+                  .append("=")
+                  .append(values[0])
+                  .append("; ");
+
+            after.append(field)
+                 .append("=")
+                 .append(values[1])
+                 .append("; ");
+        });
+
+        history.updateDossierHistory(
                 existing,
-                "UPDATE_" + field.toUpperCase(),
-                String.valueOf(values[0]),
-                String.valueOf(values[1])
+                "UPDATE_DOSSIER",
+                before.toString(),
+                after.toString()
         );
-    });
+    }
 
     Dossier saved = dossierRepository.save(existing);
     return modelMapper.map(saved, DossierDto.class);
 }
 ```
 
-\U0001f4a5 Result:
-
-* Every changed field is logged
-* Old value + new value saved
-* Works even if you add 50 new fields later
+\u2705 Only changed fields
+\u2705 One DB insert
+\u2705 Easy to read in prod
 
 ---
 
-## \u2705 OPTIONAL FILTERING (VERY IMPORTANT)
+## \u2705 SOLUTION 2 \u2014 PRO / JSON-based (best for long term)
 
-You probably **don\u2019t want to track everything** (id, dates, relations, audit fields).
+If `value_before` and `value_after` are `TEXT` (they are \U0001f44d), JSON is \U0001f525.
 
-Add this inside the `diff()` loop:
+### \U0001f539 Build JSON maps
 
 ```java
-if (field.isAnnotationPresent(OneToMany.class)
-    || field.isAnnotationPresent(ManyToOne.class)
-    || field.getName().equals("id")
-    || field.getName().equals("histories")
-    || field.getName().equals("events")
+if (!changes.isEmpty()) {
+
+    Map<String, Object> before = new HashMap<>();
+    Map<String, Object> after = new HashMap<>();
+
+    changes.forEach((field, values) -> {
+        before.put(field, values[0]);
+        after.put(field, values[1]);
+    });
+
+    history.updateDossierHistory(
+            existing,
+            "UPDATE_DOSSIER",
+            new ObjectMapper().writeValueAsString(before),
+            new ObjectMapper().writeValueAsString(after)
+    );
+}
+```
+
+\U0001f4cc Result in DB:
+
+```json
+{"numContrat":"12345","numChassis":"ABC123"}
+```
+
+\U0001f4a1 Perfect if later you want:
+
+* history UI
+* diff highlighting
+* audit export
+
+---
+
+## \U0001f525 IMPORTANT: Exclude noise fields (VERY IMPORTANT)
+
+In `EntityDiffUtil.diff()` add this:
+
+```java
+if (field.getName().equals("dateModification")
+ || field.getName().equals("createdDate")
+ || field.getName().equals("createdBy")
+ || field.getName().equals("modifiedBy")
+ || field.getName().equals("histories")
+ || field.getName().equals("events")
 ) {
     continue;
 }
 ```
 
----
-
-## \u2705 CLEANER ACTION NAMES
-
-Instead of `UPDATE_NUMCONTRAT`, you can do:
-
-```java
-.action("Modification du champ : " + field)
-```
-
-or map labels:
-
-```java
-Map<String, String> labels = Map.of(
-    "numContrat", "Numéro de contrat",
-    "numChassis", "Numéro de châssis"
-);
-```
+Otherwise you\u2019ll log useless updates every time.
 
 ---
 
-## \U0001f680 EVEN BETTER (ENTERPRISE STYLE)
+## \U0001f9e0 Final result
 
-If you want **zero logic in service**:
+\u2714 One history line per update
+\u2714 Only changed fields
+\u2714 Clean audit trail
+\u2714 Zero manual field handling
 
-* Use **JPA EntityListener**
-* Capture `@PreUpdate`
-* Compare old/new automatically
+If you want next:
 
-\U0001f449 I can show you that version too if you want a **Spring Boot pro-grade solution**.
+* track **status change only**
+* generate a **human-readable message**
+* or move this logic into **@EntityListener (@PreUpdate)**
 
----
-
-## \U0001f9e0 TL;DR
-
-\u2714 Snapshot entity
-\u2714 Map DTO
-\u2714 Diff fields via reflection
-\u2714 Save history per change
-
-If you want:
-
-* exclude nulls
-* group changes in ONE history record
-* save JSON diff instead of per field
-* or auto-track status changes only
-
-Just tell me \U0001f609
+Say the word \U0001f604
