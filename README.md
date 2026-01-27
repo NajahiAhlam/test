@@ -1,45 +1,62 @@
-Ahh got it \U0001f44d
-You **don\u2019t want one history row per field**, you want **ONE single history row per update**, containing **only the fields that actually changed**. Clean audit trail. Love it.
+Yep \U0001f44d you\u2019re **very close**, and your instinct is right:
+what\u2019s happening now is **ModelMapper is overwriting fields with `null`**, so the diff sees *everything* as changed.
 
-Let\u2019s do it properly.
-
----
-
-## \U0001f3af What you want (exact behavior)
-
-On update:
-
-* Detect changed fields \u2705
-* Ignore unchanged fields \u2705
-* Save **ONE row** in `dossier_history`
-* `valueBefore` \u2192 concatenation (or JSON) of old values
-* `valueAfter` \u2192 concatenation (or JSON) of new values
+So the fix is **NOT in the diff**, it\u2019s in **how you map the DTO \u2192 entity**.
 
 ---
 
-## \u2705 Recommended format (clean & readable)
+## \u274c Root cause (important)
 
-### Example stored in DB
+Your DTO update probably looks like this:
 
-**valueBefore**
-
-```
-numContrat=12345; numChassis=ABC123
-```
-
-**valueAfter**
-
-```
-numContrat=67890; numChassis=XYZ999
+```json
+{
+  "numChassis": "ABC123",
+  "numWW": "WW999"
+}
 ```
 
-(Or JSON if you prefer \u2014 I\u2019ll show both)
+But `ModelMapper.map(dossierDto, existing)` does this:
+
+\U0001f449 sets **all other fields to null**
+\U0001f449 diff detects *all fields changed*
+\U0001f449 history saves everything
 
 ---
 
-## \u2705 SOLUTION 1 \u2014 Simple & readable (String-based)
+## \u2705 CORRECT SOLUTION (industry standard)
 
-### \U0001f539 Update service (ONE history call only)
+### \U0001f7e2 Ignore `null` values during update
+
+Only fields **explicitly provided** in the DTO will be updated \u2192 diff works perfectly.
+
+---
+
+## 1\ufe0f\u20e3 Configure ModelMapper ONCE
+
+```java
+@Bean
+public ModelMapper modelMapper() {
+    ModelMapper mapper = new ModelMapper();
+
+    mapper.getConfiguration()
+            .setSkipNullEnabled(true)  // \U0001f525 THIS IS THE KEY
+            .setFieldMatchingEnabled(true)
+            .setFieldAccessLevel(org.modelmapper.config.Configuration.AccessLevel.PRIVATE);
+
+    return mapper;
+}
+```
+
+\U0001f4cc This means:
+
+* `null` in DTO \u2192 **does NOT overwrite entity**
+* unchanged fields stay untouched
+* diff sees ONLY real changes
+
+---
+
+## 2\ufe0f\u20e3 Your `updateDossier` stays EXACTLY the same
 
 ```java
 @Transactional
@@ -51,6 +68,7 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
     Dossier oldSnapshot = new Dossier();
     modelMapper.map(existing, oldSnapshot);
 
+    // \u2705 Now only changed fields are updated
     modelMapper.map(dossierDto, existing);
 
     Map<String, Object[]> changes =
@@ -63,14 +81,14 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
 
         changes.forEach((field, values) -> {
             before.append(field)
-                  .append("=")
-                  .append(values[0])
-                  .append("; ");
+                    .append("=")
+                    .append(values[0])
+                    .append("; ");
 
             after.append(field)
-                 .append("=")
-                 .append(values[1])
-                 .append("; ");
+                    .append("=")
+                    .append(values[1])
+                    .append("; ");
         });
 
         history.updateDossierHistory(
@@ -86,83 +104,70 @@ public DossierDto updateDossier(Long id, DossierDto dossierDto) {
 }
 ```
 
-\u2705 Only changed fields
-\u2705 One DB insert
-\u2705 Easy to read in prod
-
 ---
 
-## \u2705 SOLUTION 2 \u2014 PRO / JSON-based (best for long term)
+## \u2705 RESULT (what you wanted)
 
-If `value_before` and `value_after` are `TEXT` (they are \U0001f44d), JSON is \U0001f525.
-
-### \U0001f539 Build JSON maps
-
-```java
-if (!changes.isEmpty()) {
-
-    Map<String, Object> before = new HashMap<>();
-    Map<String, Object> after = new HashMap<>();
-
-    changes.forEach((field, values) -> {
-        before.put(field, values[0]);
-        after.put(field, values[1]);
-    });
-
-    history.updateDossierHistory(
-            existing,
-            "UPDATE_DOSSIER",
-            new ObjectMapper().writeValueAsString(before),
-            new ObjectMapper().writeValueAsString(after)
-    );
-}
-```
-
-\U0001f4cc Result in DB:
+### You update ONLY:
 
 ```json
-{"numContrat":"12345","numChassis":"ABC123"}
-```
-
-\U0001f4a1 Perfect if later you want:
-
-* history UI
-* diff highlighting
-* audit export
-
----
-
-## \U0001f525 IMPORTANT: Exclude noise fields (VERY IMPORTANT)
-
-In `EntityDiffUtil.diff()` add this:
-
-```java
-if (field.getName().equals("dateModification")
- || field.getName().equals("createdDate")
- || field.getName().equals("createdBy")
- || field.getName().equals("modifiedBy")
- || field.getName().equals("histories")
- || field.getName().equals("events")
-) {
-    continue;
+{
+  "numChassis": "ABC123",
+  "numWW": "WW999"
 }
 ```
 
-Otherwise you\u2019ll log useless updates every time.
+### History saved:
+
+**value_before**
+
+```
+numChassis=OLD123; numWW=WW111;
+```
+
+**value_after**
+
+```
+numChassis=ABC123; numWW=WW999;
+```
+
+\U0001f4a5 Nothing else appears
+\U0001f4a5 One history row
+\U0001f4a5 Perfect audit
 
 ---
 
-## \U0001f9e0 Final result
+## \U0001f525 EXTRA SAFETY (optional but recommended)
 
-\u2714 One history line per update
-\u2714 Only changed fields
-\u2714 Clean audit trail
-\u2714 Zero manual field handling
+Exclude fields that should never be audited:
+
+```java
+if (values[0] == null && values[1] == null) {
+    return;
+}
+```
+
+Or exclude empty strings:
+
+```java
+if ("".equals(values[0]) && "".equals(values[1])) {
+    return;
+}
+```
+
+---
+
+## \U0001f9e0 TL;DR
+
+\u2714 Problem was **ModelMapper null overwrite**
+\u2714 Fix = `setSkipNullEnabled(true)`
+\u2714 Diff logic already correct
+\u2714 History now logs ONLY changed fields
 
 If you want next:
 
-* track **status change only**
-* generate a **human-readable message**
-* or move this logic into **@EntityListener (@PreUpdate)**
+* PATCH vs PUT handling
+* validation per updated field
+* status transition history only
 
-Say the word \U0001f604
+I\u2019ve got you \U0001f604
