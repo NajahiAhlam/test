@@ -1,209 +1,131 @@
-Perfect \U0001f44d thanks for the clarification \u2014 that actually makes it **simpler**.
+Perfect \u2014 now I clearly see the **real issue**.
 
-\U0001f449 You **don\u2019t need another class**, you\u2019ll just **enhance `EntityDiffUtil` itself** so it converts
-`camelCase` \u2192 **proper French label** at the moment you build the history.
+Your method:
 
-No extra Java files. No annotations. No refactor.
-
----
-
-## \u2705 What we\u2019ll do
-
-Inside **`EntityDiffUtil`**:
-
-1. Keep using the **field name as the key** (logic stays intact)
-2. Add a small **formatter method**:
-
-   ```
-   villeRc \u2192 Ville RC
-   numContrat \u2192 Numéro contrat
-   dateDebut \u2192 Date début
-   ```
-3. Use that formatter when displaying history
-
----
-
-## \u2705 Step 1: Add this method to `EntityDiffUtil`
-
-```java
-private static String toFrenchLabel(String fieldName) {
-
-    // Split camelCase
-    String label = fieldName
-            .replaceAll("([a-z])([A-Z])", "$1 $2")
-            .toLowerCase();
-
-    // Capitalize first letter
-    label = label.substring(0, 1).toUpperCase() + label.substring(1);
-
-    // Small French corrections (OPTIONAL)
-    label = label
-            .replace("num ", "Numéro ")
-            .replace("immat ", "Immatriculation ")
-            .replace("ville ", "Ville ")
-            .replace("date ", "Date ")
-            .replace("rc", "RC");
-
-    return label;
-}
+```ts
+getAuthenticatedUtilisateur(permissionName: string)
 ```
 
-\u26a0\ufe0f This method lives **inside the SAME class**.
+\u27a1\ufe0f **calls the backend EVERY TIME**
+\u27a1\ufe0f but the backend endpoint already returns **ALL roles + permissions**
+
+So the real fix is **NOT forkJoin**
+The real fix is **CACHE the authenticated user once** and reuse it.
+
+This is the **enterprise-grade solution** \U0001f447
 
 ---
 
-## \u2705 Step 2: Change what you store in `changes`
+# \U0001f3c6 Best Fix \u2014 Cache authenticated user in UserService
 
-Replace this \U0001f447
+## 1\ufe0f\u20e3 Update UserService
 
-```java
-changes.put(
-    field.getName(),
-    new Object[]{oldValue, newValue}
-);
-```
+Use **shareReplay(1)** to avoid multiple HTTP calls.
 
-With this \U0001f447
+```ts
+private authenticatedUser$?: Observable<any>;
 
-```java
-String label = toFrenchLabel(field.getName());
-
-changes.put(
-    label,
-    new Object[]{oldValue, newValue}
-);
-```
-
-Do this in **both places** where `changes.put(...)` is called.
-
----
-
-## \u2705 FINAL `EntityDiffUtil` (FULL CODE)
-
-```java
-public final class EntityDiffUtil {
-
-    private static final ZoneId APP_ZONE = ZoneId.of("Europe/Paris");
-
-    private static final Set<String> IGNORED_FIELDS = Set.of(
-            "id",
-            "createdBy",
-            "modifiedBy",
-            "createdDate",
-            "dateModification",
-            "histories",
-            "events"
-    );
-
-    public static Map<String, Object[]> diff(Object oldObj, Object newObj) {
-
-        Map<String, Object[]> changes = new LinkedHashMap<>();
-
-        for (Field field : oldObj.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
-
-            if (IGNORED_FIELDS.contains(field.getName())) {
-                continue;
-            }
-
-            try {
-                Object oldValue = normalize(field.get(oldObj));
-                Object newValue = normalize(field.get(newObj));
-
-                String label = toFrenchLabel(field.getName());
-
-                if (oldValue instanceof LocalDateTime
-                        && newValue instanceof LocalDateTime) {
-
-                    Instant oldInstant =
-                            ((LocalDateTime) oldValue)
-                                    .atZone(APP_ZONE)
-                                    .toInstant();
-
-                    Instant newInstant =
-                            ((LocalDateTime) newValue)
-                                    .atZone(APP_ZONE)
-                                    .toInstant();
-
-                    if (!oldInstant.equals(newInstant)) {
-                        changes.put(label, new Object[]{oldValue, newValue});
-                    }
-                    continue;
-                }
-
-                if (!Objects.equals(oldValue, newValue)) {
-                    changes.put(label, new Object[]{oldValue, newValue});
-                }
-
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(
-                        "Error diffing field: " + field.getName(), e
-                );
-            }
-        }
-        return changes;
-    }
-
-    private static Object normalize(Object value) {
-        if (value instanceof String) {
-            String s = ((String) value).trim();
-            return s.isEmpty() ? null : s;
-        }
-        return value;
-    }
-
-    private static String toFrenchLabel(String fieldName) {
-
-        String label = fieldName
-                .replaceAll("([a-z])([A-Z])", "$1 $2")
-                .toLowerCase();
-
-        label = label.substring(0, 1).toUpperCase() + label.substring(1);
-
-        label = label
-                .replace("num ", "Numéro ")
-                .replace("immat ", "Immatriculation ")
-                .replace("ville ", "Ville ")
-                .replace("date ", "Date ")
-                .replace("rc", "RC");
-
-        return label;
-    }
+private getAuthenticatedUser(): Observable<any> {
+  if (!this.authenticatedUser$) {
+    this.authenticatedUser$ = this.httpClient
+      .get(environment.baseUrl + '/api/cockpit/users/authenticated-user')
+      .pipe(shareReplay(1));
+  }
+  return this.authenticatedUser$;
 }
 ```
 
 ---
 
-## \u2705 Result in history (exactly what you want)
+## 2\ufe0f\u20e3 Rewrite permission method (NO extra HTTP calls)
 
-```
-Ville RC=Paris;
-Numéro contrat=CN-123;
-Date début=01/01/2026;
+```ts
+getAuthenticatedUtilisateur(permissionName: string): Observable<boolean> {
+  return this.getAuthenticatedUser().pipe(
+    map((obj: any) =>
+      obj.roles?.some((role: any) =>
+        role.permissions?.some((perm: any) => perm.name === permissionName)
+      ) ?? false
+    )
+  );
+}
 ```
 
-No camelCase
-No extra class
-Clean French display \U0001f1eb\U0001f1f7
+\u2714 Backend called **ONLY ONCE**
+\u2714 Every permission check uses **cached data**
+\u2714 Clean & scalable
 
 ---
 
-## \u26a0\ufe0f Small warning (important)
+# 3\ufe0f\u20e3 Your component stays almost unchanged
 
-Because you now store **labels as map keys**, you **can\u2019t rely on field names anymore later**.
+```ts
+checkPermissions() {
+  this.options = [];
 
-\U0001f449 This is **perfect for display**, but if later you want:
+  this.userService.getAuthenticatedUtilisateur('Ajouter Initiative')
+    .subscribe(v => v && this.options.push('Initiative'));
 
-* structured audit
-* JSON diff
-* API usage
+  this.userService.getAuthenticatedUtilisateur('Initier Demande COPRO')
+    .subscribe(v => v && this.options.push('Demande COPRO'));
 
-Tell me and I\u2019ll show you the **dual-key approach** (fieldName + label).
+  this.userService.getAuthenticatedUtilisateur('Initier Transfert')
+    .subscribe(v => v && this.options.push('Transfert Budget Investissement'));
 
-If you want next:
+  this.userService.getAuthenticatedUtilisateur('Initier Exercice Atterrissage')
+    .subscribe(v => v && this.options.push('Exercice atterissage'));
+}
+```
 
-* Better French grammar
-* Abbreviations (`RC`, `WW`, `ICE`)
-* Section headers (Véhicule / Crédit)
+Even if called **100 times**, backend = **1 call only** \U0001f525
 
-I\u2019ve got you \U0001f604
+---
+
+# \U0001f680 EVEN BETTER (cleaner component)
+
+Add helper:
+
+```ts
+hasPermission(permission: string): Observable<boolean> {
+  return this.getAuthenticatedUtilisateur(permission);
+}
+```
+
+Then:
+
+```ts
+checkPermissions() {
+  this.options = [];
+
+  this.hasPermission('Ajouter Initiative').subscribe(v => v && this.options.push('Initiative'));
+  this.hasPermission('Initier Demande COPRO').subscribe(v => v && this.options.push('Demande COPRO'));
+  this.hasPermission('Initier Transfert').subscribe(v => v && this.options.push('Transfert Budget Investissement'));
+  this.hasPermission('Initier Exercice Atterrissage').subscribe(v => v && this.options.push('Exercice atterissage'));
+}
+```
+
+---
+
+# \U0001f3af Result
+
+### Before
+
+\u274c 4\u201320 HTTP calls
+\u274c slow popup
+\u274c bad architecture
+
+### After
+
+\u2705 **1 HTTP call total**
+\u2705 instant permission checks
+\u2705 enterprise-level Angular pattern
+
+---
+
+If you'd like, next step I can show you:
+
+* **Angular Permission Guard (route protection)**
+* **Structural directive `*hasPermission`**
+* **Spring Boot JWT permission optimization**
+
+Just tell me and I\u2019ll build it with you step-by-step.
